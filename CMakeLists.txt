@@ -98,7 +98,7 @@ target_compile_definitions(slobs-updater
 
 find_program(WIN_MT "mt.exe")
 
-if (WIN_MT-NOTFOUND)
+if (NOT WIN_MT)
 	message(FATAL_ERROR "Failed to find mt.exe to embed manifest")
 endif ()
 
