@@ -55,14 +55,11 @@ MultiByteCommandLine::MultiByteCommandLine()
 	 * Anyways... this converts each UTF-16LE string
 	 * to UTF-8 (or something it understands). */
 	for (int i = 0; i < m_argc; ++i) {
-		BOOL bUsedDefaultChar;
-
 		DWORD size = WideCharToMultiByte(
 			CP_UTF8, 0,
 			wargv[i], -1,
 			NULL, 0,
-			NULL,
-			&bUsedDefaultChar
+			NULL, NULL
 		);
 
 		m_argv[i] = new CHAR[size];
@@ -71,8 +68,7 @@ MultiByteCommandLine::MultiByteCommandLine()
 			CP_UTF8, 0,
 			wargv[i], -1,
 			m_argv[i], size,
-			NULL,
-			&bUsedDefaultChar
+			NULL, NULL
 		);
 	}
 
