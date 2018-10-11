@@ -1,1 +1,24 @@
+#include "Windows.h"
+
 AppIcon ICON icon.ico
+
+1 VERSIONINFO
+FILEVERSION    0,0,0,0
+PRODUCTVERSION 0,0,0,0
+FILEOS         VOS_NT
+FILETYPE       VFT_APP
+{
+    BLOCK "StringFileInfo" {
+        BLOCK "040904b0" {
+            VALUE "FileDescription",  "Streamlabs OBS Updater"
+            VALUE "ProductName",      "Streamlabs OBS Updater"
+            VALUE "CompanyName",      "General Workings, Inc."
+            VALUE "LegalCopyright",   "General Workings, Inc."
+        }
+    }
+
+    BLOCK "VarFileInfo"
+    {
+        VALUE "Translation", 0x0409 0x04B0
+    }
+}
