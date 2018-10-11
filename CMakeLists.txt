@@ -15,6 +15,8 @@ set(FLTK_SKIP_FORMS ON)
 set(FLTK_SKIP_FLUID ON)
 set(FLTK_SKIP_IMAGES ON)
 
+option(USE_STREAMLABS_ICON "Embed and use the streamlabs icon in the resulting executable" OFF)
+
 find_package(ZLIB REQUIRED)
 find_package(OpenSSL 1.1.0 EXACT REQUIRED)
 find_package(FLTK REQUIRED)
@@ -55,6 +57,10 @@ add_executable(slobs-updater
 	# logger
 	src/logger/log.c src/logger/log.h
 )
+
+if (USE_STREAMLABS_ICON)
+	target_sources(slobs-updater PUBLIC resources/slobs-updater.rc)
+endif ()
 
 target_compile_options(slobs-updater
 	PRIVATE
