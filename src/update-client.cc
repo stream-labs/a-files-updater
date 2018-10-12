@@ -716,7 +716,7 @@ static size_t handle_manifest_read_buffer(
 		buf = (const char*)buffer.data() + accum;
 
 		bool regex_result = regex_search(
-			buf, buf + buf_size,
+			&buf[0], &buf[buf_size],
 			matches, manifest_regex
 		);
 
@@ -767,7 +767,7 @@ void update_client::handle_manifest_response(
 	}
 
 	auto &response_parser = safe_request_ctx->response_parser;
-	auto &dynamic_buffer = response_parser.get().body();
+	auto &buffer = response_parser.get().body();
 	int status_code = response_parser.get().result_int();
 
 	if (status_code != 200) {
@@ -778,14 +778,8 @@ void update_client::handle_manifest_response(
 		return;
 	}
 
-	for (
-	  auto iter = asio::buffer_sequence_begin(dynamic_buffer.data());
-	  iter != asio::buffer_sequence_end(dynamic_buffer.data());
-	  ++iter
-	) {
-		handle_manifest_read_buffer(this->manifest, *iter);
-	}
-
+	/* Flatbuffer doesn't return a buffer sequence.  */
+	handle_manifest_read_buffer(this->manifest, buffer.data());
 	handle_manifest_results();
 };
 
@@ -804,8 +798,8 @@ void update_client::handle_manifest_request(
 		return;
 	}
 
-	auto read_handler = [this, request_ctx] (auto i, auto e) {
-		this->handle_manifest_response(i, e, request_ctx);
+	auto read_handler = [this, request_ctx] (auto e, auto bt) {
+		this->handle_manifest_response(e, bt, request_ctx);
 	};
 
 	if (request_ctx->response_parser.is_done()) {
