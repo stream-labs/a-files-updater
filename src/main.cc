@@ -217,6 +217,12 @@ struct callbacks_impl :
 
 		frame->label("Streamlabs OBS Updater");
 
+		HICON app_icon = LoadIcon(
+			GetModuleHandle(NULL), TEXT("AppIcon")
+		);
+
+		frame->default_icons(app_icon, app_icon);
+
 		/* 23, 36, 45 - Streamlabs Gray */
 		frame->color(fl_rgb_color(23, 36, 45));
 
