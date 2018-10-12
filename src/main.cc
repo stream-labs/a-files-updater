@@ -247,15 +247,10 @@ struct callbacks_impl :
 	{
 		frame->begin();
 
-		/* For whatever reason, we're given 10
-		 * pixels of buffer space on position
-		 * already. Can't figure out why. So
-		 * setting this to 10 will actually
-		 * set position to 20. */
-		int x_pos = 10;
-		int y_size = 20;
-		int x_size = width - 20;
-		int y_pos = (height / 2);
+		int x_pos  = 10;
+		int y_size = 40;
+		int x_size = width - (x_pos * 2);
+		int y_pos  = (height / 2) - (y_size / 2);
 
 		progress_worker =
 			new Fl_Progress(x_pos, y_pos, x_size, y_size);
