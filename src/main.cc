@@ -191,8 +191,8 @@ struct callbacks_impl :
 	  updater_callbacks,
 	  pid_callbacks
 {
-	int x = 300;
-	int y = 100;
+	int width{400};
+	int height{180};
 	Fl_Window *frame{nullptr}; /* Toplevel window */
 	Fl_Progress* progress_worker{nullptr};
 	std::atomic_uint files_done{0};
@@ -209,7 +209,11 @@ struct callbacks_impl :
 
 	callbacks_impl()
 	{
-		frame = new Fl_Double_Window(x, y);
+		frame = new Fl_Double_Window(
+			(Fl::w() - width) / 2,
+			(Fl::h() - height) / 2,
+			width, height
+		);
 
 		frame->label("Streamlabs OBS Updater");
 
@@ -244,8 +248,8 @@ struct callbacks_impl :
 		 * set position to 20. */
 		int x_pos = 10;
 		int y_size = 20;
-		int x_size = x - 20;
-		int y_pos = (y / 2);
+		int x_size = width - 20;
+		int y_pos = (height / 2);
 
 		progress_worker =
 			new Fl_Progress(x_pos, y_pos, x_size, y_size);
