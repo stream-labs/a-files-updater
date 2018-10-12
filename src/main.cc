@@ -20,6 +20,9 @@ namespace chrono = std::chrono;
 using chrono::high_resolution_clock;
 using chrono::duration_cast;
 
+/* Some basic constants that are adjustable at compile time */
+const double average_time_span = 1.0;
+
 /* Because Windows doesn't provide us a Unicode
  * command line by default and the command line
  * it does provide us is in UTF-16LE. */
@@ -184,6 +187,11 @@ BOOL StartApplication(const char *lpCommandLine, const char *lpWorkingDir)
 	return bSuccess;
 }
 
+struct bandwidth_chunk {
+	high_resolution_clock::time_point time_point;
+	size_t chunk_size;
+};
+
 struct callbacks_impl :
 	public
 	  client_callbacks,
@@ -199,8 +207,10 @@ struct callbacks_impl :
 	std::vector<size_t> file_sizes{0};
 	size_t num_files{0};
 	int num_workers{0};
-	size_t total_accum{0};
 	high_resolution_clock::time_point start_time;
+	size_t total_consumed{0};
+	size_t total_consumed_last_tick{0};
+	double last_calculated_bandwidth{0.0};
 
 	callbacks_impl(const callbacks_impl&) = delete;
 	callbacks_impl(const callbacks_impl&&) = delete;
@@ -293,45 +303,45 @@ struct callbacks_impl :
 		file_sizes[thread_index] = size;
 	}
 
+	static void bandwidth_tick(void *impl)
+	{
+		auto ctx = static_cast<callbacks_impl *>(impl);
+
+		Fl::lock();
+
+		/* Compare current total to last previous total,
+		 * then divide by timeout time */
+		ctx->last_calculated_bandwidth =
+			(double)(ctx->total_consumed - ctx->total_consumed_last_tick);
+
+		/* Average over a set period of time */
+		ctx->last_calculated_bandwidth /= average_time_span;
+
+		/* Convert from bytes to megabytes */
+		ctx->last_calculated_bandwidth *= 0.000001;
+
+		ctx->total_consumed_last_tick = ctx->total_consumed;
+
+		Fl::repeat_timeout(average_time_span, bandwidth_tick, impl);
+		Fl::unlock();
+	}
+
 	void download_progress(
 	  int thread_index,
 	  size_t consumed,
 	  size_t accum
 	) final {
-		total_accum += consumed;
-
-		high_resolution_clock::time_point current_time =
-			high_resolution_clock::now();
-
-		/* Convert bytes to megabytes */
-		double average = total_accum * 0.000001;
-
-		/* We calculate against nanoseconds to give a more accurate read,
-		 * otherwise we'd have lots of variance. Here we just multiply
-		 * the result to take into account that we use nanoseconds and not
-		 * seconds */
-		auto time_passed = current_time - start_time;
-
-		auto time_passed_ns =
-			duration_cast<std::chrono::nanoseconds>(time_passed);
-
-		average /= time_passed_ns.count();
-		average *= 1000000000.0;
-
-		/* Note that the above takes an average over the period of time the
-		 * downloader started. This means that if bandwidth suddenly changes
-		 * towards the end of the updater, it won't seem to make much difference.
-		 * For now, I think this is alright but could be improved. */
-
+		total_consumed += consumed;
 		/* We don't currently show per-file progress but we could
 		 * progress the bar based on files_done + remainder of
 		 * all in-progress files done. */
-		const char *label_format = "Downloading {} of {} - {:.2f} MB/s";
+
+		const char *label_format{ "Downloading {} of {} - {:.2f} MB/s" };
 
 		if (accum != file_sizes[thread_index]) {
 			std::string label = fmt::format(
 				label_format, files_done,
-				num_files, average
+				num_files, last_calculated_bandwidth
 			);
 
 			Fl::lock();
@@ -348,7 +358,7 @@ struct callbacks_impl :
 
 		std::string label = fmt::format(
 			label_format, files_done,
-			num_files, average
+			num_files, last_calculated_bandwidth
 		);
 
 		Fl::lock();
@@ -426,6 +436,11 @@ int wWinMain(
 	update_client_set_pid_events(client.get(), &cb_impl);
 	update_client_start(client.get());
 
+	Fl::add_timeout(
+		average_time_span,
+		callbacks_impl::bandwidth_tick,
+		&cb_impl
+	);
 	Fl::run();
 
 	update_client_flush(client.get());
