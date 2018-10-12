@@ -326,7 +326,7 @@ struct callbacks_impl :
 		/* We don't currently show per-file progress but we could
 		 * progress the bar based on files_done + remainder of
 		 * all in-progress files done. */
-		const char *label_format = "Downloading {} of {} - {:.2f} MB\\s";
+		const char *label_format = "Downloading {} of {} - {:.2f} MB/s";
 
 		if (accum != file_sizes[thread_index]) {
 			std::string label = fmt::format(
