@@ -361,6 +361,7 @@ struct callbacks_impl :
 		progress_worker->copy_label(label.c_str());
 		progress_worker->value(percent);
 		Fl::unlock();
+		Fl::awake();
 	}
 
 	void download_worker_finished(int thread_index) final
