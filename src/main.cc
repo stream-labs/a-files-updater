@@ -210,7 +210,7 @@ struct callbacks_impl :
 	high_resolution_clock::time_point start_time;
 	size_t total_consumed{0};
 	size_t total_consumed_last_tick{0};
-	double last_calculated_bandwidth{0.0};
+	std::atomic<double> last_calculated_bandwidth{0.0};
 
 	callbacks_impl(const callbacks_impl&) = delete;
 	callbacks_impl(const callbacks_impl&&) = delete;
@@ -306,24 +306,21 @@ struct callbacks_impl :
 	static void bandwidth_tick(void *impl)
 	{
 		auto ctx = static_cast<callbacks_impl *>(impl);
-
-		Fl::lock();
-
 		/* Compare current total to last previous total,
 		 * then divide by timeout time */
-		ctx->last_calculated_bandwidth =
+		double bandwidth =
 			(double)(ctx->total_consumed - ctx->total_consumed_last_tick);
 
 		/* Average over a set period of time */
-		ctx->last_calculated_bandwidth /= average_time_span;
+		bandwidth /= average_time_span;
 
 		/* Convert from bytes to megabytes */
-		ctx->last_calculated_bandwidth *= 0.000001;
-
+		/* Note that it's important to have only one place where
+		 * we atomically assign to last_calculated_bandwidth */
+		ctx->last_calculated_bandwidth = bandwidth * 0.000001;
 		ctx->total_consumed_last_tick = ctx->total_consumed;
 
 		Fl::repeat_timeout(average_time_span, bandwidth_tick, impl);
-		Fl::unlock();
 	}
 
 	void download_progress(
