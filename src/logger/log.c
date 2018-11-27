@@ -134,3 +134,51 @@ void log_log(int level, const char *file, int line, const char *fmt, ...) {
   /* Release lock */
   unlock();
 }
+
+void wlog_log(int level, const char *file, int line, const wchar_t *fmt, ...) {
+  if (level < L.level) {
+    return;
+  }
+
+  /* Acquire lock */
+  lock();
+
+  /* Get current time */
+  time_t t = time(NULL);
+  struct tm *lt = localtime(&t);
+
+  /* Log to stderr */
+  if (!L.quiet) {
+    va_list args;
+    wchar_t buf[16];
+    buf[wcsftime(buf, sizeof(buf), L"%H:%M:%S", lt)] = L'\0';
+#ifdef LOG_USE_COLOR
+    fwprintf(
+      stderr, L"%s %s%-5s\x1b[0m \x1b[90m%S:%d:\x1b[0m ",
+      buf, level_colors[level], level_names[level], file, line);
+#else
+    fwprintf(stderr, L"%s %-5S %S:%d: ", buf, level_names[level], file, line);
+#endif
+    va_start(args, fmt);
+    vfwprintf(stderr, fmt, args);
+    va_end(args);
+    fwprintf(stderr, L"\n");
+    fflush(stderr);
+  }
+
+  /* Log to file */
+  if (L.fp) {
+    va_list args;
+    wchar_t buf[32];
+    buf[wcsftime(buf, sizeof(buf), L"%Y-%m-%d %H:%M:%S", lt)] = L'\0';
+    fwprintf(L.fp, L"%s %-5S %S:%d: ", buf, level_names[level], file, line);
+    va_start(args, fmt);
+    vfwprintf(L.fp, fmt, args);
+    va_end(args);
+    fwprintf(L.fp, L"\n");
+    fflush(L.fp);
+  }
+
+  /* Release lock */
+  unlock();
+}
