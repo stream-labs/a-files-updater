@@ -5,7 +5,7 @@
 struct client_callbacks {
 	virtual void initialize() = 0;
 	virtual void success() = 0;
-	virtual void error() = 0;
+	virtual void error(const char *error) = 0;
 };
 
 /* Sequence of events:

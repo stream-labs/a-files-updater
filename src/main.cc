@@ -245,6 +245,8 @@ struct callbacks_impl :
 	size_t total_consumed{0};
 	size_t total_consumed_last_tick{0};
 	std::atomic<double> last_calculated_bandwidth{0.0};
+	char *error_buf{nullptr};
+	bool should_start{false};
 
 	callbacks_impl(const callbacks_impl&) = delete;
 	callbacks_impl(const callbacks_impl&&) = delete;
@@ -285,6 +287,19 @@ struct callbacks_impl :
 		delete impl->frame;
 	}
 
+	static void error_impl(void *data)
+	{
+		auto *impl = static_cast<callbacks_impl*>(data);
+
+		fl_message("An error occurred: %s", impl->error_buf);
+		log_debug("Error: %s", impl->error_buf);
+
+		delete [] impl->error_buf;
+		impl->error_buf = nullptr;
+
+		delete impl->frame;
+	}
+
 	~callbacks_impl() { }
 
 	void initialize() final
@@ -310,13 +325,15 @@ struct callbacks_impl :
 
 	void success() final
 	{
+		this->should_start = true;
 		Fl::awake(kill_impl, this);
 	}
 
-	void error() final
+	void error(const char* error) final
 	{
-		Fl::awake(kill_impl, this);
-
+		this->error_buf = new char[strlen(error) + 1];
+		strcpy(this->error_buf, error);
+		Fl::awake(error_impl, this);
 	}
 
 	void downloader_start(int num_threads, size_t num_files_) final
@@ -471,11 +488,17 @@ int wWinMain(
 		callbacks_impl::bandwidth_tick,
 		&cb_impl
 	);
+
 	Fl::run();
 
 	update_client_flush(client.get());
 
 	Fl::unlock();
+
+	/* Don't attempt start if application failed to update */
+	if (!cb_impl.should_start) {
+		return 1;
+	}
 
 #define THERE_OR_NOT(x) \
 	((x).empty() ? NULL : (x).c_str())

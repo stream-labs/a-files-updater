@@ -148,8 +148,17 @@ private:
 	  const boost::system::error_code &error,
 	  const char* str
 	) {
-		log_error("%s - %s", error.message().c_str(), str);
-		client_events->error();
+		char error_buf[256];
+
+		snprintf(
+			error_buf,
+			sizeof(error_buf),
+			"%s - %s",
+			error.message().c_str(),
+			str
+		);
+
+		client_events->error(error_buf);
 	}
 
 	void start_downloader();
@@ -415,7 +424,11 @@ void update_client::start_file_update()
 		client_events->success();
 	} catch (...) {
 		updater.revert();
-		client_events->error();
+		client_events->error(
+			"Failed to move files.\n"
+			"Please make sure the application files "
+			"are not in use and try again."
+		);
 	}
 }
 
