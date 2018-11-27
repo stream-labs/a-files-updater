@@ -13,6 +13,7 @@
 
 #include "cli-parser.hpp"
 #include "update-client.hpp"
+#include "logger/log.h"
 
 namespace fs = boost::filesystem;
 namespace chrono = std::chrono;
@@ -87,6 +88,25 @@ MultiByteCommandLine::~MultiByteCommandLine()
 	delete m_argv;
 }
 
+void LogLastError(LPWSTR lpFunctionName)
+{
+	DWORD  dwError = GetLastError();
+	DWORD  szMsgBuf = 1024;
+	LPTSTR strMsgBuf = new wchar_t[szMsgBuf];
+
+	FormatMessageW(
+		FORMAT_MESSAGE_FROM_SYSTEM |
+		FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL, dwError, 0,
+		strMsgBuf, szMsgBuf,
+		NULL
+	);
+
+	wlog_debug(L"%s: %.*s", lpFunctionName, szMsgBuf, strMsgBuf);
+
+	delete [] strMsgBuf;
+}
+
 BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory)
 {
 	BOOL bSuccess;
@@ -108,13 +128,17 @@ BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory)
 		FALSE, dwShellProcId
 	);
 
-	if (hShellProc == NULL)
+	if (hShellProc == NULL) {
+		LogLastError(L"OpenProcess");
 		return FALSE;
+	}
 
 	bSuccess = OpenProcessToken(hShellProc, TOKEN_DUPLICATE, &hShellToken);
 
-	if (bSuccess == 0)
+	if (bSuccess == 0) {
+		LogLastError(L"OpenProcessToken");
 		return FALSE;
+	}
 
 	bSuccess = DuplicateTokenEx(
 		hShellToken,
@@ -127,10 +151,12 @@ BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory)
 		&hNewToken
 	);
 
-	if (bSuccess == 0)
+	if (bSuccess == 0) {
+		LogLastError(L"DuplicateTokenEx");
 		return FALSE;
+	}
 
-	return CreateProcessWithTokenW(
+	bSuccess = CreateProcessWithTokenW(
 		hNewToken,
 		0, NULL,
 		lpCommandLine,
@@ -139,6 +165,13 @@ BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory)
 		&xStartupInfo,
 		&xProcInfo
 	);
+
+	if (bSuccess == 0) {
+		LogLastError(L"CreateProcessWithTokenW");
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 static LPWSTR ConvertToUtf16(const char *from, int *from_size)
@@ -159,6 +192,7 @@ static LPWSTR ConvertToUtf16(const char *from, int *from_size)
 
 	if (size == 0) {
 		*from_size = 0;
+		LogLastError(L"MultiByteToWideChar");
 		return NULL;
 	}
 
