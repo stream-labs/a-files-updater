@@ -37,7 +37,7 @@ static void print_generic_arg(const Arg *arg, Val *values, size_t length)
 
 	for (int i = 0; i < length; ++i) {
 		log_debug(
-			"%s,%s count: %s\n",
+			"%s,%s count: %s",
 			short_names, long_names,
 			fmt::format("{}", values[i]).c_str()
 		);
@@ -61,7 +61,7 @@ static void print_integer_arg(const struct arg_int *arg)
 
 static void print_end_arg(const struct arg_end *arg)
 {
-	log_debug("end of arguments\n");
+	log_debug("end of arguments");
 }
 
 static void print_arg(const void *arg, enum arg_type type)
@@ -109,11 +109,11 @@ static fs::path fetch_path(const char *str, size_t length)
 {
 	fs::path path(str, str + length);
 
-	log_debug("Given to fetch path: %.*s\n", length, str);
+	log_debug("Given to fetch path: %.*s", length, str);
 
 	fs::path result(fs::absolute(path).make_preferred());
 
-	log_debug("Result of fetch path: %s\n", result.string().c_str());
+	log_debug("Result of fetch path: %s", result.string().c_str());
 
 	return result;
 }
@@ -220,9 +220,9 @@ bool su_parse_command_line(
 	} else {
 		params->temp_dir = fetch_default_temp_dir();
 
-		log_info("Temporary directory not provided.\n");
+		log_info("Temporary directory not provided.");
 
-		log_info("Generated temporary directory: %s\n",
+		log_info("Generated temporary directory: %s",
 			params->temp_dir.string().c_str()
 		);
 
@@ -260,7 +260,7 @@ bool su_parse_command_line(
 		success = validate_https_uri(&params->host);
 
 	if (!success) {
-		log_fatal("Invalid uri given for base_uri\n");
+		log_fatal("Invalid uri given for base_uri");
 	}
 
 	params->app_dir =
@@ -275,7 +275,7 @@ bool su_parse_command_line(
 		params->exec_cwd.assign(cwd_arg->sval[0]);
 	}
 
-	const char *invalid_fn_str = "Invalid path given for %s\n";
+	const char *invalid_fn_str = "Invalid path given for %s";
 
 	if (params->app_dir.empty()) {
 		log_fatal(invalid_fn_str, "app_dir");
@@ -288,16 +288,16 @@ bool su_parse_command_line(
 	}
 
 	if (!params->app_dir.empty() && !fs::exists(params->app_dir)) {
-		log_fatal("Application directory doesn't exist\n");
+		log_fatal("Application directory doesn't exist");
 		success = false;
 	}
 
 	if (!params->temp_dir.empty() && fs::exists(params->temp_dir)) {
 		if (force_arg->count == 0) {
-			log_fatal("Temporary directory already exists.\n");
+			log_fatal("Temporary directory already exists.");
 			success = false;
 		} else {
-			log_warn("Forcing temporary directory!\n");
+			log_warn("Forcing temporary directory!");
 		}
 	}
 
