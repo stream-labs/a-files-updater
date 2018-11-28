@@ -93,6 +93,8 @@ target_compile_definitions(slobs-updater
 		-DUNICODE
 		-D_UNICODE
 		-DBOOST_IOSTREAMS_NO_LIB
+		#It might be worth removing this eventually
+		-D_CRT_SECURE_NO_WARNINGS
 )
 
 find_program(WIN_MT "mt.exe")
