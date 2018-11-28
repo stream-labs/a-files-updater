@@ -1,6 +1,6 @@
 Copy-Item `
-        -Path "build\$env:BUILD_TYPE\slobs-updater.exe" `
-        -Destination "build\$env:BUILD_TYPE\slobs-updater-signed-$env:BUILD_TYPE.exe"
+        -Path "build\slobs-updater.exe" `
+        -Destination "build\slobs-updater-signed-$env:BUILD_TYPE.exe"
 
 & secure-file\tools\secure-file `
         -decrypt ci\streamlabsp12.pfx.enc `
@@ -15,10 +15,10 @@ if ($LASTEXITCODE -ne 0) {
         sign /as /p "$env:STREAMLABS_SECRET" `
         /f ci\streamlabsp12.pfx `
         /d "Streamlabs OBS Updater" `
-        "build\$env:BUILD_TYPE\slobs-updater-signed-$env:BUILD_TYPE.exe"
+        "build\slobs-updater-signed-$env:BUILD_TYPE.exe"
 
 if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-Push-AppveyorArtifact "build\$env:BUILD_TYPE\slobs-updater-signed-$env:BUILD_TYPE.exe"
+Push-AppveyorArtifact "build\slobs-updater-signed-$env:BUILD_TYPE.exe"
