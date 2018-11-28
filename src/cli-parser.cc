@@ -136,6 +136,8 @@ bool su_parse_command_line(
 	bool success = true;
 	fs::path log_path;
 
+	const char *invalid_fn_str = "Invalid path given for %s";
+
 	struct arg_lit *help_arg = arg_lit0("h", "help",
 		"Print information about this program");
 
@@ -274,8 +276,6 @@ bool su_parse_command_line(
 	if (cwd_arg->count > 0) {
 		params->exec_cwd.assign(cwd_arg->sval[0]);
 	}
-
-	const char *invalid_fn_str = "Invalid path given for %s";
 
 	if (params->app_dir.empty()) {
 		log_fatal(invalid_fn_str, "app_dir");
