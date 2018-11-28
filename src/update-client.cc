@@ -252,8 +252,8 @@ struct update_client::http_request {
 
 	http_request(
 	  update_client *client_ctx,
-	  std::string &target,
-	  int id
+	  const std::string &target,
+	  const int id
 	);
 
 	size_t download_accum{0};
@@ -363,9 +363,10 @@ void FileUpdater::revert()
 template <class Body, bool IncludeVersion>
 update_client::http_request<Body, IncludeVersion>::http_request(
   update_client *client_ctx,
-  std::string &target,
-  int id)
-: client_ctx(client_ctx),
+  const std::string &target,
+  const int id
+) :
+  client_ctx(client_ctx),
   ssl_socket(client_ctx->io_ctx, client_ctx->ssl_context),
   target(target),
   worker_id(id)
@@ -705,7 +706,7 @@ void update_client::handle_manifest_results()
 template <class ConstBuffer>
 static size_t handle_manifest_read_buffer(
   update_client::manifest_map &map,
-  ConstBuffer &buffer
+  const ConstBuffer &buffer
 ) {
 	/* TODO: Hardcoded for SHA-256 checksums. */
 	static const regex manifest_regex(
@@ -893,10 +894,10 @@ struct update_client::file {
 
 	bio::chain<bio::output> output_chain;
 
-	explicit file(fs::path &path);
+	explicit file(const fs::path &path);
 };
 
-update_client::file::file(fs::path &file_path)
+update_client::file::file(const fs::path &file_path)
  : file_path(file_path), file_stream(file_path, file_flags)
 {
 	if (this->file_stream.bad()) {
@@ -926,7 +927,7 @@ update_client::file::file(fs::path &file_path)
 	);
 }
 
-fs::path generate_file_path(fs::path &base, fs::path &target)
+fs::path generate_file_path(const fs::path &base, const fs::path &target)
 {
 	fs::path file_path(base);
 	file_path /= target;
@@ -998,7 +999,7 @@ void update_client::handle_file_result(
 
 void handle_file_response_buffer(
   update_client::file *file_ctx,
-  asio::const_buffer &buffer
+  const asio::const_buffer &buffer
 ) {
 	file_ctx->output_chain.write(
 		(const char*)buffer.data(),
