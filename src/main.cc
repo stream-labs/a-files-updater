@@ -84,7 +84,7 @@ MultiByteCommandLine::~MultiByteCommandLine()
 	delete m_argv;
 }
 
-void LogLastError(LPWSTR lpFunctionName)
+void LogLastError(LPCWSTR lpFunctionName)
 {
 	DWORD  dwError = GetLastError();
 	DWORD  szMsgBuf = 1024;
