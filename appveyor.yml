@@ -55,7 +55,7 @@ build_script:
   - if exist "%BUILD_TYPE%\slobs-updater.pdb" appveyor PushArtifact "%BUILD_TYPE%\slobs-updater.pdb"
 
 artifacts:
-- path: build\$(BUILD_TYPE)\*.exe
+- path: build\*.exe
 
 before_deploy:
 - ps: ci\appveyor\sign_binaries.ps1
