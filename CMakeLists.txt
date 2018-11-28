@@ -10,16 +10,11 @@ set(CMAKE_MODULE_PATH
 set(OPENSSL_USE_STATIC_LIBS ON)
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_STATIC_RUNTIME ON)
-set(FLTK_SKIP_OPENGL ON)
-set(FLTK_SKIP_FORMS ON)
-set(FLTK_SKIP_FLUID ON)
-set(FLTK_SKIP_IMAGES ON)
 
 option(USE_STREAMLABS_RESOURCE "Embed and use the streamlabs resource file in the resulting executable" OFF)
 
 find_package(ZLIB REQUIRED)
 find_package(OpenSSL 1.1.0 EXACT REQUIRED)
-find_package(FLTK REQUIRED)
 
 find_package(Boost
 	1.67.0 EXACT
@@ -72,7 +67,6 @@ target_compile_options(slobs-updater
 target_include_directories(slobs-updater
 	PRIVATE src/argtable
 	PRIVATE src/fmt
-	PRIVATE ${FLTK_INCLUDE_DIR}
 )
 
 target_link_libraries(slobs-updater
@@ -81,7 +75,6 @@ target_link_libraries(slobs-updater
 	Boost::iostreams
 	Boost::system
 	Boost::date_time
-	${FLTK_LIBRARIES}
 	OpenSSL::SSL #Note that this pulls in Crypto
 	ZLIB::ZLIB
 	# -MANIFESTUAC:level=requireAdministrator

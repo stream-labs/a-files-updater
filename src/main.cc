@@ -1,12 +1,8 @@
 #include <chrono>
+
 #include <windows.h>
 #include <shellapi.h>
-
-#include <FL/Fl.H>
-#include <FL/Fl_Double_Window.H>
-#include <FL/Fl_Progress.H>
-#include <FL/fl_ask.H>
-#include <FL/x.H>
+#include <CommCtrl.h>
 
 #include <boost/filesystem.hpp>
 #include <fmt/format.h>
@@ -226,6 +222,24 @@ struct bandwidth_chunk {
 	size_t chunk_size;
 };
 
+/* We cannot use the default WM_CLOSE since there
+ * are various things outside of our control that
+ * can send this event (such as right click and close).
+ * However, we also cannot send a WM_DESTROY notification
+ * either (it causes jank and unexpected behavior since
+ * it's expected that DestroyWindow be called). So we
+ * create a custom message type here and send it to be
+ * executed in the main thread instead to properly call
+ * DestroyWindow for us. */
+#define CUSTOM_CLOSE_MSG (WM_USER + 1)
+
+/* Same as above but this differentiates behavior.
+ * It allows us to assume there's an error and to
+ * handle that error before closing. */
+#define CUSTOM_ERROR_MSG (WM_USER + 2)
+
+LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 struct callbacks_impl :
 	public
 	  client_callbacks,
@@ -233,10 +247,13 @@ struct callbacks_impl :
 	  updater_callbacks,
 	  pid_callbacks
 {
+	int screen_width{0};
+	int screen_height{0};
 	int width{400};
 	int height{180};
-	Fl_Window *frame{nullptr}; /* Toplevel window */
-	Fl_Progress* progress_worker{nullptr};
+	HWND frame{NULL}; /* Toplevel window */
+	HWND progress_worker{NULL};
+	HWND progress_label{NULL};
 	std::atomic_uint files_done{0};
 	std::vector<size_t> file_sizes{0};
 	size_t num_files{0};
@@ -247,193 +264,51 @@ struct callbacks_impl :
 	std::atomic<double> last_calculated_bandwidth{0.0};
 	char *error_buf{nullptr};
 	bool should_start{false};
+	const char* label_format{"Downloading {} of {} - {:.2f} MB/s"};
 
 	callbacks_impl(const callbacks_impl&) = delete;
 	callbacks_impl(const callbacks_impl&&) = delete;
 	callbacks_impl &operator=(const callbacks_impl&) = delete;
 	callbacks_impl &operator=(callbacks_impl&&) = delete;
 
-	callbacks_impl()
-	{
-		frame = new Fl_Double_Window(
-			(Fl::w() - width) / 2,
-			(Fl::h() - height) / 2,
-			width, height
-		);
+	explicit callbacks_impl(HINSTANCE hInstance, int nCmdShow);
+	~callbacks_impl();
 
-		frame->label("Streamlabs OBS Updater");
+	void initialize() final;
+	void success() final;
+	void error(const char* error) final;
 
-		HICON app_icon = LoadIcon(
-			GetModuleHandle(NULL), TEXT("AppIcon")
-		);
-
-		frame->default_icons(app_icon, app_icon);
-
-		/* 23, 36, 45 - Streamlabs Gray */
-		frame->color(fl_rgb_color(23, 36, 45));
-
-		frame->end();
-		frame->show();
-
-		HWND hw = fl_xid(frame);
-
-		ULONG_PTR style = GetClassLongPtr(hw, GCL_STYLE);
-		SetClassLongPtr(hw, GCL_STYLE, style | CS_NOCLOSE);
-	}
-
-	static void kill_impl(void *data)
-	{
-		auto *impl = static_cast<callbacks_impl*>(data);
-		delete impl->frame;
-	}
-
-	static void error_impl(void *data)
-	{
-		auto *impl = static_cast<callbacks_impl*>(data);
-
-		fl_message("An error occurred: %s", impl->error_buf);
-		log_debug("Error: %s", impl->error_buf);
-
-		delete [] impl->error_buf;
-		impl->error_buf = nullptr;
-
-		delete impl->frame;
-	}
-
-	~callbacks_impl() { }
-
-	void initialize() final
-	{
-		frame->begin();
-
-		int x_pos  = 10;
-		int y_size = 40;
-		int x_size = width - (x_pos * 2);
-		int y_pos  = (height / 2) - (y_size / 2);
-
-		progress_worker =
-			new Fl_Progress(x_pos, y_pos, x_size, y_size);
-
-		/* 49, 195, 162 - Streamlabs Green */
-		progress_worker->color(FL_WHITE, fl_rgb_color(49, 195, 162));
-		progress_worker->minimum(0.f);
-		progress_worker->maximum(1.f);
-		progress_worker->copy_label("Looking for new files...");
-
-		frame->end();
-	}
-
-	void success() final
-	{
-		this->should_start = true;
-		Fl::awake(kill_impl, this);
-	}
-
-	void error(const char* error) final
-	{
-		this->error_buf = new char[strlen(error) + 1];
-		strcpy(this->error_buf, error);
-		Fl::awake(error_impl, this);
-	}
-
-	void downloader_start(int num_threads, size_t num_files_) final
-	{
-		file_sizes.resize(num_threads, 0);
-		this->num_files = num_files_;
-		start_time = high_resolution_clock::now();
-	}
+	void downloader_start(int num_threads, size_t num_files_) final;
 
 	void download_file(
 	  int thread_index,
 	  std::string &relative_path,
 	  size_t size
-	) final {
-		/* Our specific UI doesn't care when we start, we only
-		 * care when we're finished. A more technical UI could show
-		 * what each thread is doing if they so wanted. */
-		file_sizes[thread_index] = size;
-	}
+	);
 
-	static void bandwidth_tick(void *impl)
-	{
-		auto ctx = static_cast<callbacks_impl *>(impl);
-		/* Compare current total to last previous total,
-		 * then divide by timeout time */
-		double bandwidth =
-			(double)(ctx->total_consumed - ctx->total_consumed_last_tick);
+	static void bandwidth_tick(
+	  HWND hwnd,
+	  UINT uMsg,
+	  UINT_PTR idEvent,
+	  DWORD dwTime
+	);
 
-		/* Average over a set period of time */
-		bandwidth /= average_time_span;
-
-		/* Convert from bytes to megabytes */
-		/* Note that it's important to have only one place where
-		 * we atomically assign to last_calculated_bandwidth */
-		ctx->last_calculated_bandwidth = bandwidth * 0.000001;
-		ctx->total_consumed_last_tick = ctx->total_consumed;
-
-		Fl::repeat_timeout(average_time_span, bandwidth_tick, impl);
-	}
+	static void set_progress_label(
+	  HWND progress_label,
+	  HWND parent,
+	  const char* label
+	);
 
 	void download_progress(
 	  int thread_index,
 	  size_t consumed,
 	  size_t accum
-	) final {
-		total_consumed += consumed;
-		/* We don't currently show per-file progress but we could
-		 * progress the bar based on files_done + remainder of
-		 * all in-progress files done. */
+	) final;
 
-		const char *label_format{ "Downloading {} of {} - {:.2f} MB/s" };
+	void download_worker_finished(int thread_index) final { }
+	void downloader_complete() final { }
 
-		if (accum != file_sizes[thread_index]) {
-			std::string label = fmt::format(
-				label_format, files_done,
-				num_files, last_calculated_bandwidth
-			);
-
-			Fl::lock();
-			progress_worker->copy_label(label.c_str());
-			Fl::unlock();
-
-			return;
-		}
-
-		++files_done;
-
-		float percent = (float)files_done / (float)num_files;
-
-		std::string label = fmt::format(
-			label_format, files_done,
-			num_files, last_calculated_bandwidth
-		);
-
-		Fl::lock();
-		progress_worker->copy_label(label.c_str());
-		progress_worker->value(percent);
-		Fl::unlock();
-		Fl::awake();
-	}
-
-	void download_worker_finished(int thread_index) final
-	{
-	}
-
-	void downloader_complete() final
-	{
-	}
-
-	void pid_start() final
-	{
-		Fl::lock();
-
-		progress_worker->label("Waiting on application to exit...");
-		progress_worker->value(0.f);
-
-		Fl::unlock();
-		Fl::awake();
-	}
-
+	void pid_start() final { }
 	void pid_waiting_for(uint64_t pid) final { }
 	void pid_wait_finished(uint64_t pid) final { }
 	void pid_wait_complete() final { }
@@ -444,6 +319,274 @@ struct callbacks_impl :
 	void updater_complete() final { }
 };
 
+callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
+{
+	WNDCLASSEX wc;
+
+	HICON app_icon = LoadIcon(
+		GetModuleHandle(NULL), TEXT("AppIcon")
+	);
+
+	wc.cbSize        = sizeof(WNDCLASSEX);
+	wc.style         = CS_NOCLOSE;
+	wc.lpfnWndProc   = FrameWndProc;
+	wc.cbClsExtra    = 0;
+	wc.cbWndExtra    = 0;
+	wc.hInstance     = hInstance;
+	wc.hIcon         = app_icon;
+	wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+	wc.hbrBackground = CreateSolidBrush(RGB(23, 36, 45));;
+	wc.lpszMenuName  = NULL;
+	wc.lpszClassName = TEXT("UpdaterFrame");
+	wc.hIconSm       = app_icon;
+
+	if(!RegisterClassEx(&wc)) {
+		MessageBox(
+			NULL,
+			TEXT("window registration failed"),
+			TEXT("Error"),
+			MB_ICONEXCLAMATION | MB_OK
+		);
+
+		LogLastError(L"RegisterClassEx");
+
+		throw std::runtime_error("window registration failed");
+	}
+
+	/* We only care about the main display */
+	screen_width = GetSystemMetrics(SM_CXSCREEN);
+	screen_height = GetSystemMetrics(SM_CYSCREEN);
+
+	frame = CreateWindowEx(
+		WS_EX_CLIENTEDGE,
+		TEXT("UpdaterFrame"),
+		TEXT("Streamlabs OBS Updater"),
+		WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU,
+		(screen_width - width) / 2,
+		(screen_height - height) / 2,
+		width, height,
+		NULL, NULL,
+		hInstance, NULL
+	);
+
+	SetWindowLongPtr(frame, GWLP_USERDATA, (LONG_PTR)this);
+
+	if (frame == NULL) {
+		MessageBox(
+			NULL,
+			TEXT("failed to create window"),
+			TEXT("Error"),
+			MB_ICONEXCLAMATION | MB_OK
+		);
+
+		LogLastError(L"CreateWindowEx");
+
+		throw std::runtime_error("failed to create window");
+	}
+}
+
+callbacks_impl::~callbacks_impl()
+{
+}
+
+void callbacks_impl::initialize()
+{
+	RECT rcParent;
+
+	GetClientRect(frame, &rcParent);
+
+	int x_pos  = 10;
+	int y_size = 40;
+	int x_size = (rcParent.right - rcParent.left) - (x_pos * 2);
+	int y_pos  = ((rcParent.bottom - rcParent.top) / 2) - (y_size / 2);
+
+	progress_worker = CreateWindow(
+		PROGRESS_CLASS,
+		TEXT("ProgressWorker"),
+		WS_CHILD | WS_VISIBLE | PBS_SMOOTH,
+		x_pos, y_pos,
+		x_size, y_size,
+		frame, NULL,
+		NULL, NULL
+	);
+
+	progress_label = CreateWindow(
+		WC_STATIC,
+		TEXT("Looking for new files..."),
+		WS_CHILD | WS_VISIBLE | SS_CENTER,
+		x_pos, 10,
+		x_size, (y_pos - 15),
+		frame, NULL,
+		NULL, NULL
+	);
+
+	SendMessage(progress_worker, PBM_SETBARCOLOR, 0, RGB(49, 195, 162));
+	SendMessage(progress_worker, PBM_SETRANGE32, 0, INT_MAX);
+
+	ShowWindow(frame, SW_SHOWNORMAL);
+	UpdateWindow(frame);
+}
+
+void callbacks_impl::success()
+{
+	should_start = true;
+	PostMessage(frame, CUSTOM_CLOSE_MSG, NULL, NULL);
+}
+
+void callbacks_impl::error(const char* error)
+{
+	this->error_buf = new char[strlen(error) + 1];
+	strcpy(this->error_buf, error);
+
+	PostMessage(frame, CUSTOM_ERROR_MSG, NULL, NULL);
+}
+
+void callbacks_impl::downloader_start(int num_threads, size_t num_files_)
+{
+	file_sizes.resize(num_threads, 0);
+	this->num_files = num_files_;
+	start_time = high_resolution_clock::now();
+
+	SetTimer(frame, 0, 1000, &bandwidth_tick);
+}
+
+void callbacks_impl::download_file(
+  int thread_index,
+  std::string &relative_path,
+  size_t size
+) {
+	/* Our specific UI doesn't care when we start, we only
+	 * care when we're finished. A more technical UI could show
+	 * what each thread is doing if they so wanted. */
+	file_sizes[thread_index] = size;
+}
+
+void callbacks_impl::bandwidth_tick(
+  HWND hwnd,
+  UINT uMsg,
+  UINT_PTR idEvent,
+  DWORD dwTime
+) {
+	LONG_PTR data = GetWindowLongPtr(hwnd, GWLP_USERDATA);
+	auto ctx = (callbacks_impl *)(data);
+	/* Compare current total to last previous total,
+	 * then divide by timeout time */
+	double bandwidth =
+		(double)(ctx->total_consumed - ctx->total_consumed_last_tick);
+
+	/* Average over a set period of time */
+	bandwidth /= average_time_span;
+
+	/* Convert from bytes to megabytes */
+	/* Note that it's important to have only one place where
+	 * we atomically assign to last_calculated_bandwidth */
+	ctx->last_calculated_bandwidth = bandwidth * 0.000001;
+	ctx->total_consumed_last_tick = ctx->total_consumed;
+
+	double percent = (double)ctx->files_done / (double)ctx->num_files;
+
+	std::string label = fmt::format(
+		ctx->label_format,
+		ctx->files_done,
+		ctx->num_files,
+		ctx->last_calculated_bandwidth
+	);
+
+	set_progress_label(ctx->progress_label, ctx->frame, label.c_str());
+
+	SetTimer(hwnd, idEvent, 1000, &bandwidth_tick);
+}
+
+void callbacks_impl::set_progress_label(
+  HWND progress_label,
+  HWND parent,
+  const char* label
+) {
+	SetWindowTextA(progress_label, label);
+	/* This will determine the area that changed for the label
+	 * instead of refreshing the entire window. This helps a
+	 * bit with flickering until I decided to implement double-buffering. */
+	RECT label_rect;
+	GetWindowRect(progress_label, &label_rect);
+	MapWindowPoints(HWND_DESKTOP, parent, (LPPOINT)&label_rect, 2);
+	RedrawWindow(
+		parent,
+		&label_rect,
+		NULL,
+		RDW_ERASE | RDW_INVALIDATE
+	);
+}
+
+void callbacks_impl::download_progress(
+  int thread_index,
+  size_t consumed,
+  size_t accum
+) {
+	total_consumed += consumed;
+	/* We don't currently show per-file progress but we could
+	 * progress the bar based on files_done + remainder of
+	 * all in-progress files done. */
+
+	if (accum != file_sizes[thread_index]) {
+		return;
+	}
+
+	++files_done;
+
+	double percent = (double)files_done / (double)num_files;
+
+	std::string label = fmt::format(
+		label_format, files_done,
+		num_files, last_calculated_bandwidth
+	);
+
+	int pos = lround(percent * INT_MAX);
+	PostMessage(progress_worker, PBM_SETPOS, pos, 0);
+	set_progress_label(progress_label, frame, label.c_str());
+}
+
+LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	switch(msg) {
+	case WM_CLOSE:
+		break;
+	case WM_SETTEXT:
+		InvalidateRect(hwnd, NULL, TRUE);
+		break;
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		break;
+	case CUSTOM_CLOSE_MSG:
+		DestroyWindow(hwnd);
+		break;
+	case CUSTOM_ERROR_MSG: {
+		auto ctx = (callbacks_impl*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+
+		MessageBoxA(
+			NULL,
+			ctx->error_buf,
+			"Error",
+			MB_ICONEXCLAMATION | MB_OK
+		);
+
+		delete [] ctx->error_buf;
+		ctx->error_buf = nullptr;
+
+		DestroyWindow(hwnd);
+
+		break;
+	}
+	case WM_CTLCOLORSTATIC:
+		SetTextColor((HDC)wParam, RGB(255, 255, 255));
+		SetBkMode((HDC)wParam, TRANSPARENT);
+		return (LRESULT)GetStockObject(HOLLOW_BRUSH);
+	default:
+		return DefWindowProc(hwnd, msg, wParam, lParam);
+	}
+
+	return 0;
+}
+
 extern "C"
 int wWinMain(
   HINSTANCE hInstance,
@@ -451,11 +594,8 @@ int wWinMain(
   LPWSTR    lpCmdLineUnused,
   int       nCmdShow
 ) {
-	Fl::scheme("gleam");
-	Fl::lock();
-
 	struct update_parameters params;
-	callbacks_impl cb_impl;
+	callbacks_impl cb_impl(hInstance, nCmdShow);
 
 	MultiByteCommandLine command_line;
 
@@ -466,7 +606,13 @@ int wWinMain(
 	);
 
 	if (!success) {
-		fl_message("Failed to parse CLI arguments!");
+		MessageBox(
+			NULL,
+			TEXT("failed to parse cli arguments"),
+			TEXT("Error"),
+			MB_ICONEXCLAMATION | MB_OK
+		);
+
 		return 0;
 	}
 
@@ -481,19 +627,17 @@ int wWinMain(
 	update_client_set_downloader_events(client.get(), &cb_impl);
 	update_client_set_updater_events(client.get(), &cb_impl);
 	update_client_set_pid_events(client.get(), &cb_impl);
+
 	update_client_start(client.get());
 
-	Fl::add_timeout(
-		average_time_span,
-		callbacks_impl::bandwidth_tick,
-		&cb_impl
-	);
+	MSG msg;
 
-	Fl::run();
+	while(GetMessage(&msg, NULL, 0, 0) > 0) {
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
 
 	update_client_flush(client.get());
-
-	Fl::unlock();
 
 	/* Don't attempt start if application failed to update */
 	if (!cb_impl.should_start) {
@@ -509,9 +653,12 @@ int wWinMain(
 	);
 
 	if (!success) {
-		fl_message(
-			"Failed to restart application!\n"
-			"Just manually start it. Sorry about that!"
+		MessageBox(
+			NULL,
+			TEXT("Failed to restart application!\n"
+			"Just manually start it. Sorry about that!"),
+			TEXT("Warning"),
+			MB_ICONEXCLAMATION | MB_OK
 		);
 	}
 #undef THERE_OR_NOT
