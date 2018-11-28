@@ -483,8 +483,6 @@ void callbacks_impl::bandwidth_tick(
 	ctx->last_calculated_bandwidth = bandwidth * 0.000001;
 	ctx->total_consumed_last_tick = ctx->total_consumed;
 
-	double percent = (double)ctx->files_done / (double)ctx->num_files;
-
 	std::string label = fmt::format(
 		ctx->label_format,
 		ctx->files_done,
