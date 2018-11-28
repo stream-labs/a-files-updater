@@ -43,7 +43,6 @@ install:
 
 cache:
   - $(ZLIB_ROOT)
-  - $(FLTK_ROOT)
   - $(OPENSSL_ROOT)
   - $(BOOST_ROOT)
 
