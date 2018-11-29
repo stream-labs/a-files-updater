@@ -301,9 +301,9 @@ private:
  *############################################*/
 
 FileUpdater::FileUpdater(update_client *client_ctx)
- : m_old_files_dir(client_ctx->params->temp_dir),
-   m_app_dir(client_ctx->params->app_dir),
-   m_client_ctx(client_ctx)
+ : m_client_ctx(client_ctx),
+   m_old_files_dir(client_ctx->params->temp_dir),
+   m_app_dir(client_ctx->params->app_dir)
 {
 	m_old_files_dir /= "old-files";
 
@@ -366,10 +366,10 @@ update_client::http_request<Body, IncludeVersion>::http_request(
   const std::string &target,
   const int id
 ) :
+  worker_id(id),
   client_ctx(client_ctx),
-  ssl_socket(client_ctx->io_ctx, client_ctx->ssl_context),
   target(target),
-  worker_id(id)
+  ssl_socket(client_ctx->io_ctx, client_ctx->ssl_context)
 {
 	std::string full_target;
 
@@ -516,8 +516,8 @@ void update_client::handle_resolve(
 
 update_client::update_client(struct update_parameters *params)
  : params(params),
-   resolver(io_ctx),
-   active_workers(0)
+   active_workers(0),
+   resolver(io_ctx)
 {
 	new_files_dir = params->temp_dir;
 	new_files_dir /= "new-files";
