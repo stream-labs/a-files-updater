@@ -93,8 +93,12 @@ target_compile_definitions(slobs-updater
 		-DUNICODE
 		-D_UNICODE
 		-DBOOST_IOSTREAMS_NO_LIB
+
 		#It might be worth removing this eventually
 		-D_CRT_SECURE_NO_WARNINGS
+
+		#This can be removed with Boost 1.68.0 I believe
+		-D_SILENCE_FPOS_SEEKPOS_DEPRECATION_WARNING
 )
 
 find_program(WIN_MT "mt.exe")
