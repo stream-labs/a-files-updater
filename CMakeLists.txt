@@ -17,7 +17,7 @@ find_package(ZLIB REQUIRED)
 find_package(OpenSSL 1.1.0 EXACT REQUIRED)
 
 find_package(Boost
-	1.67.0 EXACT
+	1.68.0 EXACT
 	REQUIRED
 	COMPONENTS
 		filesystem

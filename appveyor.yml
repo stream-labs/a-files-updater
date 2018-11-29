@@ -8,7 +8,7 @@ init:
 environment:
   ZLIB_DIST_NAME: zlib-1.2.11-static-mt
   OPENSSL_DIST_NAME: openssl-1.1.0h
-  BOOST_DIST_NAME: boost-msvc141-1_67_0-all
+  BOOST_DIST_NAME: boost-vc141-1_68_0-bin
   DEPS_DIST_URI: https://s3-us-west-2.amazonaws.com/streamlabs-obs-updater-deps/
   DEPS_LOCAL_PATH: C:\projects\slobs-updater-deps
   ZLIB_ROOT: $(DEPS_LOCAL_PATH)\$(ZLIB_DIST_NAME)
