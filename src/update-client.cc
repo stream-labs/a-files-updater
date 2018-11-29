@@ -200,7 +200,7 @@ private:
 	  file_request<http::dynamic_body> *request_ctx
 	);
 
-	void update_client::handle_file_handshake(
+	void handle_file_handshake(
 	  const boost::system::error_code& error,
 	  file_request<http::dynamic_body> *request_ctx
 	);
