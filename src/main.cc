@@ -317,14 +317,14 @@ struct callbacks_impl :
 	) final;
 
 	void download_worker_finished(int thread_index) final { }
-	void downloader_complete() final { }
+	void downloader_complete() final;
 
 	void pid_start() final { }
 	void pid_waiting_for(uint64_t pid) final { }
 	void pid_wait_finished(uint64_t pid) final { }
 	void pid_wait_complete() final { }
 
-	void updater_start() final { };
+	void updater_start() final;
 	void update_file(std::string &filename) final { }
 	void update_finished(std::string &filename) final { }
 	void updater_complete() final { }
@@ -394,14 +394,6 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 
 		throw std::runtime_error("failed to create window");
 	}
-}
-
-callbacks_impl::~callbacks_impl()
-{
-}
-
-void callbacks_impl::initialize()
-{
 	RECT rcParent;
 
 	GetClientRect(frame, &rcParent);
@@ -441,7 +433,14 @@ void callbacks_impl::initialize()
 
 	SendMessage(progress_worker, PBM_SETBARCOLOR, 0, RGB(49, 195, 162));
 	SendMessage(progress_worker, PBM_SETRANGE32, 0, INT_MAX);
+}
 
+callbacks_impl::~callbacks_impl()
+{
+}
+
+void callbacks_impl::initialize()
+{
 	ShowWindow(frame, SW_SHOWNORMAL);
 	UpdateWindow(frame);
 }
@@ -548,6 +547,16 @@ void callbacks_impl::download_progress(
 	int pos = lround(percent * INT_MAX);
 	PostMessage(progress_worker, PBM_SETPOS, pos, 0);
 	set_progress_label(progress_label, frame, label.c_str());
+}
+
+void callbacks_impl::downloader_complete()
+{
+	KillTimer(frame, 1);
+}
+
+void callbacks_impl::updater_start()
+{
+	set_progress_label(progress_label, frame, "Copying files...");
 }
 
 LRESULT CALLBACK ProgressLabelWndProc(
