@@ -70,6 +70,7 @@ target_include_directories(slobs-updater
 )
 
 target_link_libraries(slobs-updater
+	comctl32
 	Boost::boost
 	Boost::filesystem
 	Boost::iostreams
