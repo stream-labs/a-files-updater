@@ -1,9 +1,12 @@
 #include <boost/filesystem.hpp>
+#include <boost/filesystem/detail/utf8_codecvt_facet.hpp>
 
 #include "argtable3.h"
 #include "fmt/format.h"
 #include "cli-parser.hpp"
 #include "logger/log.h"
+
+static boost::filesystem::detail::utf8_codecvt_facet utf8_facet;
 
 /* Filesystem is implicitly included from cli-parser.h */
 namespace fs = boost::filesystem;
@@ -107,13 +110,17 @@ static std::vector<int> make_vector_from_arg(struct arg_int *arg)
 
 static fs::path fetch_path(const char *str, size_t length)
 {
-	fs::path path(str, str + length);
+	/* Use the utf8_facet here for anything provided from argtable */
+	fs::path path(str, str + length, utf8_facet);
 
 	log_debug("Given to fetch path: %.*s", length, str);
 
 	fs::path result(fs::absolute(path).make_preferred());
 
-	log_debug("Result of fetch path: %s", result.string().c_str());
+	/* We use the utf8_facet here one more time to print-out UTF-8.
+	 * Otherwise, it will print-out the system native which on Windows
+	 * is wchar_t (encoded in UTF-16LE) */
+	log_debug("Result of fetch path: %s", result.string(utf8_facet).c_str());
 
 	return result;
 }
