@@ -485,7 +485,7 @@ void callbacks_impl::bandwidth_tick(
   DWORD dwTime
 ) {
 	LONG_PTR data = GetWindowLongPtr(hwnd, GWLP_USERDATA);
-	auto ctx = (callbacks_impl *)(data);
+	auto ctx = reinterpet_cast<callbacks_impl *>(data);
 	/* Compare current total to last previous total,
 	 * then divide by timeout time */
 	double bandwidth =
