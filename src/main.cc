@@ -88,10 +88,10 @@ MultiByteCommandLine::MultiByteCommandLine()
 MultiByteCommandLine::~MultiByteCommandLine()
 {
 	for (int i = 0; i < m_argc; ++i) {
-		delete m_argv[i];
+		delete [] m_argv[i];
 	}
 
-	delete m_argv;
+	delete [] m_argv;
 }
 
 void LogLastError(LPCWSTR lpFunctionName)
