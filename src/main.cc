@@ -238,7 +238,18 @@ struct bandwidth_chunk {
  * handle that error before closing. */
 #define CUSTOM_ERROR_MSG (WM_USER + 2)
 
-LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+#define CLASS_PROGRESS_LABEL (1)
+
+static LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+static LRESULT CALLBACK ProgressLabelWndProc(
+	HWND hwnd,
+	UINT msg,
+	WPARAM wParam,
+	LPARAM lParam,
+	UINT_PTR  uIdSubclass,
+	DWORD_PTR dwRefData
+);
 
 struct callbacks_impl :
 	public
@@ -343,7 +354,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	if(!RegisterClassEx(&wc)) {
 		MessageBox(
 			NULL,
-			TEXT("window registration failed"),
+			TEXT("Window registration failed!"),
 			TEXT("Error"),
 			MB_ICONEXCLAMATION | MB_OK
 		);
@@ -374,7 +385,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	if (frame == NULL) {
 		MessageBox(
 			NULL,
-			TEXT("failed to create window"),
+			TEXT("Failed to create window!"),
 			TEXT("Error"),
 			MB_ICONEXCLAMATION | MB_OK
 		);
@@ -418,6 +429,14 @@ void callbacks_impl::initialize()
 		x_size, (y_pos - 15),
 		frame, NULL,
 		NULL, NULL
+	);
+
+	/* Sub-class the label */
+	SetWindowSubclass(
+		progress_label,
+		ProgressLabelWndProc,
+		CLASS_PROGRESS_LABEL,
+		(DWORD_PTR)this
 	);
 
 	SendMessage(progress_worker, PBM_SETBARCOLOR, 0, RGB(49, 195, 162));
@@ -501,18 +520,6 @@ void callbacks_impl::set_progress_label(
   const char* label
 ) {
 	SetWindowTextA(progress_label, label);
-	/* This will determine the area that changed for the label
-	 * instead of refreshing the entire window. This helps a
-	 * bit with flickering until I decided to implement double-buffering. */
-	RECT label_rect;
-	GetWindowRect(progress_label, &label_rect);
-	MapWindowPoints(HWND_DESKTOP, parent, (LPPOINT)&label_rect, 2);
-	RedrawWindow(
-		parent,
-		&label_rect,
-		NULL,
-		RDW_ERASE | RDW_INVALIDATE
-	);
 }
 
 void callbacks_impl::download_progress(
@@ -543,13 +550,42 @@ void callbacks_impl::download_progress(
 	set_progress_label(progress_label, frame, label.c_str());
 }
 
+LRESULT CALLBACK ProgressLabelWndProc(
+  HWND hwnd,
+  UINT msg,
+  WPARAM wParam,
+  LPARAM lParam,
+  UINT_PTR  uIdSubclass,
+  DWORD_PTR dwRefData
+) {
+	callbacks_impl *ctx = (callbacks_impl*)dwRefData;
+
+	switch(msg) {
+	case WM_SETTEXT: {
+		RECT rect;
+		HWND parent = GetParent(hwnd);
+
+		GetWindowRect(hwnd, &rect);
+		MapWindowPoints(HWND_DESKTOP, parent, (LPPOINT)&rect, 2);
+
+		RedrawWindow(
+			parent,
+			&rect,
+			NULL,
+			RDW_ERASE | RDW_INVALIDATE
+		);
+
+		break;
+	}
+	}
+
+	return DefSubclassProc(hwnd, msg, wParam, lParam);
+}
+
 LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	switch(msg) {
 	case WM_CLOSE:
-		break;
-	case WM_SETTEXT:
-		InvalidateRect(hwnd, NULL, TRUE);
 		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
