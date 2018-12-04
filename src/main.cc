@@ -333,6 +333,7 @@ struct callbacks_impl :
 callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 {
 	WNDCLASSEX wc;
+	RECT rcParent;
 
 	HICON app_icon = LoadIcon(
 		GetModuleHandle(NULL), TEXT("AppIcon")
@@ -394,14 +395,13 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 
 		throw std::runtime_error("failed to create window");
 	}
-	RECT rcParent;
 
 	GetClientRect(frame, &rcParent);
 
-	int x_pos  = 10;
+	int x_pos = 10;
 	int y_size = 40;
 	int x_size = (rcParent.right - rcParent.left) - (x_pos * 2);
-	int y_pos  = ((rcParent.bottom - rcParent.top) / 2) - (y_size / 2);
+	int y_pos = ((rcParent.bottom - rcParent.top) / 2) - (y_size / 2);
 
 	progress_worker = CreateWindow(
 		PROGRESS_CLASS,
@@ -416,9 +416,9 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	progress_label = CreateWindow(
 		WC_STATIC,
 		TEXT("Looking for new files..."),
-		WS_CHILD | WS_VISIBLE | SS_CENTER,
-		x_pos, 10,
-		x_size, (y_pos - 15),
+		WS_CHILD | WS_VISIBLE | SS_CENTER | SS_CENTERIMAGE,
+		x_pos, 0,
+		x_size, (y_pos),
 		frame, NULL,
 		NULL, NULL
 	);
@@ -465,7 +465,7 @@ void callbacks_impl::downloader_start(int num_threads, size_t num_files_)
 	this->num_files = num_files_;
 	start_time = high_resolution_clock::now();
 
-	SetTimer(frame, 0, 1000, &bandwidth_tick);
+	SetTimer(frame, 1, 1000, &bandwidth_tick);
 }
 
 void callbacks_impl::download_file(
@@ -567,8 +567,6 @@ LRESULT CALLBACK ProgressLabelWndProc(
   UINT_PTR  uIdSubclass,
   DWORD_PTR dwRefData
 ) {
-	callbacks_impl *ctx = (callbacks_impl*)dwRefData;
-
 	switch(msg) {
 	case WM_SETTEXT: {
 		RECT rect;
@@ -595,6 +593,7 @@ LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	switch(msg) {
 	case WM_CLOSE:
+		/* Prevent closing in a normal manner. */
 		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
@@ -623,11 +622,9 @@ LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		SetTextColor((HDC)wParam, RGB(255, 255, 255));
 		SetBkMode((HDC)wParam, TRANSPARENT);
 		return (LRESULT)GetStockObject(HOLLOW_BRUSH);
-	default:
-		return DefWindowProc(hwnd, msg, wParam, lParam);
 	}
 
-	return 0;
+	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
 extern "C"
