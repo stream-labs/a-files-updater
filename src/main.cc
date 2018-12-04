@@ -20,6 +20,16 @@ using chrono::duration_cast;
 /* Some basic constants that are adjustable at compile time */
 const double average_time_span = 1.0;
 
+void ShowError(LPCWSTR lpMsg)
+{
+	MessageBoxW(
+		NULL,
+		lpMsg,
+		TEXT("Error"),
+		MB_ICONEXCLAMATION | MB_OK
+	);
+}
+
 /* Because Windows doesn't provide us a Unicode
  * command line by default and the command line
  * it does provide us is in UTF-16LE. */
@@ -273,7 +283,7 @@ struct callbacks_impl :
 	size_t total_consumed{0};
 	size_t total_consumed_last_tick{0};
 	std::atomic<double> last_calculated_bandwidth{0.0};
-	char *error_buf{nullptr};
+	LPWCHAR error_buf{nullptr};
 	bool should_start{false};
 	const char* label_format{"Downloading {} of {} - {:.2f} MB/s"};
 
@@ -353,13 +363,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	wc.hIconSm       = app_icon;
 
 	if(!RegisterClassEx(&wc)) {
-		MessageBox(
-			NULL,
-			TEXT("Window registration failed!"),
-			TEXT("Error"),
-			MB_ICONEXCLAMATION | MB_OK
-		);
-
+		ShowError(L"Window registration failed!");
 		LogLastError(L"RegisterClassEx");
 
 		throw std::runtime_error("window registration failed");
@@ -384,13 +388,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	SetWindowLongPtr(frame, GWLP_USERDATA, (LONG_PTR)this);
 
 	if (frame == NULL) {
-		MessageBox(
-			NULL,
-			TEXT("Failed to create window!"),
-			TEXT("Error"),
-			MB_ICONEXCLAMATION | MB_OK
-		);
-
+		ShowError(L"Failed to create window!");
 		LogLastError(L"CreateWindowEx");
 
 		throw std::runtime_error("failed to create window");
@@ -453,8 +451,9 @@ void callbacks_impl::success()
 
 void callbacks_impl::error(const char* error)
 {
-	this->error_buf = new char[strlen(error) + 1];
-	strcpy(this->error_buf, error);
+	int error_sz = -1;
+
+	this->error_buf = ConvertToUtf16(error, &error_sz);
 
 	PostMessage(frame, CUSTOM_ERROR_MSG, NULL, NULL);
 }
@@ -602,15 +601,10 @@ LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		DestroyWindow(hwnd);
 		break;
 	case CUSTOM_ERROR_MSG: {
-		auto ctx = (callbacks_impl*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+		LONG_PTR user_data = GetWindowLongPtr(hwnd, GWLP_USERDATA);
+		auto ctx = reinterpret_cast<callbacks_impl *>(user_data);
 
-		MessageBoxA(
-			NULL,
-			ctx->error_buf,
-			"Error",
-			MB_ICONEXCLAMATION | MB_OK
-		);
-
+		ShowError(ctx->error_buf);
 		delete [] ctx->error_buf;
 		ctx->error_buf = nullptr;
 
@@ -646,13 +640,7 @@ int wWinMain(
 	);
 
 	if (!success) {
-		MessageBox(
-			NULL,
-			TEXT("failed to parse cli arguments"),
-			TEXT("Error"),
-			MB_ICONEXCLAMATION | MB_OK
-		);
-
+		ShowError(L"Failed to parse cli arguments!");
 		return 0;
 	}
 
