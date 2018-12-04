@@ -18,7 +18,7 @@ using chrono::high_resolution_clock;
 using chrono::duration_cast;
 
 /* Some basic constants that are adjustable at compile time */
-const double average_time_span = 1.0;
+const double average_bw_time_span = 1000;
 
 void ShowError(LPCWSTR lpMsg)
 {
@@ -464,7 +464,7 @@ void callbacks_impl::downloader_start(int num_threads, size_t num_files_)
 	this->num_files = num_files_;
 	start_time = high_resolution_clock::now();
 
-	SetTimer(frame, 1, 1000, &bandwidth_tick);
+	SetTimer(frame, 1, average_bw_time_span, &bandwidth_tick);
 }
 
 void callbacks_impl::download_file(
@@ -509,7 +509,7 @@ void callbacks_impl::bandwidth_tick(
 
 	set_progress_label(ctx->progress_label, ctx->frame, label.c_str());
 
-	SetTimer(hwnd, idEvent, 1000, &bandwidth_tick);
+	SetTimer(hwnd, idEvent, average_bw_time_span, &bandwidth_tick);
 }
 
 void callbacks_impl::set_progress_label(
