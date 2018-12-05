@@ -30,6 +30,16 @@ void ShowError(LPCWSTR lpMsg)
 	);
 }
 
+void ShowWarning(LPCWSTR lpMsg)
+{
+	MessageBoxW(
+		NULL,
+		lpMsg,
+		TEXT("Warning"),
+		MB_ICONEXCLAMATION | MB_OK
+	);
+}
+
 /* Because Windows doesn't provide us a Unicode
  * command line by default and the command line
  * it does provide us is in UTF-16LE. */
@@ -248,7 +258,7 @@ struct bandwidth_chunk {
  * handle that error before closing. */
 #define CUSTOM_ERROR_MSG (WM_USER + 2)
 
-#define CLASS_PROGRESS_LABEL (1)
+#define CLS_PROGRESS_LABEL (1)
 
 static LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -283,9 +293,9 @@ struct callbacks_impl :
 	size_t total_consumed{0};
 	size_t total_consumed_last_tick{0};
 	std::atomic<double> last_calculated_bandwidth{0.0};
-	LPWCHAR error_buf{nullptr};
+	LPWSTR error_buf{nullptr};
 	bool should_start{false};
-	const char* label_format{"Downloading {} of {} - {:.2f} MB/s"};
+	LPCWSTR label_format{L"Downloading {} of {} - {:.2f} MB/s"};
 
 	callbacks_impl(const callbacks_impl&) = delete;
 	callbacks_impl(const callbacks_impl&&) = delete;
@@ -314,12 +324,6 @@ struct callbacks_impl :
 	  DWORD dwTime
 	);
 
-	static void set_progress_label(
-	  HWND progress_label,
-	  HWND parent,
-	  const char* label
-	);
-
 	void download_progress(
 	  int thread_index,
 	  size_t consumed,
@@ -342,6 +346,7 @@ struct callbacks_impl :
 
 callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 {
+	BOOL success = false;
 	WNDCLASSEX wc;
 	RECT rcParent;
 
@@ -373,6 +378,14 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	screen_width = GetSystemMetrics(SM_CXSCREEN);
 	screen_height = GetSystemMetrics(SM_CYSCREEN);
 
+	/* FIXME: This feels a little dirty */
+	auto do_fail = [this] (LPCWSTR user_msg, LPCWSTR context_msg) {
+		if (this->frame) DestroyWindow(this->frame);
+		ShowError(user_msg);
+		LogLastError(context_msg);
+		throw std::runtime_error("");
+	};
+
 	frame = CreateWindowEx(
 		WS_EX_CLIENTEDGE,
 		TEXT("UpdaterFrame"),
@@ -387,11 +400,8 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 
 	SetWindowLongPtr(frame, GWLP_USERDATA, (LONG_PTR)this);
 
-	if (frame == NULL) {
-		ShowError(L"Failed to create window!");
-		LogLastError(L"CreateWindowEx");
-
-		throw std::runtime_error("failed to create window");
+	if (!frame) {
+		do_fail(L"Failed to create window!", L"CreateWindowEx");
 	}
 
 	GetClientRect(frame, &rcParent);
@@ -411,6 +421,10 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 		NULL, NULL
 	);
 
+	if (!progress_worker) {
+		do_fail(L"Failed to create progress worker!", L"CreateWindow");
+	}
+
 	progress_label = CreateWindow(
 		WC_STATIC,
 		TEXT("Looking for new files..."),
@@ -421,13 +435,23 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 		NULL, NULL
 	);
 
-	/* Sub-class the label */
-	SetWindowSubclass(
+	if (!progress_label) {
+		do_fail(L"Failed to create progress label!", L"CreateWindow");
+	}
+
+	success = SetWindowSubclass(
 		progress_label,
 		ProgressLabelWndProc,
-		CLASS_PROGRESS_LABEL,
+		CLS_PROGRESS_LABEL,
 		(DWORD_PTR)this
 	);
+
+	if (!success) {
+		do_fail(
+			L"Failed to subclass progress label!",
+			L"SetWindowSubclass"
+		);
+	}
 
 	SendMessage(progress_worker, PBM_SETBARCOLOR, 0, RGB(49, 195, 162));
 	SendMessage(progress_worker, PBM_SETRANGE32, 0, INT_MAX);
@@ -485,14 +509,15 @@ void callbacks_impl::bandwidth_tick(
   DWORD dwTime
 ) {
 	LONG_PTR data = GetWindowLongPtr(hwnd, GWLP_USERDATA);
-	auto ctx = reinterpet_cast<callbacks_impl *>(data);
+	auto ctx = reinterpret_cast<callbacks_impl *>(data);
+
 	/* Compare current total to last previous total,
 	 * then divide by timeout time */
 	double bandwidth =
 		(double)(ctx->total_consumed - ctx->total_consumed_last_tick);
 
 	/* Average over a set period of time */
-	bandwidth /= average_time_span;
+	bandwidth /= average_bw_time_span / 1000;
 
 	/* Convert from bytes to megabytes */
 	/* Note that it's important to have only one place where
@@ -500,25 +525,17 @@ void callbacks_impl::bandwidth_tick(
 	ctx->last_calculated_bandwidth = bandwidth * 0.000001;
 	ctx->total_consumed_last_tick = ctx->total_consumed;
 
-	std::string label = fmt::format(
+	std::wstring label(fmt::format(
 		ctx->label_format,
 		ctx->files_done,
 		ctx->num_files,
 		ctx->last_calculated_bandwidth
-	);
+	));
 
-	set_progress_label(ctx->progress_label, ctx->frame, label.c_str());
-
+	SetWindowTextW(ctx->progress_label, label.c_str());
 	SetTimer(hwnd, idEvent, average_bw_time_span, &bandwidth_tick);
 }
 
-void callbacks_impl::set_progress_label(
-  HWND progress_label,
-  HWND parent,
-  const char* label
-) {
-	SetWindowTextA(progress_label, label);
-}
 
 void callbacks_impl::download_progress(
   int thread_index,
@@ -538,14 +555,14 @@ void callbacks_impl::download_progress(
 
 	double percent = (double)files_done / (double)num_files;
 
-	std::string label = fmt::format(
+	std::wstring label(fmt::format(
 		label_format, files_done,
 		num_files, last_calculated_bandwidth
-	);
+	));
 
 	int pos = lround(percent * INT_MAX);
 	PostMessage(progress_worker, PBM_SETPOS, pos, 0);
-	set_progress_label(progress_label, frame, label.c_str());
+	SetWindowTextW(progress_label, label.c_str());
 }
 
 void callbacks_impl::downloader_complete()
@@ -555,7 +572,7 @@ void callbacks_impl::downloader_complete()
 
 void callbacks_impl::updater_start()
 {
-	set_progress_label(progress_label, frame, "Copying files...");
+	SetWindowTextW(progress_label, L"Copying files...");
 }
 
 LRESULT CALLBACK ProgressLabelWndProc(
@@ -593,7 +610,7 @@ LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	switch(msg) {
 	case WM_CLOSE:
 		/* Prevent closing in a normal manner. */
-		break;
+		return 0;
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		break;
@@ -681,12 +698,9 @@ int wWinMain(
 	);
 
 	if (!success) {
-		MessageBox(
-			NULL,
-			TEXT("Failed to restart application!\n"
-			"Just manually start it. Sorry about that!"),
-			TEXT("Warning"),
-			MB_ICONEXCLAMATION | MB_OK
+		ShowWarning(
+			L"Failed to restart application!\n"
+			"Just manually start it. Sorry about that!"
 		);
 	}
 #undef THERE_OR_NOT
