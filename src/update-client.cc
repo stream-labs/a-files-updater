@@ -35,6 +35,18 @@ using std::regex_search;
 
 /*##############################################
  *#
+ *# Update exceptions
+ *#
+ *############################################*/
+
+class update_exception_blocked : public std::exception
+{};
+
+class update_exception_failed : public std::exception
+{};
+
+/*##############################################
+ *#
  *# Utility functions
  *#
  *############################################*/
@@ -193,6 +205,7 @@ private:
 
 	void handle_manifest_results();
 	void clean_manifest();
+	void check_file(fs::path & check_path);
 
 	void handle_file_connect(
 	  const boost::system::error_code &error,
@@ -658,7 +671,45 @@ void update_client::clean_manifest()
 			this->manifest.erase(manifest_iter);
 			continue;
 		}
+
+		check_file(entry);
 	}
+}
+
+void update_client::check_file(fs::path & check_path)
+{
+	const std::wstring path_str = check_path.generic_wstring();
+
+	HANDLE hFile = CreateFile(path_str.c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (hFile == INVALID_HANDLE_VALUE)
+	{
+		DWORD errorCode = GetLastError();
+
+		switch (errorCode)
+		{
+		case ERROR_SUCCESS:
+		case ERROR_FILE_NOT_FOUND:
+		case ERROR_PATH_NOT_FOUND:
+			//its normal we can update file that not exist before
+			break;
+		case ERROR_SHARING_VIOLATION:
+		case ERROR_LOCK_VIOLATION:
+			//its bad, but it probaly zombie process and restart can help 
+			throw update_exception_blocked();
+			break;
+		case ERROR_ACCESS_DENIED:
+		case ERROR_WRITE_PROTECT:
+		case ERROR_WRITE_FAULT:
+		case ERROR_OPEN_FAILED:
+		default:
+			//its bad 
+			throw update_exception_failed();
+		}
+	} else
+	{
+		CloseHandle(hFile);
+	}
+	return;
 }
 
 void update_client::handle_manifest_results()
@@ -666,7 +717,27 @@ void update_client::handle_manifest_results()
 	/* TODO We should be able to make max configurable.*/
 	int max = 4;
 
-	this->clean_manifest();
+	try
+	{
+		this->clean_manifest();
+	} catch (update_exception_blocked& error)
+	{
+		client_events->error(
+			"Failed to move files.\n"
+			"Some files may be blocked by other program. Please restart "
+			"your PC and try to update again."
+		);
+		return;
+	} catch (update_exception_failed& error)
+	{
+		client_events->error(
+			"Failed to move files.\n"
+			"Some files could not be updated. Please download "
+			"SLOBS installer from our site and run full installation"
+		);
+		return;
+	}
+
 	this->manifest_iterator = this->manifest.cbegin();
 	this->downloader_events->downloader_start(
 		max, this->manifest.size()
