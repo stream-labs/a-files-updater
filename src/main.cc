@@ -11,6 +11,10 @@
 #include "update-client.hpp"
 #include "logger/log.h"
 
+//crash handling and reporting 
+void HandleCrash(std::string _crashInfo, bool callAbort = true) noexcept;
+void HandleExit() noexcept;
+
 namespace fs = boost::filesystem;
 namespace chrono = std::chrono;
 
@@ -638,6 +642,28 @@ LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
+void HandleCrash(std::string _crashInfo, bool callAbort) noexcept
+{
+	static bool insideCrashMethod = false;
+	if (insideCrashMethod)
+		abort();
+	insideCrashMethod = true;
+
+	//prepare data and 
+	//submit to sentry
+	//url = std::string("https://sentry.io/api/1283431/minidump/?sentry_key=ec98eac4e3ce49c7be1d83c8fb2005ef");
+
+	if(callAbort)
+        abort();
+	
+ 	insideCrashMethod = false;
+}
+
+void HandleExit() noexcept
+{
+	HandleCrash("AtExit", false);
+}
+
 extern "C"
 int wWinMain(
   HINSTANCE hInstance,
@@ -645,6 +671,24 @@ int wWinMain(
   LPWSTR    lpCmdLineUnused,
   int       nCmdShow
 ) {
+
+	std::set_terminate([]() { HandleCrash("Direct call to std::terminate"); });
+
+	SetUnhandledExceptionFilter([](struct _EXCEPTION_POINTERS* ExceptionInfo) {
+		/* don't use if a debugger is present */
+	    if (IsDebuggerPresent()) 
+            return LONG(EXCEPTION_CONTINUE_SEARCH);
+		
+		HandleCrash("UnhandledExceptionFilter");
+
+ 		// Unreachable statement
+		return LONG(EXCEPTION_CONTINUE_SEARCH);
+	});
+
+	// The atexit will check if obs was safelly closed
+	std::atexit(HandleExit);
+	std::at_quick_exit(HandleExit);
+
 	struct update_parameters params;
 	callbacks_impl cb_impl(hInstance, nCmdShow);
 

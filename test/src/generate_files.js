@@ -4,12 +4,12 @@ const path = require('path');
 const crypto = require('crypto');
 const zlib = require('zlib');
 
-function generate_file(filepath, filename, filecontentextended, emptyfile ) {
+function generate_file(filedir, filename, filecontentextended, emptyfile ) {
   return new Promise((resolve, reject) => {
-    
-    fse.outputFileSync(filepath+filename);
+    const filepath = path.join(filedir, filename)
+    fse.outputFileSync(filepath);
 
-    var stream = fs.createWriteStream(filepath+filename);
+    var stream = fs.createWriteStream(filepath);
     if(!emptyfile)
     {
       var i;
@@ -57,20 +57,21 @@ function filewalker(dir, done) {
     });
 };
 
-function generate_manifest(filepath, manifestfile)
+function generate_manifest(testinfo)
 {
     return new Promise((resolve, reject) => {
-        fse.outputFileSync(filepath+manifestfile);
+      const filepath = path.join(testinfo.serverDir,  testinfo.versionName+".sha256" )
+        fse.outputFileSync(filepath );
     
-        filewalker(filepath, function(err, data){
+        filewalker(testinfo.serverDir, function(err, data){
             if(err){
                 throw err;
             }
             
-            var stream = fs.createWriteStream(filepath+manifestfile);
+            var stream = fs.createWriteStream(filepath);
             
             for (var foundfile of data) {
-                if( filepath+manifestfile == foundfile)
+                if( filepath == foundfile)
                 {
                     continue;
                 } else {
@@ -78,7 +79,7 @@ function generate_manifest(filepath, manifestfile)
                     const input = fs.readFileSync(foundfile)
     
                     hash.update(input);
-                    var update_subdirpath = filepath+"0.11.9-preview.1\\"
+                    var update_subdirpath = path.join( testinfo.serverDir, testinfo.versionName)
                     stream.write(`${hash.digest('hex')}`+" "+foundfile.substring(update_subdirpath.length)+"\n");
                     
                     const gzip = zlib.createGzip();
@@ -88,7 +89,12 @@ function generate_manifest(filepath, manifestfile)
                     inp.pipe(gzip).pipe(out);
 
                 }
-             }
+            }
+            if(testinfo.manifestWrongFile)
+            {
+               
+              stream.write(`e980fe14384b38340fad866a92f2cbe4aeef268fac3368274bcb0b8e2cd32702`+" \\missing_file5.1\n");
+            }
             stream.end();
             stream.on("finish", () => { resolve(true); }); // not sure why you want to pass a boolean
             stream.on("error", reject); // don't forget this!
@@ -99,10 +105,10 @@ function generate_manifest(filepath, manifestfile)
       });
 }
 
-exports.generate_server_dir = function (dirpath, manifestfile)
+function generate_server_dir(testinfo)
 {
   var generatePromises = [];  
-  var update_subdirpath = dirpath+"0.11.9-preview.1\\"
+  const update_subdirpath = path.join( testinfo.serverDir,testinfo.versionName)
   generatePromises.push( generate_file(update_subdirpath, "test2.txt","new change", false) )
   generatePromises.push( generate_file(update_subdirpath, "file2.jpeg", "", false) )
   generatePromises.push( generate_file(update_subdirpath, "file4.log.txt", "", false) )
@@ -112,15 +118,18 @@ exports.generate_server_dir = function (dirpath, manifestfile)
   var allPromise = Promise.all(generatePromises)
   allPromise.then(console.log, console.error)
   
-  generatePromises = [];
-  generatePromises.push( generate_manifest(dirpath, manifestfile ))
-  var manifestPromise = Promise.all(generatePromises)
-  manifestPromise.then(console.log, console.error)  
+  if(testinfo.manifestGenerated)
+  {
+    generatePromises = [];
+    generatePromises.push( generate_manifest(testinfo))
+    var manifestPromise = Promise.all(generatePromises)
+    manifestPromise.then(console.log, console.error)  
+  }
 
   console.log("finish generate_server_dir");
 }
 
-exports.generate_update_dir = function (dirpath)
+function generate_initial_dir(dirpath)
 {
   var generatePromises = [];  
   generatePromises.push( generate_file(dirpath, "filea.exe","", true) )
@@ -132,10 +141,10 @@ exports.generate_update_dir = function (dirpath)
   var allPromise = Promise.all(generatePromises)
   allPromise.then(console.log, console.error)
 
-  console.log("finish generate_update_dir");
+  console.log("finish generate_initial_dir");
 }
 
-exports.generate_result_dir = function (dirpath)
+function generate_result_dir(dirpath)
 {
   var generatePromises = [];  
   
@@ -155,9 +164,60 @@ exports.generate_result_dir = function (dirpath)
   console.log("finish generate_result_dir");
 }
 
-exports.clean_test_dir = function (dirpath)
+clean_test_dir = function (dirpath)
 {
   fse.removeSync(dirpath);
   console.log("finish clean_dir");
 }
+
+exports.clean_test_dirs = function (testinfo)
+{
+  clean_test_dir(testinfo.serverDir);
+  clean_test_dir(testinfo.initialDir);
+  clean_test_dir(testinfo.resultDir);
+}
+
+exports.generate_test_files = function (testinfo)
+{
+  exports.clean_test_dirs(testinfo);
+
+  generate_server_dir(testinfo);
+  generate_initial_dir(testinfo.initialDir);
+  
+  if(testinfo.expectedResult == "filesupdated")
+    generate_result_dir(testinfo.resultDir);
+  if(testinfo.expectedResult == "filesnotchanged")
+    generate_initial_dir(testinfo.resultDir);
+}
  
+exports.check_results = function (testinfo)
+{
+  var dircompare = require('dir-compare');
+  var format = require('util').format;
+   
+  var options = {compareSize: true};
+  var path1 = testinfo.initialDir;
+  var path2 = testinfo.resultDir;
+   
+  var states = {'equal' : '==', 'left' : '->', 'right' : '<-', 'distinct' : '<>'};
+   
+  var res = dircompare.compareSync(path1, path2, options);
+  const ret = res.distinct !=0 && res.left != 0 || res.right != 0 || res.differences != 0
+
+  console.log(format('Compare dirs: equal=%s, distinct=%s, left=%s, right=%s, differences=%s, same=%s',
+              res.equal, res.distinct, res.left, res.right, res.differences, res.same));
+
+  res.diffSet.forEach(function (entry) {
+      var state = states[entry.state];
+      var name1 = entry.name1 ? entry.name1 : '';
+      var name2 = entry.name2 ? entry.name2 : '';
+      
+      if(ret)
+      {
+        console.log(format('%s(%s)%s%s(%s)', name1, entry.type1, state, name2, entry.type2));
+      }
+  });
+  
+  return !ret;
+  
+}
