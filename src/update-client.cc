@@ -862,7 +862,7 @@ void update_client::handle_manifest_response(
 		auto target = safe_request_ctx->request.target();
 
 		/* FIXME Signal failure */
-
+		handle_error({}, "No manifest file on server");
 		return;
 	}
 

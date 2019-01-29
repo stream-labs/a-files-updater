@@ -13,11 +13,17 @@ async function run_tests() {
     testinfo.serverStarted = false
     await run_test.test_update(testinfo)
 
+    //no manifest on server. files have to not change 
+    testinfo = test_config.gettestinfo()
+    testinfo.expectedResult = "filesnotchanged"
+    testinfo.manifestGenerated = false
+    await run_test.test_update(testinfo);
+
     //wrong file in manifest. files have to not change 
     testinfo = test_config.gettestinfo()
     testinfo.expectedResult = "filesnotchanged"
     testinfo.manifestWrongFile = true
-    await run_test.test_update(testinfo);
+    await run_test.test_update(testinfo);    
 }
 
 (async() => {

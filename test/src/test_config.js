@@ -13,7 +13,8 @@ exports.gettestinfo = function ()
     serverStarted : true,
     manifestGenerated : true, 
     manifestWrongFile : false, 
-
+    skipUpdaterLaunch : false,
+    
     expectedResult : "filesupdated", // "filesnotchanged", ""
 
     not_keep_files : true

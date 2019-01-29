@@ -11,6 +11,11 @@ exports.test_update = async function(testinfo)
     updater_server.start_https_update_server(testinfo.serverDir);
   }
   
+  if( testinfo.skipUpdaterLaunch )
+  {
+    return 0;
+  } 
+
   try {
     let launched = await updater_launcher.start_updater(testinfo)
     let ret = 0;
