@@ -23,25 +23,32 @@ using chrono::duration_cast;
 
 /* Some basic constants that are adjustable at compile time */
 const double average_bw_time_span = 1000;
+struct update_parameters params;
 
 void ShowError(LPCWSTR lpMsg)
 {
-	MessageBoxW(
-		NULL,
-		lpMsg,
-		TEXT("Error"),
-		MB_ICONEXCLAMATION | MB_OK
-	);
+	if(params.interactive)
+	{
+		MessageBoxW(
+			NULL,
+			lpMsg,
+			TEXT("Error"),
+			MB_ICONEXCLAMATION | MB_OK
+		);
+	}
 }
 
 void ShowWarning(LPCWSTR lpMsg)
 {
-	MessageBoxW(
-		NULL,
-		lpMsg,
-		TEXT("Warning"),
-		MB_ICONEXCLAMATION | MB_OK
-	);
+	if(params.interactive)
+	{
+		MessageBoxW(
+			NULL,
+			lpMsg,
+			TEXT("Warning"),
+			MB_ICONEXCLAMATION | MB_OK
+		);
+	}
 }
 
 /* Because Windows doesn't provide us a Unicode
@@ -689,7 +696,6 @@ int wWinMain(
 	std::atexit(HandleExit);
 	std::at_quick_exit(HandleExit);
 
-	struct update_parameters params;
 	callbacks_impl cb_impl(hInstance, nCmdShow);
 
 	MultiByteCommandLine command_line;

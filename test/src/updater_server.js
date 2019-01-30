@@ -4,7 +4,7 @@ const custom_port = false;
 //
 var server;
 
-exports.start_http_update_server = function() {
+exports.start_http_update_server = function () {
   var http = require('http');
 
   var finalhandler = require('finalhandler');
@@ -12,7 +12,7 @@ exports.start_http_update_server = function() {
 
   var serve = serveStatic(testinfo.serverDir);
 
-  server = http.createServer(function(req, res) {
+  server = http.createServer(function (req, res) {
     var done = finalhandler(req, res);
     serve(req, res, done);
   });
@@ -22,15 +22,14 @@ exports.start_http_update_server = function() {
 
 exports.start_https_update_server = function (serverDir) {
 
-  var bodyParser = require('body-parser') 
+  var bodyParser = require('body-parser')
   server = require("https-localhost")
 
-  if(print_server_requests)
-  {
+  if (print_server_requests) {
     server.use(bodyParser())
 
     server.use((req, res) => {
-      console.log(`SERVER REQUSTED: ${req.url}`); 
+      console.log(`SERVER REQUSTED: ${req.url}`);
 
       res.on("finish", () => {
         console.log(res);
@@ -40,19 +39,16 @@ exports.start_https_update_server = function (serverDir) {
   } else {
     server.serve(serverDir)
   }
-  
-  if(custom_port)
-  {
+
+  if (custom_port) {
     server.listen(8443); //updater not support custom ports 
   }
 }
 
-exports.stop_http_update_server = function()
-{
+exports.stop_http_update_server = function () {
   server.close();
 }
 
-exports.stop_https_update_server = function()
-{
+exports.stop_https_update_server = function () {
   server.server.close()
 }
