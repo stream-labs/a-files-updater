@@ -15,6 +15,7 @@
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/traits.hpp>
 #include <fmt/format.h>
+#include <aclapi.h>
 
 namespace asio = boost::asio;
 using tcp = asio::ip::tcp;
@@ -287,6 +288,7 @@ struct FileUpdater {
 
 	void update();
 	void revert();
+	bool reset_rights(const fs::path& path);
 
 private:
 	update_client *m_client_ctx;
@@ -339,7 +341,23 @@ void FileUpdater::update()
 			fs::rename(to_path, old_file_path);
 
 		fs::rename(from_path, to_path);
+		
+		reset_rights(to_path);
 	}
+}
+
+bool FileUpdater::reset_rights(const fs::path& path)
+{
+	ACL empty_acl;
+	if (InitializeAcl(&empty_acl, sizeof(empty_acl), ACL_REVISION)) 
+	{
+		DWORD result = SetNamedSecurityInfo((LPWSTR)path.c_str() ,SE_FILE_OBJECT, DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION, 0, 0, &empty_acl, 0  );
+		if(result == ERROR_SUCCESS)
+		{
+			return true;
+		} 
+	}
+	return false;
 }
 
 void FileUpdater::revert()
