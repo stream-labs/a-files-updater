@@ -10,6 +10,7 @@
 #include "cli-parser.hpp"
 #include "update-client.hpp"
 #include "logger/log.h"
+#include "crash-reporter.hpp"
 
 //crash handling and reporting 
 void HandleCrash(std::string _crashInfo, bool callAbort = true) noexcept;
@@ -648,7 +649,7 @@ LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
-
+ 
 void HandleCrash(std::string _crashInfo, bool callAbort) noexcept
 {
 	static bool insideCrashMethod = false;
@@ -659,6 +660,9 @@ void HandleCrash(std::string _crashInfo, bool callAbort) noexcept
 	//prepare data and 
 	//submit to sentry
 	//url = std::string("https://sentry.io/api/1283431/minidump/?sentry_key=ec98eac4e3ce49c7be1d83c8fb2005ef");
+	
+	std::string url = std::string("https://localhost:8082/api/1283431/minidump/?sentry_key=ec98eac4e3ce49c7be1d83c8fb2005ef");
+	send_crash_to_sentry();
 
 	if(callAbort)
         abort();
@@ -670,6 +674,104 @@ void HandleExit() noexcept
 {
 	HandleCrash("AtExit", false);
 }
+
+const int MaxNameLen = 256;
+#include "dbghelp.h"
+#pragma comment(lib,"Dbghelp.lib")
+
+void printStack( CONTEXT* ctx ) //Prints stack trace based on context record
+{
+    BOOL    result;
+    HANDLE  process;
+    HANDLE  thread;
+    HMODULE hModule;
+
+    STACKFRAME64        stack;
+    ULONG               frame;    
+    DWORD64             displacement;
+
+    DWORD disp;
+    IMAGEHLP_LINE64 *line;
+
+    char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
+    char name[ MaxNameLen ];
+    char module[MaxNameLen];
+    PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)buffer;
+
+    memset( &stack, 0, sizeof( STACKFRAME64 ) );
+
+    process                = GetCurrentProcess();
+    thread                 = GetCurrentThread();
+    displacement           = 0;
+#if !defined(_M_AMD64)
+    stack.AddrPC.Offset    = (*ctx).Eip;
+    stack.AddrPC.Mode      = AddrModeFlat;
+    stack.AddrStack.Offset = (*ctx).Esp;
+    stack.AddrStack.Mode   = AddrModeFlat;
+    stack.AddrFrame.Offset = (*ctx).Ebp;
+    stack.AddrFrame.Mode   = AddrModeFlat;
+#endif
+	FILE * pFile;
+	pFile = fopen ("myfile.txt","w");
+
+    SymInitialize( process, NULL, TRUE ); //load symbols
+
+    for( frame = 0; ; frame++ )
+    {
+        //get next call from stack
+        result = StackWalk64
+        (
+#if defined(_M_AMD64)
+            IMAGE_FILE_MACHINE_AMD64
+#else
+            IMAGE_FILE_MACHINE_I386
+#endif
+            ,
+            process,
+            thread,
+            &stack,
+            ctx,
+            NULL,
+            SymFunctionTableAccess64,
+            SymGetModuleBase64,
+            NULL
+        );
+
+        if( !result ) break;        
+
+        //get symbol name for address
+        pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+        pSymbol->MaxNameLen = MAX_SYM_NAME;
+        SymFromAddr(process, ( ULONG64 )stack.AddrPC.Offset, &displacement, pSymbol);
+
+        line = (IMAGEHLP_LINE64 *)malloc(sizeof(IMAGEHLP_LINE64));
+        line->SizeOfStruct = sizeof(IMAGEHLP_LINE64);       
+		//ShowError(L"step2");
+        //try to get line
+        if (SymGetLineFromAddr64(process, stack.AddrPC.Offset, &disp, line))
+        {
+            fprintf(pFile,"\tat %s in %s: line: %lu: address: 0x%0X\n", pSymbol->Name, line->FileName, line->LineNumber, pSymbol->Address);
+        }
+        else
+        { 
+            //failed to get line
+            fprintf(pFile, "\tat %s, address 0x%0X.\n", pSymbol->Name, pSymbol->Address);
+            hModule = NULL;
+            lstrcpyA(module,"");        
+            GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, 
+                (LPCTSTR)(stack.AddrPC.Offset), &hModule);
+
+            //at least print module name
+            if(hModule != NULL)GetModuleFileNameA(hModule,module,MaxNameLen);       
+
+            fprintf (pFile, "in %s\n",module);
+        }       
+        free(line);
+        line = NULL;
+    }
+	fclose (pFile);
+}
+
 
 extern "C"
 int wWinMain(
@@ -685,6 +787,11 @@ int wWinMain(
 		/* don't use if a debugger is present */
 	    if (IsDebuggerPresent()) 
             return LONG(EXCEPTION_CONTINUE_SEARCH);
+
+//		if(0xE06D7363 == ExceptionInfo->ExceptionRecord->ExceptionCode)
+		{
+			printStack(ExceptionInfo->ContextRecord);
+		}
 		
 		HandleCrash("UnhandledExceptionFilter");
 
@@ -695,6 +802,14 @@ int wWinMain(
 	// The atexit will check if obs was safelly closed
 	std::atexit(HandleExit);
 	std::at_quick_exit(HandleExit);
+	send_crash_to_sentry_sync();
+
+	[]() {
+		//throw std::exception("123123123123");
+		const TCHAR * pet = 0;
+		TCHAR ped = pet[1];
+		ShowError(&ped);
+	}();
 
 	callbacks_impl cb_impl(hInstance, nCmdShow);
 
@@ -714,6 +829,7 @@ int wWinMain(
 	auto client_deleter = [] (struct update_client *client) {
 		destroy_update_client(client);
 	};
+	
 
 	std::unique_ptr<struct update_client, decltype(client_deleter)>
 		client(create_update_client(&params), client_deleter);
