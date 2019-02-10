@@ -655,23 +655,24 @@ int wWinMain(
   int       nCmdShow
 ) {
 
-	std::set_terminate([]() { HandleCrash(nullptr); });
+	std::set_terminate([]() { handle_crash(nullptr); });
 
 	SetUnhandledExceptionFilter([](struct _EXCEPTION_POINTERS* ExceptionInfo) {
 		/* don't use if a debugger is present */
 	    if (IsDebuggerPresent()) 
+		{
             return LONG(EXCEPTION_CONTINUE_SEARCH);
+		}
 
- 
-		HandleCrash(ExceptionInfo);
+		handle_crash(ExceptionInfo);
 
  		// Unreachable statement
 		return LONG(EXCEPTION_CONTINUE_SEARCH);
 	});
 
 	// The atexit will check if obs was safelly closed
-	std::atexit(HandleExit);
-	std::at_quick_exit(HandleExit);
+	std::atexit(handle_exit);
+	std::at_quick_exit(handle_exit);
 	
 	[]() {
 		//throw std::exception("123123123123");
