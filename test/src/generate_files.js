@@ -18,9 +18,9 @@ function generate_file(filedir, filename, filecontentextended = "", emptyfile = 
     }
 
     stream.end();
-    stream.on("finish", () => {}); // not sure why you want to pass a boolean
+    stream.on("finish", () => { }); // not sure why you want to pass a boolean
     stream.on("error", reject); // don't forget this!
-    
+
   });
 }
 
@@ -124,8 +124,7 @@ function generate_server_dir(testinfo) {
 }
 
 function generate_initial_dir(testinfo, dirpath = "") {
-  if(dirpath == "")
-  {
+  if (dirpath == "") {
     dirpath = testinfo.initialDir
   }
   var generatePromises = [];
@@ -161,14 +160,20 @@ function generate_result_dir(dirpath) {
 }
 
 clean_test_dir = function (dirpath) {
-  fse.removeSync(dirpath);
-  console.log("finish clean_dir");
+  try {
+    fse.removeSync(dirpath);
+  }
+  catch (error) {
+
+  }
+  console.log("finish clean_dir for " + dirpath);
 }
 
 exports.clean_test_dirs = function (testinfo) {
   clean_test_dir(testinfo.serverDir);
   clean_test_dir(testinfo.initialDir);
   clean_test_dir(testinfo.resultDir);
+  clean_test_dir(testinfo.reporterDir);
 }
 
 exports.generate_test_files = function (testinfo) {
@@ -209,6 +214,18 @@ exports.check_results = function (testinfo) {
       console.log(format('%s(%s)%s%s(%s)', name1, entry.type1, state, name2, entry.type2));
     }
   });
+
+  if (ret) {
+    const report_path = path.join(testinfo.reporterDir, "crash_report.json")
+    const have_report = fs.existsSync(report_path);
+    
+    if ((testinfo.expectedCrashReport && have_report ) 
+    || (!testinfo.expectedCrashReport && !have_report )) {
+      ret = true;
+    } else {
+      ret = false;
+    }
+  }
 
   return !ret;
 

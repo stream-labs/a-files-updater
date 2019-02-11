@@ -7,7 +7,7 @@ const http = require('http');
 const port = 80;
 const host = 'localhost';
 
-server = http.createServer( function(req, res) {
+server = http.createServer(function (req, res) {
     console.log(req.method);
     console.log(req.headers);
     if (req.method == 'POST') {
@@ -19,12 +19,11 @@ server = http.createServer( function(req, res) {
         req.on('end', function () {
             console.log("Body: " + body);
         });
-        res.writeHead(200, {'Content-Type': 'application/json'});
+        res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end('{"version": "0"}\r\n');
     }
-    else
-    {
-        res.writeHead(200, {'Content-Type': 'application/json'});
+    else {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end('{"version": "0"}\r\n');
     }
 

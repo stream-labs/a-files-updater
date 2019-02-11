@@ -18,6 +18,8 @@ const std::string host = "localhost";
 const std::string protocol = "http";
 const std::string api_path = "/api/1390326/store/";
 
+extern bool update_completed;
+bool report_unsuccessful = false; 
 
 std::string get_uuid() noexcept;
 std::string get_timestamp() noexcept;
@@ -62,9 +64,6 @@ std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo) noex
 
 int send_crash_to_sentry_sync(const std::string& report_json) noexcept
 {
-	FILE * pFile;
-	pFile = fopen("myfile_send.txt", "w");
-	fprintf(pFile, "Begin \n"); fflush(pFile);
 	try
 	{
 		boost::asio::io_service io_service;
@@ -104,8 +103,6 @@ int send_crash_to_sentry_sync(const std::string& report_json) noexcept
 		request_stream << "\r\n";
 		request_stream << report_json;
 
-		fprintf(pFile, "send Json %s \n", report_json.c_str()); fflush(pFile);
-
 		// Send the request.
 		boost::asio::write(socket, request);
 
@@ -119,37 +116,34 @@ int send_crash_to_sentry_sync(const std::string& report_json) noexcept
 		response_stream >> http_version;
 		unsigned int status_code;
 		response_stream >> status_code;
+
 		std::string status_message;
 		std::getline(response_stream, status_message);
 
 		if (!response_stream || http_version.substr(0, 5) != "HTTP/")
 		{
-			fprintf(pFile, "Invalid response \n"); fflush(pFile);
 		} else
 		{
-			fprintf(pFile, "Response returned with status code %d \n", status_code); fflush(pFile);
-
 			// Read the response headers, which are terminated by a blank line.
 			boost::asio::read_until(socket, response, "\r\n\r\n");
 
-			// Process the response headers.
+			// Process the response headers. 
+			// Not much we can do if sentry response with error. 
+			// Just read data to make connection finish correctly
 			std::string header;
 			while (std::getline(response_stream, header) && header != "\r\n")
 			{
-				fprintf(pFile, "%s \n", header.c_str()); fflush(pFile);
 			}
-			fprintf(pFile, "  \n"); fflush(pFile);
 
-			// Write whatever content we already have to output.
 			if (response.size() > 0)
 			{
-				std::cout << &response;
+				
 			}
 
-			// Read until EOF, writing data to output as we go.
+			// Read until EOF, checking data as we go.
 			while (boost::asio::read(socket, response, boost::asio::transfer_at_least(1), error))
 			{
-				std::cout << &response;
+				
 			}
 
 			if (error != boost::asio::error::eof)
@@ -159,10 +153,9 @@ int send_crash_to_sentry_sync(const std::string& report_json) noexcept
 		}
 	} catch (std::exception& e)
 	{
-		fprintf(pFile, "Exception %s \n", e.what()); fflush(pFile);
+		//have to ignore exceptions as programm is in reporting exception already
 	}
-	fprintf(pFile, "End  \n"); fflush(pFile);
-	fclose(pFile);
+
 
 	return 0;
 }
@@ -189,12 +182,16 @@ void handle_crash(struct _EXCEPTION_POINTERS* ExceptionInfo, bool callAbort) noe
 }
 
 void handle_exit() noexcept
-{
-	handle_crash(generate_exception_info(), false);
+{  
+	if(!update_completed && report_unsuccessful)
+	{
+		handle_crash(generate_exception_info(), false);
+	}
 }
 
 struct _EXCEPTION_POINTERS* generate_exception_info() noexcept
 {
+	//todo
 	return nullptr;
 }
 

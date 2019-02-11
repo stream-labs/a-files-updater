@@ -21,6 +21,7 @@ using chrono::duration_cast;
 /* Some basic constants that are adjustable at compile time */
 const double average_bw_time_span = 1000;
 struct update_parameters params;
+bool update_completed = false;
 
 void ShowError(LPCWSTR lpMsg)
 {
@@ -646,7 +647,6 @@ LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
  
-
 extern "C"
 int wWinMain(
   HINSTANCE hInstance,
@@ -670,28 +670,21 @@ int wWinMain(
 		return LONG(EXCEPTION_CONTINUE_SEARCH);
 	});
 
-	// The atexit will check if obs was safelly closed
+	// The atexit will check if updater was safelly closed
 	std::atexit(handle_exit);
 	std::at_quick_exit(handle_exit);
 	
-	[]() {
-		//throw std::exception("123123123123");
-		const TCHAR * pet = 0;
-		TCHAR ped = pet[1];
-		ShowError(&ped);
-	}();
-
 	callbacks_impl cb_impl(hInstance, nCmdShow);
 
 	MultiByteCommandLine command_line;
 
-	bool success = su_parse_command_line(
+	update_completed = su_parse_command_line(
 		command_line.argc(),
 		command_line.argv(),
 		&params
 	);
 
-	if (!success) {
+	if (!update_completed) {
 		ShowError(L"Failed to parse cli arguments!");
 		return 0;
 	}
@@ -728,12 +721,12 @@ int wWinMain(
 #define THERE_OR_NOT(x) \
 	((x).empty() ? NULL : (x).c_str())
 
-	success = StartApplication(
+	update_completed = StartApplication(
 		THERE_OR_NOT(params.exec),
 		THERE_OR_NOT(params.exec_cwd)
 	);
 
-	if (!success) {
+	if (!update_completed) {
 		ShowWarning(
 			L"Failed to restart application!\n"
 			"Just manually start it. Sorry about that!"

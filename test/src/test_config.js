@@ -6,6 +6,7 @@ exports.gettestinfo = function () {
     initialDir: "",
     resultDir: "",
     updaterDir: "",
+    reporterDir: "",
     versionName: "0.11.9-preview.1",
     updaterName: "slobs-updater.exe",
 
@@ -15,9 +16,13 @@ exports.gettestinfo = function () {
     manifestWrongFile: false,
     blockFileFromUpdating: false,
 
+    reporterHost: "localhost",
+    reporterPort: 80,
+
     skipUpdaterLaunch: false,
 
     expectedResult: "filesupdated", // "filesnotchanged", ""
+    expectedCrashReport: false,
 
     not_keep_files: false
   }
@@ -26,6 +31,7 @@ exports.gettestinfo = function () {
   newinfo.serverDir = path.join(testfilesDir, "server")
   newinfo.initialDir = path.join(testfilesDir, "initial")
   newinfo.resultDir = path.join(testfilesDir, "result")
+  newinfo.reporterDir = path.join(testfilesDir, "crash_reports")
 
   newinfo.updaterDir = path.join(__dirname, "..", "..", "build", "Debug")
 
