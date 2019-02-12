@@ -9,17 +9,17 @@
 
 using boost::asio::ip::tcp;
 
-#ifdef _NDEBUG
-const std::string host = "sentry.io";
+#ifdef SENTRY_HOST_NAME
+const std::string host = SENTRY_HOST_NAME
 #else
-const std::string host = "localhost";
+const std::string host = "sentry.io";
 #endif
 
 const std::string protocol = "http";
 const std::string api_path = "/api/1390326/store/";
 
 extern bool update_completed;
-bool report_unsuccessful = false; 
+bool report_unsuccessful = false;
 
 std::string get_uuid() noexcept;
 std::string get_timestamp() noexcept;
@@ -95,7 +95,7 @@ int send_crash_to_sentry_sync(const std::string& report_json) noexcept
 		request_stream << "Accept-language: 'en-US,en;q=0.9,ru;q=0.8'" << "\r\n";
 		request_stream << "Connection: close" << "\r\n";
 		request_stream << "X-Sentry-Auth: Sentry sentry_version=5,sentry_client=slobs_updater/";
-		request_stream << "123" << ",sentry_timestamp=" << get_timestamp();
+		request_stream << "1.0.0" << ",sentry_timestamp=" << get_timestamp();
 		request_stream << ",sentry_key=" << "7492ebea21f54618a550163938dc164d";
 		request_stream << ",sentry_secret=" << "654ed1db5d93495284f66f3d6d195790" << "\r\n";
 
@@ -137,13 +137,13 @@ int send_crash_to_sentry_sync(const std::string& report_json) noexcept
 
 			if (response.size() > 0)
 			{
-				
+
 			}
 
 			// Read until EOF, checking data as we go.
 			while (boost::asio::read(socket, response, boost::asio::transfer_at_least(1), error))
 			{
-				
+
 			}
 
 			if (error != boost::asio::error::eof)
@@ -182,8 +182,8 @@ void handle_crash(struct _EXCEPTION_POINTERS* ExceptionInfo, bool callAbort) noe
 }
 
 void handle_exit() noexcept
-{  
-	if(!update_completed && report_unsuccessful)
+{
+	if (!update_completed && report_unsuccessful)
 	{
 		handle_crash(generate_exception_info(), false);
 	}
@@ -260,7 +260,7 @@ void print_stacktrace(CONTEXT* ctx, std::ostringstream & report_stream) noexcept
 		report_stream << " { ";
 
 		report_stream << " 	\"function\": \"" << pSymbol->Name << "\", ";
-		report_stream << " 	\"instruction_addr\": \"" << pSymbol->Address << "\", ";
+		report_stream << " 	\"instruction_addr\": \"" << "0x" << std::uppercase << std::setfill('0') << std::setw(12) << std::hex << pSymbol->Address << "\", ";
 		if (SymGetLineFromAddr64(process, stack.AddrPC.Offset, &disp, line))
 		{
 			report_stream << " 	\"lineno\": \"" << line->LineNumber << "\", ";
