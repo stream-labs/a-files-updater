@@ -351,9 +351,9 @@ bool FileUpdater::reset_rights(const fs::path& path)
 	ACL empty_acl;
 	if (InitializeAcl(&empty_acl, sizeof(empty_acl), ACL_REVISION))
 	{
-		DWORD result = SetNamedSecurityInfo((LPWSTR)path.c_str(), SE_FILE_OBJECT, 
-											DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION, 
-											0, 0, &empty_acl, 0);
+        DWORD result = SetNamedSecurityInfo((LPWSTR)path.c_str(), SE_FILE_OBJECT, 
+                                            DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION, 
+                                            0, 0, &empty_acl, 0);
 		if (result == ERROR_SUCCESS)
 		{
 			return true;
