@@ -62,7 +62,7 @@ before_deploy:
 deploy:
 - provider: GitHub
   auth_token:
-    secure: +8bGD9UqEQEmN7arCP20Pdy6knm23HiSom8eMRMMP4xDvd9Eo8dPdsVpzgTavJd4
+    secure: 8b6aa03a353f17d21c1641dd9d9ae8d87320e3c8
   artifact: slobs-updater-signed-$(BUILD_TYPE).exe
   force_update: true
   on:
