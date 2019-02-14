@@ -1,0 +1,26 @@
+{
+    "name": "updater_test_run",
+    "version": "0.0.1",
+    "description": "",
+    "main": "main.js",
+    "scripts": {
+      "start": "node main.js"
+    },
+    "files": [
+      "src"
+    ],
+    "dependencies": {
+      "http-proxy": "^1.8.1",
+      "finalhandler": "1.1.1",
+      "serve-static": "1.13.2",
+      "https-localhost":"1.3.0",
+      "fs-extra":"7.0.1",
+      "node-gzip":"1.1.2",
+      "dir-compare":"1.6.0"
+    },
+    "devDependencies": {
+      "request": "2.49.x"
+    },
+    "bugs": {
+    }
+  }

@@ -10,6 +10,7 @@
 #include "cli-parser.hpp"
 #include "update-client.hpp"
 #include "logger/log.h"
+#include "crash-reporter.hpp"
 
 namespace fs = boost::filesystem;
 namespace chrono = std::chrono;
@@ -19,25 +20,33 @@ using chrono::duration_cast;
 
 /* Some basic constants that are adjustable at compile time */
 const double average_bw_time_span = 1000;
+struct update_parameters params;
+bool update_completed = false;
 
 void ShowError(LPCWSTR lpMsg)
 {
-	MessageBoxW(
-		NULL,
-		lpMsg,
-		TEXT("Error"),
-		MB_ICONEXCLAMATION | MB_OK
-	);
+	if(params.interactive)
+	{
+		MessageBoxW(
+			NULL,
+			lpMsg,
+			TEXT("Error"),
+			MB_ICONEXCLAMATION | MB_OK
+		);
+	}
 }
 
 void ShowWarning(LPCWSTR lpMsg)
 {
-	MessageBoxW(
-		NULL,
-		lpMsg,
-		TEXT("Warning"),
-		MB_ICONEXCLAMATION | MB_OK
-	);
+	if(params.interactive)
+	{
+		MessageBoxW(
+			NULL,
+			lpMsg,
+			TEXT("Warning"),
+			MB_ICONEXCLAMATION | MB_OK
+		);
+	}
 }
 
 /* Because Windows doesn't provide us a Unicode
@@ -637,7 +646,7 @@ LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
-
+ 
 extern "C"
 int wWinMain(
   HINSTANCE hInstance,
@@ -645,18 +654,37 @@ int wWinMain(
   LPWSTR    lpCmdLineUnused,
   int       nCmdShow
 ) {
-	struct update_parameters params;
+
+	std::set_terminate([]() { handle_crash(nullptr); });
+
+	SetUnhandledExceptionFilter([](struct _EXCEPTION_POINTERS* ExceptionInfo) {
+		/* don't use if a debugger is present */
+	    if (IsDebuggerPresent()) 
+		{
+            return LONG(EXCEPTION_CONTINUE_SEARCH);
+		}
+
+		handle_crash(ExceptionInfo);
+
+ 		// Unreachable statement
+		return LONG(EXCEPTION_CONTINUE_SEARCH);
+	});
+
+	// The atexit will check if updater was safelly closed
+	std::atexit(handle_exit);
+	std::at_quick_exit(handle_exit);
+	
 	callbacks_impl cb_impl(hInstance, nCmdShow);
 
 	MultiByteCommandLine command_line;
 
-	bool success = su_parse_command_line(
+	update_completed = su_parse_command_line(
 		command_line.argc(),
 		command_line.argv(),
 		&params
 	);
 
-	if (!success) {
+	if (!update_completed) {
 		ShowError(L"Failed to parse cli arguments!");
 		return 0;
 	}
@@ -664,6 +692,7 @@ int wWinMain(
 	auto client_deleter = [] (struct update_client *client) {
 		destroy_update_client(client);
 	};
+	
 
 	std::unique_ptr<struct update_client, decltype(client_deleter)>
 		client(create_update_client(&params), client_deleter);
@@ -692,12 +721,12 @@ int wWinMain(
 #define THERE_OR_NOT(x) \
 	((x).empty() ? NULL : (x).c_str())
 
-	success = StartApplication(
+	update_completed = StartApplication(
 		THERE_OR_NOT(params.exec),
 		THERE_OR_NOT(params.exec_cwd)
 	);
 
-	if (!success) {
+	if (!update_completed) {
 		ShowWarning(
 			L"Failed to restart application!\n"
 			"Just manually start it. Sorry about that!"

@@ -18,6 +18,7 @@ struct update_parameters {
 	std::vector<int> pids;
 	std::string version;
 	FILE *log_file;
+	bool interactive;
 
 	~update_parameters()
 	{

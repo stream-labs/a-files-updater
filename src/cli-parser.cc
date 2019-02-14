@@ -175,6 +175,9 @@ bool su_parse_command_line(
 	struct arg_int *pids_arg = arg_intn("p", "pids", "<pid>", 0, 100,
 		"The process ID's to wait on before starting the update");
 
+	struct arg_int *interactive = arg_intn("i", "interactive", "<interactive>", 0, 1,
+		"Show user modal message boxes");
+
 	struct arg_end *end_arg = arg_end(255);
 
 	void *arg_table[] = {
@@ -188,6 +191,7 @@ bool su_parse_command_line(
 		temp_dir_arg,
 		version_arg,
 		pids_arg,
+		interactive,
 		end_arg
 	};
 
@@ -207,8 +211,10 @@ bool su_parse_command_line(
 		ARG_STRING,
 		ARG_STRING,
 		ARG_INTEGER,
+		ARG_INTEGER,
 		ARG_END
 	};
+	params->interactive = true;
 
 	/* Here we assume that stdout is setup correctly, otherwise --help is pointless */
 	if (help_arg->count > 0) {
@@ -219,7 +225,7 @@ bool su_parse_command_line(
 		success = false;
 		goto success;
 	}
-
+		
 	if (temp_dir_arg->count > 0) {
 		params->temp_dir =
 			fetch_path(
@@ -310,6 +316,11 @@ bool su_parse_command_line(
 
 	params->pids = make_vector_from_arg(pids_arg);
 	params->version.assign(version_arg->sval[0]);
+
+	if(interactive->count > 0)
+	{
+		params->interactive = interactive->ival[0];
+	}
 
 	if (!success) goto parse_error;
 

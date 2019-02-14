@@ -496,7 +496,9 @@ void update_client::handle_resolve(
   tcp::resolver::results_type results
 ) {
 	if (error) {
-		/* TODO FIXME Signal failure */
+		client_events->error(
+			"Failed to connect to update server."
+		);
 		return;
 	}
 
@@ -586,10 +588,11 @@ void update_client::do_stuff()
 	};
 
 	client_events->initialize();
-
+	
 	resolver.async_resolve(
 		params->host.authority,
 		params->host.scheme,
+//		boost::asio::ip::tcp::resolver::query::address_configured,
 		cb
 	);
 
@@ -859,7 +862,7 @@ void update_client::handle_manifest_response(
 		auto target = safe_request_ctx->request.target();
 
 		/* FIXME Signal failure */
-
+		handle_error({}, "No manifest file on server");
 		return;
 	}
 
@@ -1017,7 +1020,7 @@ void update_client::handle_file_result(
 ) {
 	auto &filter = file_ctx->checksum_filter;
 
-	file_ctx->output_chain.reset();
+	//file_ctx->output_chain.reset();
 
 	std::string hex_digest;
 	hex_digest.reserve(64);
