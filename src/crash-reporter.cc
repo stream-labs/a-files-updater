@@ -1,5 +1,6 @@
 
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>
@@ -21,12 +22,26 @@ const std::string api_path = "/api/1390326/store/";
 extern bool update_completed;
 bool report_unsuccessful = false;
 
+std::time_t app_start_timestamp;
+
 std::string get_uuid() noexcept;
 std::string get_timestamp() noexcept;
 
+double get_time_from_start() noexcept;
+
+std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo) noexcept;
+int send_crash_to_sentry_sync(const std::string& report_json) noexcept;
+
+void save_start_timestamp();
+std::string get_command_line() noexcept;
+
+void handle_exit() noexcept;
+void handle_crash(struct _EXCEPTION_POINTERS* ExceptionInfo, bool callAbort = true) noexcept;
+
 struct _EXCEPTION_POINTERS* generate_exception_info() noexcept;
 void print_stacktrace(CONTEXT* ctx, std::ostringstream & report_stream) noexcept; //Prints stack trace based on context record
-void escape_backslashes(std::string &report);
+
+std::string escapeJsonString(const std::string& input) noexcept;
 
 #include "dbghelp.h"
 #pragma comment(lib,"Dbghelp.lib")
@@ -55,7 +70,12 @@ std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo) noex
 	json_report << "	}]}, ";
 	json_report << "	\"tags\": { ";
 	json_report << "		\"app_build_timestamp\": \"" << __DATE__ << " " << __TIME__ << "\", ";
-	json_report << "		\"os_version\": \"" << "win32" << "\" ";
+	json_report << "		\"release\": \"" << "0.0.1" << "\", ";
+	json_report << "		\"os_version\": \"" << "WIN32" << "\" ";
+	json_report << "	}, ";
+	json_report << "	\"extra\": { ";
+	json_report << "		\"app_run_time\": \"" << get_time_from_start() << "\", ";
+	json_report << "		\"console_args\": \"" << get_command_line() << "\" ";
 	json_report << "	} ";
 	json_report << "}";
 
@@ -151,6 +171,7 @@ int send_crash_to_sentry_sync(const std::string& report_json) noexcept
 				throw boost::system::system_error(error);
 			}
 		}
+
 	} catch (std::exception& e)
 	{
 		//have to ignore exceptions as programm is in reporting exception already
@@ -170,7 +191,6 @@ void handle_crash(struct _EXCEPTION_POINTERS* ExceptionInfo, bool callAbort) noe
 	insideCrashMethod = true;
 
 	std::string report = prepare_crash_report(ExceptionInfo);
-	escape_backslashes(report);
 	send_crash_to_sentry_sync(report);
 
 	if (callAbort)
@@ -245,32 +265,41 @@ void print_stacktrace(CONTEXT* ctx, std::ostringstream & report_stream) noexcept
 
 		if (!result) break;
 
-		//get symbol name for address
-		pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
-		pSymbol->MaxNameLen = MAX_SYM_NAME;
-		SymFromAddr(process, (ULONG64)stack.AddrPC.Offset, &displacement, pSymbol);
-
-		line = (IMAGEHLP_LINE64 *)malloc(sizeof(IMAGEHLP_LINE64));
-		line->SizeOfStruct = sizeof(IMAGEHLP_LINE64);
-
 		if (!first_element)
 		{
 			report_stream << ",";
 		}
 		report_stream << " { ";
 
-		report_stream << " 	\"function\": \"" << pSymbol->Name << "\", ";
-		report_stream << " 	\"instruction_addr\": \"" << "0x" << std::uppercase << std::setfill('0') << std::setw(12) << std::hex << pSymbol->Address << "\", ";
-		if (SymGetLineFromAddr64(process, stack.AddrPC.Offset, &disp, line))
+		//get symbol name for address
+		pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+		pSymbol->MaxNameLen = MAX_SYM_NAME;
+		if (SymFromAddr(process, (ULONG64)stack.AddrPC.Offset, &displacement, pSymbol))
 		{
-			report_stream << " 	\"lineno\": \"" << line->LineNumber << "\", ";
-			report_stream << " 	\"filename\": \"" << line->FileName << "\", ";
+			line = (IMAGEHLP_LINE64 *)malloc(sizeof(IMAGEHLP_LINE64));
+			line->SizeOfStruct = sizeof(IMAGEHLP_LINE64);
+
+
+
+			report_stream << " 	\"function\": \"" << pSymbol->Name << "\", ";
+			report_stream << " 	\"instruction_addr\": \"" << "0x" << std::uppercase << std::setfill('0') << std::setw(12) << std::hex << pSymbol->Address << "\", ";
+			if (SymGetLineFromAddr64(process, stack.AddrPC.Offset, &disp, line))
+			{
+				report_stream << " 	\"lineno\": \"" << line->LineNumber << "\", ";
+				std::string file_name = line->FileName ;
+				file_name = escapeJsonString(file_name);
+				report_stream << " 	\"filename\": \"" << file_name << "\", ";
+			} else
+			{
+				//failed to get line number
+			}
+			free(line);
+			line = NULL;
 		} else
 		{
-			//failed to get line number
+			report_stream << " 	\"function\": \"" << "unknown" << "\", ";
+			report_stream << " 	\"instruction_addr\": \"" << "0x" << std::uppercase << std::setfill('0') << std::setw(12) << std::hex << (ULONG64)stack.AddrPC.Offset << "\", ";
 		}
-		free(line);
-		line = NULL;
 
 		hModule = NULL;
 		lstrcpyA(module, "");
@@ -280,7 +309,9 @@ void print_stacktrace(CONTEXT* ctx, std::ostringstream & report_stream) noexcept
 			{
 				if (GetModuleFileNameA(hModule, module, MaxNameLen))
 				{
-					report_stream << " 	\"module\": \"" << module << "\" ";
+					std::string module_name = module ;
+					module_name = escapeJsonString(module_name);
+					report_stream << " 	\"module\": \"" << module_name << "\" ";
 				}
 			}
 		}
@@ -290,6 +321,56 @@ void print_stacktrace(CONTEXT* ctx, std::ostringstream & report_stream) noexcept
 	}
 }
 
+void save_start_timestamp()
+{
+	std::time(&app_start_timestamp);
+}
+
+double get_time_from_start() noexcept
+{
+	time_t current_time;
+	time(&current_time);
+	return difftime(app_start_timestamp, current_time);
+}
+
+std::string get_command_line() noexcept
+{
+	std::string ret = "empty";
+	LPWSTR lpCommandLine = GetCommandLine();
+	if (lpCommandLine != nullptr)
+	{
+		std::wstring ws_args = std::wstring(lpCommandLine);
+		ret = std::string(ws_args.begin(), ws_args.end());
+		ret = escapeJsonString(ret);
+	}
+	return ret;
+}
+
+void setup_crash_reporting()
+{
+	save_start_timestamp();
+
+	std::set_terminate([]() { handle_crash(nullptr); });
+
+	SetUnhandledExceptionFilter([](struct _EXCEPTION_POINTERS* ExceptionInfo)
+	{
+		/* don't use if a debugger is present */
+		if (IsDebuggerPresent())
+		{
+			return LONG(EXCEPTION_CONTINUE_SEARCH);
+		}
+
+		handle_crash(ExceptionInfo);
+
+		// Unreachable statement
+		return LONG(EXCEPTION_CONTINUE_SEARCH);
+	});
+
+	// The atexit will check if updater was safelly closed
+	std::atexit(handle_exit);
+	std::at_quick_exit(handle_exit);
+
+}
 
 std::string get_timestamp() noexcept
 {
@@ -322,15 +403,23 @@ std::string get_uuid() noexcept
 	return std::string(result);
 }
 
-void escape_backslashes(std::string &report)
+std::string escapeJsonString(const std::string& input) noexcept
 {
-	std::string search = "\\";
-	std::string replace = "\\\\";
-	size_t pos = 0;
-	while ((pos = report.find(search, pos)) != std::string::npos)
+	std::ostringstream ss;
+	for (auto iter = input.cbegin(); iter != input.cend(); iter++)
 	{
-		report.replace(pos, search.length(), replace);
-		pos += replace.length();
+		switch (*iter)
+		{
+		case '\\': ss << "\\\\"; break;
+		case '"': ss << "\\\""; break;
+		case '/': ss << "\\/"; break;
+		case '\b': ss << "\\b"; break;
+		case '\f': ss << "\\f"; break;
+		case '\n': ss << "\\n"; break;
+		case '\r': ss << "\\r"; break;
+		case '\t': ss << "\\t"; break;
+		default: ss << *iter; break;
+		}
 	}
-
+	return ss.str();
 }
