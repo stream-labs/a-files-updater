@@ -330,7 +330,7 @@ double get_time_from_start() noexcept
 {
 	time_t current_time;
 	time(&current_time);
-	return difftime(app_start_timestamp, current_time);
+	return difftime( current_time, app_start_timestamp);
 }
 
 std::string get_command_line() noexcept

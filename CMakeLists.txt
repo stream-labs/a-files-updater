@@ -62,6 +62,7 @@ target_compile_options(slobs-updater
 	PRIVATE
 		$<IF:$<CONFIG:Debug>,-MTd,-MT>
 		-W3
+		-gcodeview
 		-bigobj
 )
 
