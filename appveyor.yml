@@ -47,8 +47,8 @@ build_script:
   - ci\appveyor\build.bat
 
 artifacts:
-- path: $(BUILD_DIR)\$(BUILD_TYPE)\*.exe
-- path: $(BUILD_DIR)\$(BUILD_TYPE)\*.pdb
+- path: build\$(BUILD_TYPE)\*.exe
+- path: build\$(BUILD_TYPE)\*.pdb
 
 before_deploy:
 - ps: ci\appveyor\sign_binaries.ps1
