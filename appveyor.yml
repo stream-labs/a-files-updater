@@ -52,10 +52,11 @@ before_build:
 
 build_script:
   - ci\appveyor\build.bat
-  - if exist "slobs-updater.pdb" appveyor PushArtifact "slobs-updater.pdb"
+  - if exist "bouild\slobs-updater.pdb" appveyor PushArtifact "build\slobs-updater.pdb"
 
 artifacts:
 - path: build\*.exe
+- path: build\*.pdb
 
 before_deploy:
 - ps: ci\appveyor\sign_binaries.ps1
