@@ -8,4 +8,4 @@ cmake ^
 	-DZLIB_ROOT="%ZLIB_ROOT%" ^
 	-DUSE_STREAMLABS_RESOURCE=ON
 
-cmake --build "%BUILD_DIR%"
+cmake --build "%BUILD_DIR%"  --config %BUILD_TYPE%

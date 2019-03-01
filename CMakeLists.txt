@@ -58,13 +58,6 @@ if (USE_STREAMLABS_RESOURCE)
 	target_sources(slobs-updater PUBLIC resources/slobs-updater.rc)
 endif ()
 
-target_compile_options(slobs-updater
-	PRIVATE
-		$<IF:$<CONFIG:Debug>,-MTd,-MT>
-		-W3
-		-bigobj
-)
-
 target_include_directories(slobs-updater
 	PRIVATE src/argtable
 	PRIVATE src/fmt
