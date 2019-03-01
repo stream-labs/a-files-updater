@@ -15,7 +15,6 @@ environment:
   OPENSSL_ROOT: $(DEPS_LOCAL_PATH)\$(OPENSSL_DIST_NAME)
   BOOST_ROOT: $(DEPS_LOCAL_PATH)\$(BOOST_DIST_NAME)
   BUILD_DIR: $(APPVEYOR_BUILD_FOLDER)\build
-  WIN_MT: C:\Program Files (x86)\Windows Kits\10\bin\x64\mt.exe
   SIGN_TOOL: C:\Program Files (x86)\Windows Kits\10\bin\x64\signtool.exe
   STREAMLABS_PFX_SECRET:
     secure: iZlMSWnmH5FQDpa+/0SgXIyvCobkElj2y5lu94Uo8VnTWHTeTC1/bpVkzsLreENocomvDB5ywsa3+QdathRp8A==
@@ -48,8 +47,8 @@ build_script:
   - ci\appveyor\build.bat
 
 artifacts:
-- path: build\*.exe
-- path: build\*.pdb
+- path: $(BUILD_DIR)\$(BUILD_TYPE)\*.exe
+- path: $(BUILD_DIR)\$(BUILD_TYPE)\*.pdb
 
 before_deploy:
 - ps: ci\appveyor\sign_binaries.ps1
