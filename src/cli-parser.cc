@@ -140,22 +140,6 @@ bool su_parse_command_line(
   int argc, char **argv,
   struct update_parameters *params
 ) {
-	[]() {
-		class test {
-		public:
-			void testing() {
-				crashing();
-			}
-			void crashing() {
-				throw std::exception("123123123123");
-				const char * pet = 0;
-				char ped = pet[1];
-				//ShowError(&ped);
-			}
-		};
-		test tested;
-		return  tested.testing();
-	}();
 	bool success = true;
 	fs::path log_path;
 
