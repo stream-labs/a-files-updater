@@ -61,9 +61,15 @@ endif ()
 target_compile_options(slobs-updater
 	PRIVATE
 		$<IF:$<CONFIG:Debug>,-MTd,-MT>
-		-W3
+		-W3 -Zi
 		-bigobj
 )
+
+target_link_options(slobs-updater
+	PRIVATE
+		 /DEBUG 
+)
+
 
 target_include_directories(slobs-updater
 	PRIVATE src/argtable
@@ -81,6 +87,7 @@ target_link_libraries(slobs-updater
 	ZLIB::ZLIB
 	# -MANIFESTUAC:level=requireAdministrator
 )
+
 
 # OpenSSL needs us to link against libraries it depends
 # on in order to be runtime agnostic
