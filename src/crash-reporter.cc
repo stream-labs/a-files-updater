@@ -157,13 +157,13 @@ int send_crash_to_sentry_sync(const std::string& report_json) noexcept
 			throw boost::system::system_error(error);
 		}
 
-		std::string filename("MiniDump.dmp");
+		const std::string filename("MiniDump.dmp");
 		long long fileSize = boost::filesystem::file_size(filename);
 
-		std::string PREFIX = "--";
-		std::string BOUNDARY = "x34kdp2Dl23Psl5lS";
-		std::string NEWLINE = "\r\n";
-		int NEWLINE_LENGTH = NEWLINE.length();
+		const std::string PREFIX = "--";
+		const std::string BOUNDARY = get_uuid();
+		const std::string NEWLINE = "\r\n";
+		const int NEWLINE_LENGTH = NEWLINE.length();
 
 		//Calculate length of entire HTTP request - goes into header
 		long long lengthOfRequest = 0;
