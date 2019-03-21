@@ -56,14 +56,11 @@ build_script:
 artifacts:
 - path: build\*.exe
 
-before_deploy:
-- ps: ci\appveyor\sign_binaries.ps1
-
 deploy:
 - provider: GitHub
   auth_token:
     secure: bZAhJGTTECUwN5HZrbj8nVSIolcY/9nU0x1tr67/cgqKgfCbfBswXRKe8L2bbhuB
-  artifact: slobs-updater-signed-$(BUILD_TYPE).exe
+  artifact: slobs-updater.exe
   force_update: true
   on:
     appveyor_repo_tag: true
