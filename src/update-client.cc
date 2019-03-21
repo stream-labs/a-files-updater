@@ -355,7 +355,10 @@ void FileUpdater::update()
 
 		fs::rename(from_path, to_path);
 		
-		reset_rights(to_path);
+		try {
+			reset_rights(to_path);
+		} catch (...) {
+		}
 	}
 }
 
@@ -380,6 +383,7 @@ void FileUpdater::revert()
 	/* Generate the manifest for the current application directory */
 	fs::recursive_directory_iterator iter(m_old_files_dir);
 	fs::recursive_directory_iterator end_iter{};
+	boost::system::error_code ec;
 
 	for (; iter != end_iter; ++iter) {
 		/* Fetch relative paths */
@@ -387,9 +391,11 @@ void FileUpdater::revert()
 
 		fs::path to_path(m_app_dir);
 		to_path /= rel_path;
+		
+		
+		fs::remove(to_path, ec);
 
-		fs::remove(to_path);
-		fs::rename(iter->path(), to_path);
+		fs::rename(iter->path(), to_path, ec);
 	}
 }
 
