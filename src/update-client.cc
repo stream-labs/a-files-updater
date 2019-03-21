@@ -899,7 +899,7 @@ void update_client::handle_manifest_request(
 	if (error) {
 		std::string msg = fmt::format(
 			"Failed manifest request ({}): {}",
-			request_ctx->target
+			request_ctx->target, error.message().c_str()
 		);
 
 		handle_error(error, msg.c_str());
@@ -931,7 +931,7 @@ void update_client::handle_manifest_handshake(
 	if (error) {
 		std::string msg = fmt::format(
 			"Failed manifest handshake ({}): {}",
-			request_ctx->target
+			request_ctx->target, error.message().c_str()
 		);
 
 		handle_error(error, msg.c_str());
@@ -1290,7 +1290,7 @@ void update_client::handle_file_handshake(
 	if (error) {
 		std::string msg = fmt::format(
 			"Failed manifest handshake ({}): {}",
-			request_ctx->target
+			request_ctx->target, error.message().c_str()
 		);
 
 		handle_error(error, msg.c_str());
