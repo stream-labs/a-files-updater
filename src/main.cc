@@ -36,15 +36,15 @@ void ShowError(LPCWSTR lpMsg)
 	}
 }
 
-void ShowWarning(LPCWSTR lpMsg)
+void ShowInfo(LPCWSTR lpMsg)
 {
 	if(params.interactive)
 	{
 		MessageBoxW(
 			NULL,
 			lpMsg,
-			TEXT("Warning"),
-			MB_ICONEXCLAMATION | MB_OK
+			TEXT("Info"),
+			MB_ICONINFORMATION | MB_OK
 		);
 	}
 }
@@ -727,9 +727,9 @@ int wWinMain(
 	);
 
 	if (!update_completed) {
-		ShowWarning(
-			L"Failed to restart application!\n"
-			"Just manually start it. Sorry about that!"
+		ShowInfo(
+			L"The application has finished updating.\n"
+			"Please manually start Streamlabs OBS."
 		);
 	}
 #undef THERE_OR_NOT
