@@ -327,7 +327,9 @@ FileUpdater::FileUpdater(update_client *client_ctx)
 
 FileUpdater::~FileUpdater()
 {
-	fs::remove_all(m_old_files_dir);
+	boost::system::error_code ec;
+
+	fs::remove_all(m_old_files_dir, ec);
 }
 
 void FileUpdater::update()
