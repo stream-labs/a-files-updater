@@ -15,19 +15,16 @@ environment:
   OPENSSL_ROOT: $(DEPS_LOCAL_PATH)\$(OPENSSL_DIST_NAME)
   BOOST_ROOT: $(DEPS_LOCAL_PATH)\$(BOOST_DIST_NAME)
   BUILD_DIR: $(APPVEYOR_BUILD_FOLDER)\build
-  WIN_MT: C:\Program Files (x86)\Windows Kits\10\bin\x64\mt.exe
-  SIGN_TOOL: C:\Program Files (x86)\Windows Kits\10\bin\x64\signtool.exe
   STREAMLABS_PFX_SECRET:
     secure: iZlMSWnmH5FQDpa+/0SgXIyvCobkElj2y5lu94Uo8VnTWHTeTC1/bpVkzsLreENocomvDB5ywsa3+QdathRp8A==
   STREAMLABS_SECRET:
     secure: hr+VpykbGiCI5I0ltiqH667wh/YQx2Fi5SBLfkOWHSg=
-  CC: C:\Program Files\LLVM\bin\clang-cl.exe
-  CXX: C:\Program Files\LLVM\bin\clang-cl.exe
 
   matrix:
   - BUILD_TYPE: Release
   - BUILD_TYPE: Debug
   - BUILD_TYPE: MinSizeRel
+  - BUILD_TYPE: RelWithDebInfo
 
 install:
   - nuget install secure-file -ExcludeVersion
@@ -35,10 +32,6 @@ install:
   - ci\appveyor\check_dependency.bat "%ZLIB_DIST_NAME%"
   - ci\appveyor\check_dependency.bat "%OPENSSL_DIST_NAME%"
   - ci\appveyor\check_dependency.bat "%BOOST_DIST_NAME%"
-  - mkdir "%DEPS_LOCAL_PATH%\tools"
-  - appveyor DownloadFile https://github.com/ninja-build/ninja/releases/download/v1.8.2/ninja-win.zip -FileName ninja.zip
-  - 7z x ninja.zip -o"%DEPS_LOCAL_PATH\tools\"
-  - rm ninja.zip
   - set PATH=%DEPS_LOCAL_PATH%;%PATH%
 
 cache:
@@ -51,10 +44,10 @@ before_build:
 
 build_script:
   - ci\appveyor\build.bat
-  - if exist "slobs-updater.pdb" appveyor PushArtifact "slobs-updater.pdb"
 
 artifacts:
-- path: build\*.exe
+- path: build\$(BUILD_TYPE)\*.exe
+- path: build\$(BUILD_TYPE)\*.pdb
 
 deploy:
 - provider: GitHub

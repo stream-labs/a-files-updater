@@ -654,26 +654,9 @@ int wWinMain(
   LPWSTR    lpCmdLineUnused,
   int       nCmdShow
 ) {
-
-	std::set_terminate([]() { handle_crash(nullptr); });
-
-	SetUnhandledExceptionFilter([](struct _EXCEPTION_POINTERS* ExceptionInfo) {
-		/* don't use if a debugger is present */
-	    if (IsDebuggerPresent()) 
-		{
-            return LONG(EXCEPTION_CONTINUE_SEARCH);
-		}
-
-		handle_crash(ExceptionInfo);
-
- 		// Unreachable statement
-		return LONG(EXCEPTION_CONTINUE_SEARCH);
-	});
-
-	// The atexit will check if updater was safelly closed
-	std::atexit(handle_exit);
-	std::at_quick_exit(handle_exit);
 	
+	setup_crash_reporting();
+
 	callbacks_impl cb_impl(hInstance, nCmdShow);
 
 	MultiByteCommandLine command_line;
