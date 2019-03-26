@@ -300,6 +300,7 @@ struct FileUpdater {
 	~FileUpdater();
 
 	void update();
+	void update_entry(update_client::manifest_map::iterator  &iter, boost::filesystem::path & new_files_dir);
 	void revert();
 	bool reset_rights(const fs::path& path);
 
@@ -338,29 +339,47 @@ void FileUpdater::update()
 	update_client::manifest_map &manifest = m_client_ctx->manifest;
 
 	fs::path &new_files_dir = m_client_ctx->new_files_dir;
+	std::string version_file_key = "resources\app.asar";
 
-	for (iter = manifest.begin(); iter != manifest.end(); ++iter) {
-		fs::path to_path(m_app_dir);
-		to_path /= iter->first;
-
-		fs::path old_file_path(m_old_files_dir);
-		old_file_path /= iter->first;
-
-		fs::path from_path(new_files_dir);
-		from_path /= iter->first;
-
-		fs::create_directories(old_file_path.parent_path());
-		fs::create_directories(to_path.parent_path());
-
-		if (fs::exists(to_path))
-			fs::rename(to_path, old_file_path);
-
-		fs::rename(from_path, to_path);
-		
-		try {
-			reset_rights(to_path);
-		} catch (...) {
+	for (iter = manifest.begin(); iter != manifest.end(); ++iter)
+	{
+		if (version_file_key.compare(iter->first) != 0)
+		{
+			update_entry(iter, new_files_dir);
 		}
+	}
+
+	auto version_file = manifest.find(version_file_key);
+	if (version_file != manifest.end())
+	{
+		update_entry(version_file, new_files_dir);
+	}
+}
+
+void FileUpdater::update_entry(update_client::manifest_map::iterator &iter, boost::filesystem::path &new_files_dir)
+{
+	fs::path to_path(m_app_dir);
+	to_path /= iter->first;
+
+	fs::path old_file_path(m_old_files_dir);
+	old_file_path /= iter->first;
+
+	fs::path from_path(new_files_dir);
+	from_path /= iter->first;
+
+	fs::create_directories(old_file_path.parent_path());
+	fs::create_directories(to_path.parent_path());
+
+	if (fs::exists(to_path))
+		fs::rename(to_path, old_file_path);
+
+	fs::rename(from_path, to_path);
+
+	try
+	{
+		reset_rights(to_path);
+	} catch (...)
+	{
 	}
 }
 
