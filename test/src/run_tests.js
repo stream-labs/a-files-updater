@@ -4,23 +4,29 @@ const test_config = require('./test_config.js');
 async function run_tests() {
     let testinfo
     let failed_tests = 0;
-    //good 
+    
+/*    //good update
     testinfo = test_config.gettestinfo()
     failed_tests = failed_tests + await run_test.test_update(testinfo)
-
-    //no server. files have to not change 
+*/
+    //good huge files 
+    testinfo = test_config.gettestinfo()
+    testinfo.morebigfiles = true
+    failed_tests = failed_tests + await run_test.test_update(testinfo)
+/*
+    //bad update - no server. files have to not change 
     testinfo = test_config.gettestinfo()
     testinfo.expectedResult = "filesnotchanged"
     testinfo.serverStarted = false
     failed_tests = failed_tests + await run_test.test_update(testinfo)
 
-    //no manifest on server. files have to not change 
+    //bad update - no manifest on server. files have to not change 
     testinfo = test_config.gettestinfo()
     testinfo.expectedResult = "filesnotchanged"
     testinfo.manifestGenerated = false
     failed_tests = failed_tests + await run_test.test_update(testinfo);
 
-    //wrong file in manifest. files have to not change 
+    //bad update - wrong file in manifest. files have to not change 
     testinfo = test_config.gettestinfo()
     testinfo.expectedResult = "filesnotchanged"
     testinfo.manifestWrongFile = true
@@ -33,7 +39,7 @@ async function run_tests() {
         testinfo.blockFileFromUpdating = true
         await run_test.test_update(testinfo);
     }
-    
+  */  
     if ( failed_tests == 0)
     {
         console.log("Total result: all test completed.");

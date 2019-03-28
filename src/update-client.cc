@@ -53,24 +53,24 @@ class update_exception_failed : public std::exception
  *############################################*/
 namespace {
 
-std::string fixup_uri(const std::string &source)
-{
-	std::string result(source);
+	std::string fixup_uri(const std::string &source)
+	{
+		std::string result(source);
 
-	boost::algorithm::replace_all(result, "\\", "/");
-	boost::algorithm::replace_all(result, " ", "%20");
+		boost::algorithm::replace_all(result, "\\", "/");
+		boost::algorithm::replace_all(result, " ", "%20");
 
-	return result;
-}
+		return result;
+	}
 
-std::string unfixup_uri(const std::string &source)
-{
-	std::string result(source);
+	std::string unfixup_uri(const std::string &source)
+	{
+		std::string result(source);
 
-	boost::algorithm::replace_all(result, "%20", " ");
+		boost::algorithm::replace_all(result, "%20", " ");
 
-	return result;
-}
+		return result;
+	}
 
 }
 
@@ -110,25 +110,13 @@ struct update_client {
 	explicit update_client(struct update_parameters *params);
 	~update_client();
 
-	void set_client_events(client_callbacks *cbs)
-	{
-		client_events = cbs;
-	}
+	void set_client_events(client_callbacks *cbs) { client_events = cbs; }
 
-	void set_downloader_events(downloader_callbacks *cbs)
-	{
-		downloader_events = cbs;
-	}
+	void set_downloader_events(downloader_callbacks *cbs) { downloader_events = cbs; }
 
-	void set_updater_events(updater_callbacks *cbs)
-	{
-		updater_events = cbs;
-	}
+	void set_updater_events(updater_callbacks *cbs) { updater_events = cbs; }
 
-	void set_pid_events(pid_callbacks *cbs)
-	{
-		pid_events = cbs;
-	}
+	void set_pid_events(pid_callbacks *cbs) { pid_events = cbs; }
 
 	void do_stuff();
 	void flush();
@@ -137,123 +125,65 @@ struct update_client {
 	io_context io_ctx;
 	update_parameters       *params;
 
-	work_guard_type         *work{nullptr};
+	work_guard_type         *work{ nullptr };
 	fs::path                 new_files_dir;
-	client_callbacks        *client_events{nullptr};
-	downloader_callbacks    *downloader_events{nullptr};
-	updater_callbacks       *updater_events{nullptr};
-	pid_callbacks           *pid_events{nullptr};
+	client_callbacks        *client_events{ nullptr };
+	downloader_callbacks    *downloader_events{ nullptr };
+	updater_callbacks       *updater_events{ nullptr };
+	pid_callbacks           *pid_events{ nullptr };
 
-	int                      active_workers{0};
-	std::atomic_size_t       active_pids{0};
+	int                      active_workers{ 0 };
+	std::atomic_size_t       active_pids{ 0 };
 	manifest_map             manifest;
 	std::mutex               manifest_mutex;
 	manifest_map::const_iterator manifest_iterator;
 
 	resolver_type            resolver;
 	resolver_type::results_type endpoints;
-	ssl::context ssl_context{ssl::context::method::sslv23_client};
+	ssl::context ssl_context{ ssl::context::method::sslv23_client };
 
 	std::vector<std::thread> thread_pool;
 
 private:
-	inline void handle_error(
-	  const boost::system::error_code &error,
-	  const char* str
-	) {
-		char error_buf[256];
-
-		snprintf(
-			error_buf,
-			sizeof(error_buf),
-			"%s - %s",
-			error.message().c_str(),
-			str
-		);
-
-		client_events->error(error_buf);
-	}
+	inline void handle_error(const boost::system::error_code &error, const char* str);
+	void handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code &error, const char* str);
 
 	void start_downloader();
+	//manifest 
+	void handle_resolve(const boost::system::error_code &error, tcp::resolver::results_type results);
 
-	void handle_resolve(
-	  const boost::system::error_code &error,
-	  tcp::resolver::results_type results
-	);
+	void handle_manifest_connect(const boost::system::error_code &error, const tcp::endpoint &ep, manifest_request<manifest_body> *request_ctx);
 
-	void handle_manifest_connect(
-	  const boost::system::error_code &error,
-	  const tcp::endpoint &ep,
-	  manifest_request<manifest_body> *request_ctx
-	);
+	void handle_manifest_handshake(const boost::system::error_code &error, manifest_request<manifest_body> *request_ctx);
 
-	void handle_manifest_handshake(
-	  const boost::system::error_code &error,
-	  manifest_request<manifest_body> *request_ctx
-	);
+	void handle_manifest_request(boost::system::error_code &error, size_t bytes, manifest_request<manifest_body> *request_ctx);
 
-	void handle_manifest_request(
-	  boost::system::error_code &error,
-	  size_t bytes,
-	  manifest_request<manifest_body> *request_ctx
-	);
-
-	void handle_manifest_response(
-	  boost::system::error_code &ec,
-	  size_t bytes,
-	  manifest_request<manifest_body> *request_ctx
-	);
+	void handle_manifest_response(boost::system::error_code &ec, size_t bytes, manifest_request<manifest_body> *request_ctx);
 
 	void handle_manifest_results();
+
 	void clean_manifest();
 	void check_file(fs::path & check_path);
 
-	void handle_file_connect(
-	  const boost::system::error_code &error,
-	  const tcp::endpoint &ep,
-	  file_request<http::dynamic_body> *request_ctx
-	);
+	//files
+	void handle_file_connect(const boost::system::error_code &error, const tcp::endpoint &ep, file_request<http::dynamic_body> *request_ctx);
 
-	void handle_file_handshake(
-	  const boost::system::error_code& error,
-	  file_request<http::dynamic_body> *request_ctx
-	);
+	void handle_file_handshake(const boost::system::error_code& error, file_request<http::dynamic_body> *request_ctx);
 
-	void handle_manifest_entry(
-	  const manifest_map::value_type &entry,
-	  int index
-	);
+	void handle_manifest_entry(file_request<http::dynamic_body> *request_ctx);
 
-	void handle_file_request(
-	  boost::system::error_code &error,
-	  size_t bytes,
-	  file_request<http::dynamic_body> *request_ctx
-	);
+	void handle_file_request(boost::system::error_code &error, size_t bytes, file_request<http::dynamic_body> *request_ctx);
 
-	void handle_file_response_header(
-	  boost::system::error_code &error,
-	  size_t bytes,
-	  file_request<http::dynamic_body> *request_ctx
-	);
+	void handle_file_response_header(boost::system::error_code &error, size_t bytes, file_request<http::dynamic_body> *request_ctx);
 
-	void handle_file_response_body(
-	  boost::system::error_code &error,
-	  size_t bytes_read,
-	  file_request<http::dynamic_body> *request_ctx,
-	  update_client::file *file_ctx
-	);
+	void handle_file_response_body(boost::system::error_code &error, size_t bytes_read, file_request<http::dynamic_body> *request_ctx, update_client::file *file_ctx);
 
-	void handle_file_result(
-	  update_client::file *file_ctx,
-	  int index
-	);
+	void handle_file_result(update_client::file *file_ctx, int index);
 
+	//update 
 	void handle_pids();
 
-	void handle_pid(
-	  const boost::system::error_code& error,
-	  update_client::pid* context
-	);
+	void handle_pid(const boost::system::error_code& error, update_client::pid* contexts);
 
 	void start_file_update();
 
@@ -262,19 +192,16 @@ private:
 };
 
 template <class Body, bool IncludeVersion>
-struct update_client::http_request {
+struct update_client::http_request
+{
+	http_request( update_client *client_ctx, const std::string &target, const int id );
 
-	http_request(
-	  update_client *client_ctx,
-	  const std::string &target,
-	  const int id
-	);
-
-	size_t download_accum{0};
-	size_t content_length{0};
+	size_t download_accum{ 0 };
+	size_t content_length{ 0 };
 	int worker_id;
 	update_client *client_ctx;
 	std::string target;
+
 
 	/* We used to support http and then I realized
 	 * I was spending a lot of time supporting both.
@@ -283,13 +210,19 @@ struct update_client::http_request {
 	 * interchangeably. Really, my suggestion is that
 	 * you should be using ssl regardless anyways. */
 	ssl::stream<tcp::socket> ssl_socket;
+	boost::asio::deadline_timer deadline;
+	int deadline_default_timeout = 10;
+	int retries = 0;
 	http::request<http::empty_body> request;
 
 	beast::multi_buffer response_buf;
 	http::response_parser<Body> response_parser;
+
+	void check_deadline_callback(const boost::system::error_code& error);
 };
 
-struct FileUpdater {
+struct FileUpdater
+{
 	FileUpdater() = delete;
 	FileUpdater(FileUpdater&&) = delete;
 	FileUpdater(const FileUpdater&) = delete;
@@ -317,9 +250,9 @@ private:
  *############################################*/
 
 FileUpdater::FileUpdater(update_client *client_ctx)
- : m_client_ctx(client_ctx),
-   m_old_files_dir(client_ctx->params->temp_dir),
-   m_app_dir(client_ctx->params->app_dir)
+	: m_client_ctx(client_ctx),
+	m_old_files_dir(client_ctx->params->temp_dir),
+	m_app_dir(client_ctx->params->app_dir)
 {
 	m_old_files_dir /= "old-files";
 
@@ -378,7 +311,8 @@ void FileUpdater::update_entry(update_client::manifest_map::iterator &iter, boos
 	try
 	{
 		reset_rights(to_path);
-	} catch (...)
+	}
+	catch (...)
 	{
 	}
 }
@@ -412,8 +346,8 @@ void FileUpdater::revert()
 
 		fs::path to_path(m_app_dir);
 		to_path /= rel_path;
-		
-		
+
+
 		fs::remove(to_path, ec);
 
 		fs::rename(iter->path(), to_path, ec);
@@ -421,58 +355,75 @@ void FileUpdater::revert()
 }
 
 template <class Body, bool IncludeVersion>
-update_client::http_request<Body, IncludeVersion>::http_request(
-  update_client *client_ctx,
-  const std::string &target,
-  const int id
-) :
-  worker_id(id),
-  client_ctx(client_ctx),
-  target(target),
-  ssl_socket(client_ctx->io_ctx, client_ctx->ssl_context)
+update_client::http_request<Body, IncludeVersion>::http_request(update_client *client_ctx, const std::string &target, const int id) :
+	worker_id(id),
+	client_ctx(client_ctx),
+	target(target),
+	ssl_socket(client_ctx->io_ctx, client_ctx->ssl_context),
+	deadline(client_ctx->io_ctx)
 {
 	std::string full_target;
 
-	if (IncludeVersion) {
+	if (IncludeVersion)
+	{
 		full_target = fmt::format("{}/{}/{}",
 			client_ctx->params->host.path,
 			client_ctx->params->version,
 			target
 		);
-	} else {
+	}
+	else {
 		full_target = fmt::format("{}/{}",
 			client_ctx->params->host.path,
 			target
 		);
 	}
 
-	request = {
-		http::verb::get,
-		full_target,
-		11
-	};
+	request = { http::verb::get, full_target, 11 };
 
 	request.set(http::field::host, client_ctx->params->host.authority);
 
-	request.set(
-		http::field::user_agent,
-		BOOST_BEAST_VERSION_STRING
-	);
+	request.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
 
-	response_parser.body_limit(
-		std::numeric_limits<unsigned long long>::max()
-	);
+	response_parser.body_limit(std::numeric_limits<unsigned long long>::max());
+
+	deadline.expires_at(boost::posix_time::pos_infin);
+ 
+	check_deadline_callback(make_error_code(boost::system::errc::success));
 }
 
-struct update_client::pid {
-	uint64_t id{0};
+template<class Body, bool IncludeVersion>
+void update_client::http_request<Body, IncludeVersion>::check_deadline_callback(const boost::system::error_code& error)
+{
+	if(error)
+	{
+		return;
+	}
+	 
+	if (deadline.expires_at() <= boost::asio::deadline_timer::traits_type::now())
+	{ 
+		boost::system::error_code ignored_ec;
+		ssl_socket.shutdown(ignored_ec);
+		ssl_socket.lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored_ec);
+
+		deadline.expires_at(boost::posix_time::pos_infin);
+	
+		handle_file_download_error(this);
+	}
+
+	// Put the actor back to sleep.
+	deadline.async_wait( bind(&update_client::http_request<Body, IncludeVersion>::check_deadline_callback, this, std::placeholders::_1));
+}
+
+struct update_client::pid
+{
+	uint64_t id{ 0 };
 	asio::windows::object_handle wrapper;
 
 	pid(asio::io_context &ctx, HANDLE hProcess);
 };
 
-update_client::pid::pid(asio::io_context &io_ctx, HANDLE hProcess)
- : wrapper(io_ctx, hProcess)
+update_client::pid::pid(asio::io_context &io_ctx, HANDLE hProcess) : wrapper(io_ctx, hProcess)
 {
 }
 
@@ -483,7 +434,8 @@ void update_client::start_file_update()
 	try {
 		updater.update();
 		client_events->success();
-	} catch (...) {
+	}
+	catch (...) {
 		updater.revert();
 		client_events->error(
 			"Failed to move files.\n"
@@ -493,13 +445,12 @@ void update_client::start_file_update()
 	}
 }
 
-void update_client::handle_pid(
-  const boost::system::error_code& error,
-  update_client::pid* context
-) {
+void update_client::handle_pid(const boost::system::error_code& error, update_client::pid* context)
+{
 	pid_events->pid_wait_finished(context->id);
 
-	if (--active_pids == 0) {
+	if (--active_pids == 0)
+	{
 		pid_events->pid_wait_complete();
 		start_file_update();
 	}
@@ -511,37 +462,57 @@ void update_client::handle_pids()
 {
 	active_pids = params->pids.size();
 
-	if (active_pids == 0) {
+	if (active_pids == 0)
+	{
 		start_file_update();
 	}
 
 	for (
-	  auto iter = params->pids.begin();
-	  iter != params->pids.end();
-	  ++iter
-	) {
-		HANDLE hProcess = OpenProcess(
-			PROCESS_ALL_ACCESS,
-			FALSE, (DWORD)*iter
-		);
+		auto iter = params->pids.begin();
+		iter != params->pids.end();
+		++iter
+		)
+	{
+		HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, (DWORD)*iter);
 
 		pid_events->pid_waiting_for(*iter);
 
-		update_client::pid *pid_ctx =
-			new update_client::pid(io_ctx, hProcess);
+		update_client::pid *pid_ctx = new update_client::pid(io_ctx, hProcess);
 
 		pid_ctx->id = *iter;
-		pid_ctx->wrapper.async_wait([this, pid_ctx] (auto ec) {
+		pid_ctx->wrapper.async_wait([this, pid_ctx](auto ec) {
 			this->handle_pid(ec, pid_ctx);
 		});
 	}
 }
 
+inline void update_client::handle_error(const boost::system::error_code & error, const char * str)
+{
+	char error_buf[256];
+
+	snprintf(error_buf, sizeof(error_buf), "%s - %s", error.message().c_str(), str);
+
+	client_events->error(error_buf);
+}
+
+void update_client::handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code & error, const char * str)
+{
+	//if(last_error)
+	if(1)
+	{
+		handle_error(error, str);
+		return;
+	} else {
+		//increase retries count 
+		//clear 
+		//send to first step 
+		//print error to log 
+		handle_manifest_entry(request_ctx);
+	}
+}
+
 /* FIXME Make the other handlers part of the client class. */
-void update_client::handle_resolve(
-  const boost::system::error_code &error,
-  tcp::resolver::results_type results
-) {
+void update_client::handle_resolve(const boost::system::error_code &error, tcp::resolver::results_type results) {
 	if (error) {
 		client_events->error(
 			"Failed to connect to update server."
@@ -562,10 +533,10 @@ void update_client::handle_resolve(
 	 * is automatically deduced. */
 	auto *request_ctx = new manifest_request<manifest_body>(
 		this, manifest_target, 0
-	);
+		);
 
 	auto connect_handler =
-	[this, request_ctx] (auto i, auto e) {
+		[this, request_ctx](auto i, auto e) {
 		this->handle_manifest_connect(i, e, request_ctx);
 	};
 
@@ -577,9 +548,9 @@ void update_client::handle_resolve(
 }
 
 update_client::update_client(struct update_parameters *params)
- : params(params),
-   active_workers(0),
-   resolver(io_ctx)
+	: params(params),
+	active_workers(0),
+	resolver(io_ctx)
 {
 	new_files_dir = params->temp_dir;
 	new_files_dir /= "new-files";
@@ -594,9 +565,9 @@ update_client::update_client(struct update_parameters *params)
 
 	for (unsigned i = 0; i < num_workers; ++i) {
 		thread_pool.emplace_back(
-			std::thread([=] () {
-				io_ctx.run();
-			})
+			std::thread([=]() {
+			io_ctx.run();
+		})
 		);
 	}
 }
@@ -630,16 +601,16 @@ void update_client::flush()
 
 void update_client::do_stuff()
 {
-	auto cb = [=] (auto e, auto i) {
+	auto cb = [=](auto e, auto i) {
 		this->handle_resolve(e, i);
 	};
 
 	client_events->initialize();
-	
+
 	resolver.async_resolve(
 		params->host.authority,
 		params->host.scheme,
-//		boost::asio::ip::tcp::resolver::query::address_configured,
+		//		boost::asio::ip::tcp::resolver::query::address_configured,
 		cb
 	);
 
@@ -695,7 +666,8 @@ void update_client::clean_manifest()
 
 	fs::recursive_directory_iterator end_iter{};
 
-	for (; app_dir_iter != end_iter; ++app_dir_iter) {
+	for (; app_dir_iter != end_iter; ++app_dir_iter)
+	{
 		fs::path entry = app_dir_iter->path();
 
 		fs::path key_path(
@@ -755,7 +727,8 @@ void update_client::check_file(fs::path & check_path)
 			//its bad 
 			throw update_exception_failed();
 		}
-	} else
+	}
+	else
 	{
 		CloseHandle(hFile);
 	}
@@ -765,12 +738,13 @@ void update_client::check_file(fs::path & check_path)
 void update_client::handle_manifest_results()
 {
 	/* TODO We should be able to make max configurable.*/
-	int max = 4;
+	int max_threads = 4;
 
 	try
 	{
 		this->clean_manifest();
-	} catch (update_exception_blocked& error)
+	}
+	catch (update_exception_blocked& error)
 	{
 		client_events->error(
 			"Failed to move files.\n"
@@ -778,7 +752,8 @@ void update_client::handle_manifest_results()
 			"your PC and try to update again."
 		);
 		return;
-	} catch (update_exception_failed& error)
+	}
+	catch (update_exception_failed& error)
 	{
 		client_events->error(
 			"Failed to move files.\n"
@@ -789,9 +764,7 @@ void update_client::handle_manifest_results()
 	}
 
 	this->manifest_iterator = this->manifest.cbegin();
-	this->downloader_events->downloader_start(
-		max, this->manifest.size()
-	);
+	this->downloader_events->downloader_start(max_threads, this->manifest.size());
 
 	/* To make sure we only have `max` number of
 	 * of requests at any given time, we hold the
@@ -803,40 +776,39 @@ void update_client::handle_manifest_results()
 
 	/* We have no work but we still need to provide the
 	 * complete event so the UI may close correctly */
-
-	if (this->manifest_iterator == this->manifest.end()) {
+	if (this->manifest_iterator == this->manifest.end())
+	{
 		this->client_events->success();
 		return;
 	}
 
-	for (
-	  int i = 0;
-	  this->manifest_iterator != this->manifest.end() && i < max;
-	  ++this->manifest_iterator, ++i
-	) {
+	for (int i = 0; this->manifest_iterator != this->manifest.end() && i < max_threads; ++this->manifest_iterator, ++i)
+	{
 		++this->active_workers;
 
-		this->handle_manifest_entry(
-			*this->manifest_iterator, i
-		);
+		auto request_ctx = new file_request<http::dynamic_body>{
+			this,
+			/* FIXME Hardcoding gz here isn't very flexible */
+			fmt::format("{}.gz", fixup_uri((*this->manifest_iterator).first)),
+			i
+		};
+
+		this->handle_manifest_entry(request_ctx);
 	}
 
 	manifest_lock.unlock();
 }
 
 template <class ConstBuffer>
-static size_t handle_manifest_read_buffer(
-  update_client::manifest_map &map,
-  const ConstBuffer &buffer
-) {
+static size_t handle_manifest_read_buffer(update_client::manifest_map &map, const ConstBuffer &buffer)
+{
 	/* TODO: Hardcoded for SHA-256 checksums. */
-	static const regex manifest_regex(
-		"([A-Fa-f0-9]{64}) ([^\r\n]+)\r?\n"
-	);
+	static const regex manifest_regex("([A-Fa-f0-9]{64}) ([^\r\n]+)\r?\n");
 
 	size_t accum = 0;
 
-	for (;;) {
+	for (;;)
+	{
 		const char *buf;
 		std::string checksum;
 		std::string file;
@@ -882,16 +854,13 @@ static size_t handle_manifest_read_buffer(
 	return accum;
 }
 
-void update_client::handle_manifest_response(
-  boost::system::error_code &ec,
-  size_t bytes,
-  manifest_request<manifest_body> *request_ctx
-) {
+void update_client::handle_manifest_response(boost::system::error_code &ec, size_t bytes, manifest_request<manifest_body> *request_ctx)
+{
 	/* We're done with this request context after this function */
-	std::unique_ptr<manifest_request<manifest_body>>
-		safe_request_ctx(request_ctx);
+	std::unique_ptr<manifest_request<manifest_body>> safe_request_ctx(request_ctx);
 
-	if (ec) {
+	if (ec)
+	{
 		std::string msg = fmt::format(
 			"Failed manifest response ({})",
 			safe_request_ctx->target
@@ -905,7 +874,8 @@ void update_client::handle_manifest_response(
 	auto &buffer = response_parser.get().body();
 	int status_code = response_parser.get().result_int();
 
-	if (status_code != 200) {
+	if (status_code != 200)
+	{
 		auto target = safe_request_ctx->request.target();
 
 		/* FIXME Signal failure */
@@ -918,12 +888,10 @@ void update_client::handle_manifest_response(
 	handle_manifest_results();
 };
 
-void update_client::handle_manifest_request(
-  boost::system::error_code &error,
-  size_t bytes,
-  manifest_request<manifest_body> *request_ctx
-) {
-	if (error) {
+void update_client::handle_manifest_request(boost::system::error_code &error, size_t bytes, manifest_request<manifest_body> *request_ctx)
+{
+	if (error)
+	{
 		std::string msg = fmt::format(
 			"Failed manifest request ({}): {}",
 			request_ctx->target, error.message().c_str()
@@ -933,29 +901,24 @@ void update_client::handle_manifest_request(
 		return;
 	}
 
-	auto read_handler = [this, request_ctx] (auto e, auto bt) {
+	auto read_handler = [this, request_ctx](auto e, auto bt) {
 		this->handle_manifest_response(e, bt, request_ctx);
 	};
 
-	if (request_ctx->response_parser.is_done()) {
+	if (request_ctx->response_parser.is_done())
+	{
 		handle_error({}, "No body message provided");
 		delete request_ctx;
 		return;
 	}
 
-	http::async_read(
-		request_ctx->ssl_socket,
-		request_ctx->response_buf,
-		request_ctx->response_parser,
-		read_handler
-	);
+	http::async_read(request_ctx->ssl_socket, request_ctx->response_buf, request_ctx->response_parser, read_handler);
 }
 
-void update_client::handle_manifest_handshake(
-  const boost::system::error_code& error,
-  manifest_request<manifest_body> *request_ctx
-) {
-	if (error) {
+void update_client::handle_manifest_handshake(const boost::system::error_code& error, manifest_request<manifest_body> *request_ctx)
+{
+	if (error)
+	{
 		std::string msg = fmt::format(
 			"Failed manifest handshake ({}): {}",
 			request_ctx->target, error.message().c_str()
@@ -964,35 +927,26 @@ void update_client::handle_manifest_handshake(
 		handle_error(error, msg.c_str());
 	}
 
-	auto request_handler = [this, request_ctx] (auto e, auto b) {
+	auto request_handler = [this, request_ctx](auto e, auto b) {
 		this->handle_manifest_request(e, b, request_ctx);
 	};
 
-	http::async_write(
-		request_ctx->ssl_socket,
-		request_ctx->request,
-		request_handler
-	);
+	http::async_write(request_ctx->ssl_socket, request_ctx->request, request_handler);
 }
 
-void update_client::handle_manifest_connect(
-  const boost::system::error_code &error,
-  const tcp::endpoint &ep,
-  manifest_request<manifest_body> *request_ctx
-) {
-	if (error) {
+void update_client::handle_manifest_connect(const boost::system::error_code &error, const tcp::endpoint &ep, manifest_request<manifest_body> *request_ctx)
+{
+	if (error)
+	{
 		handle_error(error, "Failed to connect to host for manifest");
 		return;
 	}
 
-	auto handshake_handler = [this, request_ctx] (auto e) {
+	auto handshake_handler = [this, request_ctx](auto e) {
 		this->handle_manifest_handshake(e, request_ctx);
 	};
 
-	request_ctx->ssl_socket.async_handshake(
-		ssl::stream_base::handshake_type::client,
-		handshake_handler
-	);
+	request_ctx->ssl_socket.async_handshake(ssl::stream_base::handshake_type::client, handshake_handler);
 }
 
 /*
@@ -1003,9 +957,9 @@ void update_client::handle_manifest_connect(
  *############################################*/
 
 static constexpr std::ios_base::openmode file_flags =
-	std::ios_base::out |
-	std::ios_base::binary |
-	std::ios_base::trunc;
+std::ios_base::out |
+std::ios_base::binary |
+std::ios_base::trunc;
 
 struct update_client::file {
 	fs::path file_path;
@@ -1019,7 +973,7 @@ struct update_client::file {
 };
 
 update_client::file::file(const fs::path &file_path)
- : file_path(file_path), file_stream(file_path, file_flags)
+	: file_path(file_path), file_stream(file_path, file_flags)
 {
 	if (this->file_stream.bad()) {
 		log_info("Failed to create file output stream\n");
@@ -1028,21 +982,21 @@ update_client::file::file(const fs::path &file_path)
 
 	this->output_chain.push(
 		boost::reference_wrapper<
-			bio::gzip_decompressor
+		bio::gzip_decompressor
 		>(this->decompress_filter),
 		4096
 	);
 
 	this->output_chain.push(
 		boost::reference_wrapper<
-			sha256_filter
+		sha256_filter
 		>(this->checksum_filter),
 		4096
 	);
 
 	this->output_chain.push(
 		boost::reference_wrapper<
-			std::ofstream
+		std::ofstream
 		>(this->file_stream),
 		4096
 	);
@@ -1061,26 +1015,30 @@ fs::path generate_file_path(const fs::path &base, const fs::path &target)
 	return file_path;
 }
 
-void update_client::handle_file_result(
-  update_client::file *file_ctx,
-  int index
-) {
+void update_client::handle_file_result(update_client::file *file_ctx, int index)
+{
 	auto &filter = file_ctx->checksum_filter;
 
-	//file_ctx->output_chain.reset();
+	try {
+		//file_ctx->output_chain.reset();
+	
+		std::string hex_digest;
+		hex_digest.reserve(64);
 
-	std::string hex_digest;
-	hex_digest.reserve(64);
-
-	/* FIXME TODO 32 is hardcoded here for the size of
-	 * an SHA-256 digest buffer */
-	for (int i = 0; i < 32; ++i) {
-		fmt::format_to(
-			std::back_inserter(hex_digest),
-			"{:02x}", filter.digest[i]
-		);
+		/* FIXME TODO 32 is hardcoded here for the size of
+		 * an SHA-256 digest buffer */
+		for (int i = 0; i < 32; ++i)
+		{
+			fmt::format_to(
+				std::back_inserter(hex_digest),
+				"{:02x}", filter.digest[i]
+			);
+		}
 	}
+	catch (...)
+	{
 
+	}
 	/* We now have the file and the digest of both downloaded
 	 * file and the wanted file. Do a string comparison. If it
 	 * doesn't match, message and fail. */
@@ -1089,12 +1047,14 @@ void update_client::handle_file_result(
 
 	std::unique_lock<std::mutex> manifest_lock(this->manifest_mutex);
 
-	if (this->manifest_iterator == this->manifest.end()) {
+	if (this->manifest_iterator == this->manifest.end())
+	{
 		--this->active_workers;
 
 		this->downloader_events->download_worker_finished(index);
 
-		if (this->active_workers == 0) {
+		if (this->active_workers == 0)
+		{
 			this->downloader_events->downloader_complete();
 			this->handle_pids();
 		}
@@ -1112,15 +1072,21 @@ void update_client::handle_file_result(
 	 * the reference will stay valid */
 	manifest_lock.unlock();
 
+	auto request_ctx = new file_request<http::dynamic_body>{
+		this,
+		/* FIXME Hardcoding gz here isn't very flexible */
+		fmt::format("{}.gz", fixup_uri(entry.first)),
+		index
+	};
 	/* MAYBE FIXME If we ever want to support alternative protocols,
 	 * we should make an explicit check for scheme here. */
-	handle_manifest_entry(entry, index);
+	handle_manifest_entry(request_ctx);
 }
 
 
 void handle_file_response_buffer(
-  update_client::file *file_ctx,
-  const asio::const_buffer &buffer
+	update_client::file *file_ctx,
+	const asio::const_buffer &buffer
 ) {
 	file_ctx->output_chain.write(
 		(const char*)buffer.data(),
@@ -1128,47 +1094,38 @@ void handle_file_response_buffer(
 	);
 }
 
-void update_client::handle_file_response_body(
-  boost::system::error_code &error,
-  size_t bytes_read,
-  file_request<http::dynamic_body> *request_ctx,
-  update_client::file *file_ctx
-) {
-	if (error) {
+void update_client::handle_file_response_body(boost::system::error_code &error, size_t bytes_read, file_request<http::dynamic_body> *request_ctx, update_client::file *file_ctx)
+{
+	if (error)
+	{
 		std::string msg = fmt::format(
 			"Failed file response body ({})",
 			request_ctx->target
 		);
 
-		handle_error(error, msg.c_str());
-		delete request_ctx;
+		handle_file_download_error(request_ctx, error, msg.c_str());
 		return;
 	}
 
 	auto &body = request_ctx->response_parser.get().body();
 	auto &response_parser = request_ctx->response_parser;
 
-	for (
-	  auto iter = asio::buffer_sequence_begin(body.data());
-	  iter != asio::buffer_sequence_end(body.data());
-	  ++iter
-	) {
+	for (auto iter = asio::buffer_sequence_begin(body.data()); iter != asio::buffer_sequence_end(body.data()); ++iter)
+	{
 		handle_file_response_buffer(file_ctx, *iter);
 	}
 
 	size_t consumed = asio::buffer_size(body.data());
-
 	body.consume(consumed);
 	request_ctx->download_accum += consumed;
 
-	this->downloader_events->download_progress(
-		request_ctx->worker_id,
-		consumed,
-		request_ctx->download_accum
-	);
+	this->downloader_events->download_progress(request_ctx->worker_id, consumed, request_ctx->download_accum);
 
-	if (response_parser.is_done()) {
+	if (response_parser.is_done())
+	{
 		int worker_id = request_ctx->worker_id;
+
+		request_ctx->deadline.cancel();
 		delete request_ctx;
 
 		handle_file_result(file_ctx, worker_id);
@@ -1176,35 +1133,24 @@ void update_client::handle_file_response_body(
 		return;
 	}
 
-	auto read_handler = [this, request_ctx, file_ctx] (auto i, auto e) {
-		this->handle_file_response_body(
-			i, e,
-			request_ctx,
-			file_ctx
-		);
+	auto read_handler = [this, request_ctx, file_ctx](auto i, auto e) {
+		this->handle_file_response_body(i, e, request_ctx, file_ctx);
 	};
 
-	http::async_read_some(
-		request_ctx->ssl_socket,
-		request_ctx->response_buf,
-		response_parser,
-		read_handler
-	);
+	request_ctx->deadline.expires_from_now(boost::posix_time::seconds(request_ctx->deadline_default_timeout));
+	http::async_read_some(request_ctx->ssl_socket, request_ctx->response_buf, response_parser, read_handler);
 }
 
-void update_client::handle_file_response_header(
-  boost::system::error_code &error,
-  size_t bytes,
-  file_request<http::dynamic_body> *request_ctx
-) {
-	if (error) {
+void update_client::handle_file_response_header(boost::system::error_code &error, size_t bytes, file_request<http::dynamic_body> *request_ctx)
+{
+	if (error)
+	{
 		std::string msg = fmt::format(
 			"Failed file response header ({})",
 			request_ctx->target
 		);
 
-		handle_error(error, msg.c_str());
-		delete request_ctx;
+		handle_file_download_error(request_ctx, error, msg.c_str());
 		return;
 	}
 
@@ -1224,23 +1170,20 @@ void update_client::handle_file_response_header(
 	);
 
 	/* FIXME Signal failure */
-	if (file_path.empty()) {
+	if (file_path.empty())
+	{
 		log_error("Failed to create file path\n");
 		return;
 	}
 
-	auto file_ctx = new update_client::file(
-		fs::path(unfixup_uri(file_path.string()))
-	);
+	auto file_ctx = new update_client::file(fs::path(unfixup_uri(file_path.string())));
 
-	auto read_handler = [this, request_ctx, file_ctx] (auto i, auto e) {
-		this->handle_file_response_body(
-			i, e,
-			request_ctx,
-			file_ctx);
+	auto read_handler = [this, request_ctx, file_ctx](auto i, auto e) {
+		this->handle_file_response_body(i, e, request_ctx, file_ctx);
 	};
 
-	if (status_code != 200) {
+	if (status_code != 200)
+	{
 		auto target = request_ctx->request.target();
 
 		std::string output_str = fmt::format(
@@ -1249,110 +1192,79 @@ void update_client::handle_file_response_header(
 			fmt::string_view(target.data(), target.size())
 		);
 
-		handle_error({}, output_str.c_str());
+		handle_file_download_error(request_ctx, {}, output_str.c_str());
 		return;
 	}
 
-	http::async_read_some(
-		request_ctx->ssl_socket,
-		request_ctx->response_buf,
-		response_parser,
-		read_handler
-	);
+	request_ctx->deadline.expires_from_now(boost::posix_time::seconds(request_ctx->deadline_default_timeout));
+	http::async_read_some(request_ctx->ssl_socket, request_ctx->response_buf, response_parser, read_handler);
 }
 
-void update_client::handle_file_request(
-  boost::system::error_code &error,
-  size_t bytes,
-  file_request<http::dynamic_body> *request_ctx
-) {
-	if (error) {
+void update_client::handle_file_request(boost::system::error_code &error, size_t bytes, file_request<http::dynamic_body> *request_ctx)
+{
+	if (error)
+	{
 		std::string msg = fmt::format(
 			"Failed file request ({})",
 			request_ctx->target
 		);
 
-		handle_error(error, msg.c_str());
+		handle_file_download_error(request_ctx, error, msg.c_str());
 		return;
 	}
 
-	auto read_handler = [this, request_ctx] (auto i, auto e) {
+	auto read_handler = [this, request_ctx](auto i, auto e) {
 		this->handle_file_response_header(i, e, request_ctx);
 	};
 
-	http::async_read_header(
-		request_ctx->ssl_socket,
-		request_ctx->response_buf,
-		request_ctx->response_parser,
-		read_handler
-	);
+	http::async_read_header(request_ctx->ssl_socket, request_ctx->response_buf, request_ctx->response_parser, read_handler);
 }
 
-void update_client::handle_manifest_entry(
-  const update_client::manifest_map::value_type &entry,
-  int index
-) {
-	auto request_ctx = new file_request<http::dynamic_body>{
-		this,
-		/* FIXME Hardcoding gz here isn't very flexible */
-		fmt::format("{}.gz", fixup_uri(entry.first)),
-		index
-	};
-
-	auto connect_handler = [this, request_ctx] (auto e, auto b) {
-		this->handle_file_connect(e, b, request_ctx);
-	};
-
-	asio::async_connect(
-		request_ctx->ssl_socket.lowest_layer(),
-		this->endpoints,
-		connect_handler
-	);
-}
-
-void update_client::handle_file_handshake(
-  const boost::system::error_code& error,
-  file_request<http::dynamic_body> *request_ctx
-) {
-	if (error) {
+void update_client::handle_file_handshake(const boost::system::error_code& error, file_request<http::dynamic_body> *request_ctx)
+{
+	if (error)
+	{
 		std::string msg = fmt::format(
 			"Failed manifest handshake ({}): {}",
 			request_ctx->target, error.message().c_str()
 		);
 
-		handle_error(error, msg.c_str());
+		handle_file_download_error(request_ctx, error, msg.c_str());
 		return;
 	}
 
-	auto request_handler = [this, request_ctx] (auto e, auto b) {
+	auto request_handler = [this, request_ctx](auto e, auto b) {
 		this->handle_file_request(e, b, request_ctx);
 	};
 
-	http::async_write(
-		request_ctx->ssl_socket,
-		request_ctx->request,
-		request_handler
-	);
+	request_ctx->deadline.expires_from_now(boost::posix_time::seconds(request_ctx->deadline_default_timeout));
+
+	http::async_write(request_ctx->ssl_socket, request_ctx->request, request_handler);
 }
 
-void update_client::handle_file_connect(
-  const boost::system::error_code &error,
-  const tcp::endpoint &ep,
-  file_request<http::dynamic_body> *request_ctx
-) {
-	if (error) {
-		handle_error(error, "Failed to connect to host for file");
+void update_client::handle_file_connect(const boost::system::error_code &error, const tcp::endpoint &ep, file_request<http::dynamic_body> *request_ctx)
+{
+	if (error)
+	{
+		handle_file_download_error(request_ctx, error, "Failed to connect to host for file");
 		return;
 	}
 
-	auto handshake_handler = [this, request_ctx] (auto e) {
+	auto handshake_handler = [this, request_ctx](auto e) {
 		this->handle_file_handshake(e, request_ctx);
 	};
 
-	request_ctx->ssl_socket.async_handshake(
-		ssl::stream_base::handshake_type::client,
-		handshake_handler
-	);
+	request_ctx->ssl_socket.async_handshake(ssl::stream_base::handshake_type::client, handshake_handler);
+}
+
+void update_client::handle_manifest_entry(file_request<http::dynamic_body> *request_ctx)
+{
+	auto connect_handler = [this, request_ctx](auto e, auto b) {
+		this->handle_file_connect(e, b, request_ctx);
+	};
+
+	request_ctx->deadline.expires_from_now(boost::posix_time::seconds(request_ctx->deadline_default_timeout));
+	asio::async_connect(request_ctx->ssl_socket.lowest_layer(), this->endpoints, connect_handler);
 }
 
 /*##############################################
@@ -1362,59 +1274,51 @@ void update_client::handle_file_connect(
  *############################################*/
 extern "C" {
 
-struct update_client *create_update_client(struct update_parameters *params)
-{
-	update_client *client = new update_client(params);
+	struct update_client *create_update_client(struct update_parameters *params)
+	{
+		update_client *client = new update_client(params);
 
-	return client;
-}
+		return client;
+	}
 
-void destroy_update_client(struct update_client *client)
-{
-	delete client;
-}
-
-
-void update_client_set_client_events(
-  struct update_client *client,
-  struct client_callbacks *events
-) {
-	client->set_client_events(events);
-}
+	void destroy_update_client(struct update_client *client)
+	{
+		delete client;
+	}
 
 
-void update_client_set_downloader_events(
-  struct update_client *client,
-  struct downloader_callbacks *events
-) {
-	client->set_downloader_events(events);
-}
+	void update_client_set_client_events(struct update_client *client, struct client_callbacks *events)
+	{
+		client->set_client_events(events);
+	}
 
 
-void update_client_set_updater_events(
-  struct update_client *client,
-  struct updater_callbacks *events
-) {
-	client->set_updater_events(events);
-}
+	void update_client_set_downloader_events(struct update_client *client, struct downloader_callbacks *events)
+	{
+		client->set_downloader_events(events);
+	}
 
 
-void update_client_set_pid_events(
-  struct update_client *client,
-  struct pid_callbacks *events
-) {
-	client->set_pid_events(events);
-}
+	void update_client_set_updater_events(struct update_client *client, struct updater_callbacks *events)
+	{
+		client->set_updater_events(events);
+	}
 
-void update_client_start(struct update_client *client)
-{
-	client->do_stuff();
-}
 
-void update_client_flush(struct update_client *client)
-{
-	client->flush();
-}
+	void update_client_set_pid_events(struct update_client *client, struct pid_callbacks *events)
+	{
+		client->set_pid_events(events);
+	}
+
+	void update_client_start(struct update_client *client)
+	{
+		client->do_stuff();
+	}
+
+	void update_client_flush(struct update_client *client)
+	{
+		client->flush();
+	}
 
 
 }

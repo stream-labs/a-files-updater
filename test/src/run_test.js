@@ -10,7 +10,7 @@ const updater_launcher = require('./updater_launcher.js');
 
 exports.test_update = async function (testinfo) {
 
-  generate_files.generate_test_files(testinfo)
+  await generate_files.generate_test_files(testinfo)
 
   if (testinfo.serverStarted) {
     updater_server.start_https_update_server(testinfo.serverDir);

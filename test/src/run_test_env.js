@@ -5,8 +5,9 @@ async function run_tests() {
     let testinfo
     //good 
     testinfo = test_config.gettestinfo()
+    testinfo.morebigfiles = true;
     testinfo.skipUpdaterLaunch = true;
-    testinfo.manifestGenerated = false;
+    testinfo.manifestGenerated = true;
     await run_test.test_update(testinfo)
 }
 
