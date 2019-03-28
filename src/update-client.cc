@@ -166,11 +166,11 @@ private:
 	void check_file(fs::path & check_path);
 
 	//files
+	void handle_manifest_entry(file_request<http::dynamic_body> *request_ctx);
+
 	void handle_file_connect(const boost::system::error_code &error, const tcp::endpoint &ep, file_request<http::dynamic_body> *request_ctx);
 
 	void handle_file_handshake(const boost::system::error_code& error, file_request<http::dynamic_body> *request_ctx);
-
-	void handle_manifest_entry(file_request<http::dynamic_body> *request_ctx);
 
 	void handle_file_request(boost::system::error_code &error, size_t bytes, file_request<http::dynamic_body> *request_ctx);
 
@@ -194,7 +194,8 @@ private:
 template <class Body, bool IncludeVersion>
 struct update_client::http_request
 {
-	http_request( update_client *client_ctx, const std::string &target, const int id );
+	http_request(update_client *client_ctx, const std::string &target, const int id);
+	~http_request();
 
 	size_t download_accum{ 0 };
 	size_t content_length{ 0 };
@@ -389,30 +390,37 @@ update_client::http_request<Body, IncludeVersion>::http_request(update_client *c
 	response_parser.body_limit(std::numeric_limits<unsigned long long>::max());
 
 	deadline.expires_at(boost::posix_time::pos_infin);
- 
+
 	check_deadline_callback(make_error_code(boost::system::errc::success));
+}
+
+template<class Body, bool IncludeVersion>
+update_client::http_request<Body, IncludeVersion>::~http_request()
+{
+	deadline.cancel();
 }
 
 template<class Body, bool IncludeVersion>
 void update_client::http_request<Body, IncludeVersion>::check_deadline_callback(const boost::system::error_code& error)
 {
-	if(error)
+	if (error)
 	{
 		return;
 	}
-	 
+
 	if (deadline.expires_at() <= boost::asio::deadline_timer::traits_type::now())
-	{ 
+	{
 		deadline_reached = true;
 
 		boost::system::error_code ignored_ec;
 		ssl_socket.shutdown(ignored_ec);
 		ssl_socket.lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored_ec);
 
-		deadline.expires_at(boost::posix_time::pos_infin); 
-	} else { 
+		deadline.expires_at(boost::posix_time::pos_infin);
+	}
+	else {
 		// Put the actor back to sleep.
-		deadline.async_wait( bind(&update_client::http_request<Body, IncludeVersion>::check_deadline_callback, this, std::placeholders::_1));
+		deadline.async_wait(bind(&update_client::http_request<Body, IncludeVersion>::check_deadline_callback, this, std::placeholders::_1));
 	}
 }
 
@@ -498,20 +506,23 @@ inline void update_client::handle_error(const boost::system::error_code & error,
 
 void update_client::handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code & error, const char * str)
 {
-	if(request_ctx->retries > 5)
+	if (request_ctx->retries > 5)
 	{
-		if(error == boost::asio::error::basic_errors::operation_aborted && request_ctx->deadline_reached)
+		boost::system::error_code ec = error;
+		if (error == boost::asio::error::basic_errors::operation_aborted && request_ctx->deadline_reached)
 		{
+			ec = boost::asio::error::basic_errors::timed_out;
 		}
-		handle_error(error, str);
+		handle_error(ec, str);
 		return;
-	} else {
-		//create new request on info from failed 		
-		//increase retries count and set to new 
-		//send to first step 
-		
-		handle_manifest_entry(request_ctx);
-		//print error to log 
+	}
+	else {
+		auto new_request_ctx = new file_request<http::dynamic_body>{ this, request_ctx->target, request_ctx->worker_id };
+		new_request_ctx->retries = request_ctx->retries + 1;
+
+		delete request_ctx;
+
+		handle_manifest_entry(new_request_ctx);
 	}
 }
 
@@ -1024,8 +1035,8 @@ void update_client::handle_file_result(update_client::file *file_ctx, int index)
 	auto &filter = file_ctx->checksum_filter;
 
 	try {
-		//file_ctx->output_chain.reset();
-	
+		file_ctx->output_chain.reset();
+
 		std::string hex_digest;
 		hex_digest.reserve(64);
 
@@ -1046,6 +1057,7 @@ void update_client::handle_file_result(update_client::file *file_ctx, int index)
 	/* We now have the file and the digest of both downloaded
 	 * file and the wanted file. Do a string comparison. If it
 	 * doesn't match, message and fail. */
+	 //calculate_checksum();
 
 	delete file_ctx;
 
@@ -1102,10 +1114,7 @@ void update_client::handle_file_response_body(boost::system::error_code &error, 
 {
 	if (error)
 	{
-		std::string msg = fmt::format(
-			"Failed file response body ({})",
-			request_ctx->target
-		);
+		std::string msg = fmt::format("Failed file response body ({})", request_ctx->target);
 
 		handle_file_download_error(request_ctx, error, msg.c_str());
 		return;
@@ -1129,7 +1138,6 @@ void update_client::handle_file_response_body(boost::system::error_code &error, 
 	{
 		int worker_id = request_ctx->worker_id;
 
-		request_ctx->deadline.cancel();
 		delete request_ctx;
 
 		handle_file_result(file_ctx, worker_id);
@@ -1149,10 +1157,7 @@ void update_client::handle_file_response_header(boost::system::error_code &error
 {
 	if (error)
 	{
-		std::string msg = fmt::format(
-			"Failed file response header ({})",
-			request_ctx->target
-		);
+		std::string msg = fmt::format("Failed file response header ({})", request_ctx->target);
 
 		handle_file_download_error(request_ctx, error, msg.c_str());
 		return;
@@ -1168,19 +1173,20 @@ void update_client::handle_file_response_header(boost::system::error_code &error
 		request_ctx->content_length
 	);
 
-	fs::path file_path = generate_file_path(
-		this->new_files_dir,
-		fs::path(request_ctx->target)
-	);
+	fs::path file_path = generate_file_path(this->new_files_dir, fs::path(request_ctx->target));
 
-	/* FIXME Signal failure */
 	if (file_path.empty())
 	{
-		log_error("Failed to create file path\n");
+		handle_error({}, "Failed to create file path\n");
 		return;
 	}
 
-	auto file_ctx = new update_client::file(fs::path(unfixup_uri(file_path.string())));
+	//check that we do not have file before writing in it 
+	auto file_boost_path = fs::path(unfixup_uri(file_path.string()));
+	boost::system::error_code ec;
+	boost::filesystem::remove(file_boost_path, ec);
+
+	auto file_ctx = new update_client::file(file_boost_path);
 
 	auto read_handler = [this, request_ctx, file_ctx](auto i, auto e) {
 		this->handle_file_response_body(i, e, request_ctx, file_ctx);
@@ -1190,11 +1196,7 @@ void update_client::handle_file_response_header(boost::system::error_code &error
 	{
 		auto target = request_ctx->request.target();
 
-		std::string output_str = fmt::format(
-			"Status Code: {}\nFile: {}\n",
-			status_code,
-			fmt::string_view(target.data(), target.size())
-		);
+		std::string output_str = fmt::format("Status Code: {}\nFile: {}\n", status_code, fmt::string_view(target.data(), target.size()));
 
 		handle_file_download_error(request_ctx, {}, output_str.c_str());
 		return;
@@ -1208,10 +1210,7 @@ void update_client::handle_file_request(boost::system::error_code &error, size_t
 {
 	if (error)
 	{
-		std::string msg = fmt::format(
-			"Failed file request ({})",
-			request_ctx->target
-		);
+		std::string msg = fmt::format("Failed file request ({})", request_ctx->target);
 
 		handle_file_download_error(request_ctx, error, msg.c_str());
 		return;
