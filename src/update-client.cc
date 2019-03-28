@@ -212,6 +212,7 @@ struct update_client::http_request
 	ssl::stream<tcp::socket> ssl_socket;
 	boost::asio::deadline_timer deadline;
 	int deadline_default_timeout = 10;
+	bool deadline_reached = false;
 	int retries = 0;
 	http::request<http::empty_body> request;
 
@@ -402,17 +403,17 @@ void update_client::http_request<Body, IncludeVersion>::check_deadline_callback(
 	 
 	if (deadline.expires_at() <= boost::asio::deadline_timer::traits_type::now())
 	{ 
+		deadline_reached = true;
+
 		boost::system::error_code ignored_ec;
 		ssl_socket.shutdown(ignored_ec);
 		ssl_socket.lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored_ec);
 
-		deadline.expires_at(boost::posix_time::pos_infin);
-	
-		handle_file_download_error(this);
+		deadline.expires_at(boost::posix_time::pos_infin); 
+	} else { 
+		// Put the actor back to sleep.
+		deadline.async_wait( bind(&update_client::http_request<Body, IncludeVersion>::check_deadline_callback, this, std::placeholders::_1));
 	}
-
-	// Put the actor back to sleep.
-	deadline.async_wait( bind(&update_client::http_request<Body, IncludeVersion>::check_deadline_callback, this, std::placeholders::_1));
 }
 
 struct update_client::pid
@@ -497,17 +498,20 @@ inline void update_client::handle_error(const boost::system::error_code & error,
 
 void update_client::handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code & error, const char * str)
 {
-	//if(last_error)
-	if(1)
+	if(request_ctx->retries > 5)
 	{
+		if(error == boost::asio::error::basic_errors::operation_aborted && request_ctx->deadline_reached)
+		{
+		}
 		handle_error(error, str);
 		return;
 	} else {
-		//increase retries count 
-		//clear 
+		//create new request on info from failed 		
+		//increase retries count and set to new 
 		//send to first step 
-		//print error to log 
+		
 		handle_manifest_entry(request_ctx);
+		//print error to log 
 	}
 }
 
