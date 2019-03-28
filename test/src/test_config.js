@@ -24,6 +24,8 @@ exports.gettestinfo = function () {
     expectedResult: "filesupdated", // "filesnotchanged", ""
     expectedCrashReport: false,
 
+    morebigfiles: false,
+    
     not_keep_files: false
   }
 

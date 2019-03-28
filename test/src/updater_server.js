@@ -20,8 +20,8 @@ exports.start_http_update_server = function () {
   server.listen(8000);
 }
 
-exports.start_https_update_server = function (serverDir) {
-
+exports.start_https_update_server = function (serverDir) 
+{
   var bodyParser = require('body-parser')
   server = require("https-localhost")
 
@@ -37,7 +37,7 @@ exports.start_https_update_server = function (serverDir) {
 
     });
   } else {
-    server.serve(serverDir)
+    server.serve(serverDir )
   }
 
   if (custom_port) {
