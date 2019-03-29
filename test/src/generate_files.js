@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const zlib = require('zlib');
 
 const hugefilecontent = "asdfasdf23rdsf34rsdfasdfasdf23rdsf34rsdfasdfasdf23rdsf34rsdfasdfasdf23rdsf34rsdf"
-const morefilesmax = 50;
+const morefilesmax = 8;
 const filecontentlines = 1000;
 const hugefileincrese = 20;
 
