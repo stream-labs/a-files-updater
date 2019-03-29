@@ -32,7 +32,7 @@ add_executable(slobs-updater
 	src/update-parameters.hpp
 	src/cli-parser.cc src/cli-parser.hpp
 	src/uri-parser.cc src/uri-parser.hpp
-	src/update-client.cc src/update-client.hpp
+	src/update-client.cc src/update-client-internal.hpp src/update-client.hpp
 	src/crash-reporter.cc src/crash-reporter.hpp
 
 	# argtable
