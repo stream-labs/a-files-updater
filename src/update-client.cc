@@ -211,8 +211,14 @@ struct update_client::http_request
 	 * interchangeably. Really, my suggestion is that
 	 * you should be using ssl regardless anyways. */
 	ssl::stream<tcp::socket> ssl_socket;
+	
+	/* We need way to detect stuck connection
+	*  For that we use boost deadline timer what can limit 
+	*  time for each step of file downloader connection
+	*  Also limit recieve buffer so timer limit too slow fill of the buffer  
+	*/
 	boost::asio::deadline_timer deadline;
-	int deadline_default_timeout = 10;
+	int deadline_default_timeout = 5;
 	bool deadline_reached = false;
 	int retries = 0;
 	http::request<http::empty_body> request;
@@ -356,13 +362,19 @@ void FileUpdater::revert()
 	}
 }
 
+// limit response_buf buffer size so together with deadline timeout 
+// it will create low speed limit for download 
+// 512kb in 10 seconds is somewhere of old modems 
+// and be recognized as stuck connection
+
 template <class Body, bool IncludeVersion>
 update_client::http_request<Body, IncludeVersion>::http_request(update_client *client_ctx, const std::string &target, const int id) :
 	worker_id(id),
 	client_ctx(client_ctx),
 	target(target),
 	ssl_socket(client_ctx->io_ctx, client_ctx->ssl_context),
-	deadline(client_ctx->io_ctx)
+	deadline(client_ctx->io_ctx),	
+	response_buf(4*1024) // see reasons above ^
 {
 	std::string full_target;
 
