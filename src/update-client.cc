@@ -29,6 +29,8 @@ using std::regex;
 using std::cmatch;
 using std::regex_search;
 
+const size_t file_buffer_size = 4096;
+
 #include "update-client.hpp"
 #include "checksum-filters.hpp"
 #include "update-parameters.hpp"
@@ -187,7 +189,7 @@ update_client::http_request<Body, IncludeVersion>::http_request(update_client *c
 	target(target),
 	ssl_socket(client_ctx->io_ctx, client_ctx->ssl_context),
 	deadline(client_ctx->io_ctx),
-	response_buf(4 * 1024) // see reasons above ^
+	response_buf(file_buffer_size) // see reasons above ^
 {
 	std::string full_target;
 
@@ -450,14 +452,14 @@ static std::string calculate_checksum(fs::path &path)
 	bio::chain<bio::input> checksum_chain;
 	sha256_filter checksum_filter;
 
-	char useless_buffer[4096];
+	char useless_buffer[file_buffer_size];
 
-	checksum_chain.push(boost::reference_wrapper<sha256_filter>(checksum_filter), 4096);
+	checksum_chain.push(boost::reference_wrapper<sha256_filter>(checksum_filter), file_buffer_size);
 
-	checksum_chain.push(bio::file_descriptor_source(path), 4096);
+	checksum_chain.push(bio::file_descriptor_source(path), file_buffer_size);
 
 	/* Drain our source */
-	while (checksum_chain.read(&useless_buffer[0], 4096) != -1);
+	while (checksum_chain.read(&useless_buffer[0], file_buffer_size) != -1);
 
 	/* Close it */
 	checksum_chain.reset();
@@ -638,12 +640,10 @@ static size_t handle_manifest_read_buffer(update_client::manifest_map &map, cons
 
 		buf = (const char*)buffer.data() + accum;
 
-		bool regex_result = regex_search(
-			&buf[0], &buf[buf_size],
-			matches, manifest_regex
-		);
+		bool regex_result = regex_search( &buf[0], &buf[buf_size], matches, manifest_regex );
 
-		if (!regex_result) {
+		if (!regex_result) 
+		{
 			/* FIXME TODO
 			 * This should never ever happen the way
 			 * the code is currently formatted. If
@@ -782,31 +782,17 @@ struct update_client::file {
 update_client::file::file(const fs::path &file_path)
 	: file_path(file_path), file_stream(file_path, file_flags)
 {
-	if (this->file_stream.bad()) {
+	if (this->file_stream.bad()) 
+	{
 		log_info("Failed to create file output stream\n");
 		/* TODO File failed to open here */
 	}
 
-	this->output_chain.push(
-		boost::reference_wrapper<
-		bio::gzip_decompressor
-		>(this->decompress_filter),
-		4096
-	);
+	this->output_chain.push( boost::reference_wrapper< bio::gzip_decompressor >(this->decompress_filter), file_buffer_size );
 
-	this->output_chain.push(
-		boost::reference_wrapper<
-		sha256_filter
-		>(this->checksum_filter),
-		4096
-	);
+	this->output_chain.push( boost::reference_wrapper< sha256_filter >(this->checksum_filter), file_buffer_size );
 
-	this->output_chain.push(
-		boost::reference_wrapper<
-		std::ofstream
-		>(this->file_stream),
-		4096
-	);
+	this->output_chain.push( boost::reference_wrapper< std::ofstream >(this->file_stream), file_buffer_size );
 }
 
 fs::path generate_file_path(const fs::path &base, const fs::path &target)
