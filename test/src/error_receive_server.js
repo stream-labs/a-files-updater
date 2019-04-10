@@ -40,7 +40,7 @@ exports.start_crash_report_server = function (testinfo) {
 
     server.listen(testinfo.reporterPort, testinfo.reporterHost);
 
-    console.log('Listening at http://' + testinfo.reporterPort + ':' + testinfo.reporterPort);
+    console.log('Sentry emulator listening at http://' + testinfo.reporterHost + ':' + testinfo.reporterPort);
 }
 
 exports.stop_crash_report_server = function () {

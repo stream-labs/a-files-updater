@@ -151,10 +151,10 @@ struct update_client::http_request
 	 * you should be using ssl regardless anyways. */
 	ssl::stream<tcp::socket> ssl_socket;
 
-	/* We need way to detect stuck connection
+	/* We need way to detect stuck connection.
 	*  For that we use boost deadline timer what can limit
-	*  time for each step of file downloader connection
-	*  Also limit recieve buffer so timer limit too slow fill of the buffer
+	*  time for each step of file downloader connection.
+	*  Also it limits a recieve buffer so a timer limit a too slow fill of the buffer. 
 	*/
 	boost::asio::deadline_timer deadline;
 	int deadline_default_timeout = 5;
@@ -180,7 +180,8 @@ struct FileUpdater
 	~FileUpdater();
 
 	void update();
-	void update_entry(update_client::manifest_map::iterator  &iter, boost::filesystem::path & new_files_dir);
+	bool update_entry(update_client::manifest_map::iterator  &iter, boost::filesystem::path & new_files_dir);
+	bool update_entry_with_retries(update_client::manifest_map::iterator  &iter, boost::filesystem::path & new_files_dir);
 	void revert();
 	bool reset_rights(const fs::path& path);
 
