@@ -9,9 +9,10 @@ const reporter_server = require('./error_receive_server.js');
 const updater_launcher = require('./updater_launcher.js');
 
 exports.test_update = async function (testinfo) {
-
+  console.log("--- Test files will be generated.");
   await generate_files.generate_test_files(testinfo)
 
+  console.log("--- Test server will be started.");
   if (testinfo.serverStarted) {
     updater_server.start_https_update_server(testinfo.serverDir);
 
@@ -21,7 +22,8 @@ exports.test_update = async function (testinfo) {
   if (testinfo.skipUpdaterLaunch) {
     return 0;
   }
-
+  
+  console.log("--- Ready to start updater.");
   try {
     let launched = await updater_launcher.start_updater(testinfo)
     let ret = 0;

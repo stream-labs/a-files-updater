@@ -5,8 +5,8 @@ const crypto = require('crypto');
 const zlib = require('zlib');
 
 const hugefilecontent = "asdfasdf23rdsf34rsdfasdfasdf23rdsf34rsdfasdfasdf23rdsf34rsdfasdfasdf23rdsf34rsdf"
-const morefilesmax = 8;
-const filecontentlines = 1000;
+const morefilesmax = 100;
+const filecontentlines = 100;
 const hugefileincrese = 20;
 
 async function generate_file(filedir, filename, filecontentextended = "", emptyfile = false, hugefile = false) 

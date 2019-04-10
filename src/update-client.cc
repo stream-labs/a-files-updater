@@ -87,6 +87,10 @@ FileUpdater::~FileUpdater()
 	boost::system::error_code ec;
 
 	fs::remove_all(m_old_files_dir, ec);
+	if (ec)
+	{
+		wlog_warn(L"Failed to clean temp folder.");
+	}
 }
 
 void FileUpdater::update()
@@ -101,19 +105,40 @@ void FileUpdater::update()
 	{
 		if (version_file_key.compare(iter->first) != 0)
 		{
-			update_entry(iter, new_files_dir);
+			update_entry_with_retries(iter, new_files_dir);
 		}
 	}
 
 	auto version_file = manifest.find(version_file_key);
 	if (version_file != manifest.end())
 	{
-		update_entry(version_file, new_files_dir);
+		update_entry_with_retries(version_file, new_files_dir);
 	}
 }
 
-void FileUpdater::update_entry(update_client::manifest_map::iterator &iter, boost::filesystem::path &new_files_dir)
+bool FileUpdater::update_entry_with_retries(update_client::manifest_map::iterator &iter, boost::filesystem::path &new_files_dir)
 {
+	int retries = 0;
+	const int max_retries = 5;
+	bool ret = false;
+	
+	while (retries < max_retries && !ret)
+	{
+		retries++;
+		ret = update_entry(iter, new_files_dir);
+	}
+	
+	if (!ret)
+	{
+		throw std::runtime_error("Error: failed to update file");
+	}
+	return ret;
+}
+
+bool FileUpdater::update_entry(update_client::manifest_map::iterator &iter, boost::filesystem::path &new_files_dir)
+{
+	boost::system::error_code ec;
+
 	fs::path to_path(m_app_dir);
 	to_path /= iter->first;
 
@@ -123,21 +148,33 @@ void FileUpdater::update_entry(update_client::manifest_map::iterator &iter, boos
 	fs::path from_path(new_files_dir);
 	from_path /= iter->first;
 
-	fs::create_directories(old_file_path.parent_path());
-	fs::create_directories(to_path.parent_path());
-
-	if (fs::exists(to_path))
-		fs::rename(to_path, old_file_path);
-
-	fs::rename(from_path, to_path);
-
 	try
 	{
-		reset_rights(to_path);
+		fs::create_directories(old_file_path.parent_path());
+		fs::create_directories(to_path.parent_path());
+
+		if (fs::exists(to_path))
+		{
+			fs::rename(to_path, old_file_path);
+		}
+
+		fs::rename(from_path, to_path);
+	
+		try
+		{
+			reset_rights(to_path);
+		}
+		catch (...)
+		{
+		}
+
+		return true;
 	}
 	catch (...)
 	{
 	}
+
+	return false;
 }
 
 bool FileUpdater::reset_rights(const fs::path& path)
@@ -162,18 +199,32 @@ void FileUpdater::revert()
 	fs::recursive_directory_iterator iter(m_old_files_dir);
 	fs::recursive_directory_iterator end_iter{};
 	boost::system::error_code ec;
+	int error_count = 0;
 
-	for (; iter != end_iter; ++iter) {
+	for (; iter != end_iter; ++iter) 
+	{
 		/* Fetch relative paths */
 		fs::path rel_path(fs::relative(iter->path(), m_old_files_dir));
 
 		fs::path to_path(m_app_dir);
 		to_path /= rel_path;
 
-
 		fs::remove(to_path, ec);
+		if (ec)
+		{
+			error_count++;
+		}
 
 		fs::rename(iter->path(), to_path, ec);
+		if (ec)
+		{
+			error_count++;
+		}
+	}
+
+	if (error_count > 0)
+	{
+		wlog_warn(L"Revert have failed to correctly revert some files. Fails : %i", error_count);
 	}
 }
 
@@ -939,7 +990,18 @@ void update_client::handle_file_response_header(boost::system::error_code &error
 	}
 
 	auto &response_parser = request_ctx->response_parser;
+
 	int status_code = response_parser.get().result_int();
+	if (status_code != 200)
+	{
+		auto target = request_ctx->request.target();
+
+		std::string output_str = fmt::format("Status Code: {}\nFile: {}\n", status_code, fmt::string_view(target.data(), target.size()));
+
+		handle_file_download_error(request_ctx, {}, output_str.c_str());
+		return;
+	}
+
 	request_ctx->content_length = response_parser.content_length().value();
 
 	this->downloader_events->download_file(
@@ -966,16 +1028,6 @@ void update_client::handle_file_response_header(boost::system::error_code &error
 	auto read_handler = [this, request_ctx, file_ctx](auto i, auto e) {
 		this->handle_file_response_body(i, e, request_ctx, file_ctx);
 	};
-
-	if (status_code != 200)
-	{
-		auto target = request_ctx->request.target();
-
-		std::string output_str = fmt::format("Status Code: {}\nFile: {}\n", status_code, fmt::string_view(target.data(), target.size()));
-
-		handle_file_download_error(request_ctx, {}, output_str.c_str());
-		return;
-	}
 
 	request_ctx->deadline.expires_from_now(boost::posix_time::seconds(request_ctx->deadline_default_timeout));
 	http::async_read_some(request_ctx->ssl_socket, request_ctx->response_buf, response_parser, read_handler);
