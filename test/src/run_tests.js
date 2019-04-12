@@ -8,11 +8,37 @@ async function run_tests() {
 /*    //good update
     testinfo = test_config.gettestinfo()
     failed_tests = failed_tests + await run_test.test_update(testinfo)
-*/
+
     //good huge files 
-    testinfo = test_config.gettestinfo()
-    testinfo.morebigfiles = true
-    failed_tests = failed_tests + await run_test.test_update(testinfo)
+    testinfo = test_config.gettestinfo();
+    testinfo.morebigfiles = true;
+    failed_tests = failed_tests + await run_test.test_update(testinfo);
+
+    //test recovering server error responce 
+    testinfo = test_config.gettestinfo();
+    testinfo.morebigfiles = true;
+    testinfo.let_404 = true;
+    failed_tests = failed_tests + await run_test.test_update(testinfo);
+
+    //test closed server connection
+    testinfo = test_config.gettestinfo();
+    testinfo.morebigfiles = true;
+    testinfo.let_drop = true;
+    failed_tests = failed_tests + await run_test.test_update(testinfo);
+
+    //test closed server connection
+    testinfo = test_config.gettestinfo();
+    testinfo.morebigfiles = true;
+    testinfo.let_wrong_header = true;
+    failed_tests = failed_tests + await run_test.test_update(testinfo);
+*/
+
+    //test closed server connection
+    testinfo = test_config.gettestinfo();
+    testinfo.morebigfiles = true;
+    testinfo.runAsInteractive = '1';
+    testinfo.let_5sec = true;
+    failed_tests = failed_tests + await run_test.test_update(testinfo);
 /*
     //bad update - no server. files have to not change 
     testinfo = test_config.gettestinfo()

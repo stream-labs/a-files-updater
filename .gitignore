@@ -1,3 +1,4 @@
 build 
 test/node_modules
-/test/yarn.lock
+test/yarn.lock
+test/testfiles
