@@ -240,8 +240,8 @@ update_client::http_request<Body, IncludeVersion>::http_request(update_client *c
 	client_ctx(client_ctx),
 	target(target),
 	ssl_socket(client_ctx->io_ctx, client_ctx->ssl_context),
-	deadline(client_ctx->io_ctx),
-	response_buf(file_buffer_size) // see reasons above ^
+	response_buf(file_buffer_size), // see reasons above ^
+	deadline(client_ctx->io_ctx)
 {
 	std::string full_target;
 
@@ -262,11 +262,6 @@ update_client::http_request<Body, IncludeVersion>::http_request(update_client *c
 	response_parser.body_limit(std::numeric_limits<unsigned long long>::max());
 
 	deadline.expires_at(boost::posix_time::pos_infin);
-
-	//check_deadline_callback_err(make_error_code(boost::system::errc::success));
-	
-	//check_deadline_callback();
-	//deadline.async_wait(boost::bind(&update_client::http_request<Body, IncludeVersion>::check_deadline_callback, this));
 }
 
 template<class Body, bool IncludeVersion>
@@ -280,40 +275,37 @@ void update_client::http_request<Body, IncludeVersion>::check_deadline_callback_
 {
 	if (error)
 	{
-		return;
+		if (error == boost::asio::error::operation_aborted)
+		{
+			return;
+		}
+		else {
+			log_error("File download operation deadline error %i", error.value());
+			return;
+		}
 	}
 	
 	if (deadline.expires_at() <= boost::asio::deadline_timer::traits_type::now())
 	{
+		log_info("Timeout for file download operation trigered.");
 		deadline_reached = true;
 
 		boost::system::error_code ignored_ec;
-		ssl_socket.shutdown(ignored_ec);
 		ssl_socket.lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored_ec);
 
 		deadline.expires_at(boost::posix_time::pos_infin);
 	}
-
-	// Put the actor back to sleep.
-	deadline.async_wait(bind(&update_client::http_request<Body, IncludeVersion>::check_deadline_callback_err, this, std::placeholders::_1));
+	else {
+		// Put the actor back to sleep.
+		deadline.async_wait(bind(&update_client::http_request<Body, IncludeVersion>::check_deadline_callback_err, this, std::placeholders::_1));
+	}
 }
 
 template<class Body, bool IncludeVersion>
-void update_client::http_request<Body, IncludeVersion>::check_deadline_callback()
-{ 
-	if (deadline.expires_at() <= boost::asio::deadline_timer::traits_type::now())
-	{
-		deadline_reached = true;
-
-		//boost::system::error_code ignored_ec;
-		//ssl_socket.shutdown(ignored_ec);
-		//ssl_socket.lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored_ec);
-
-		deadline.expires_at(boost::posix_time::pos_infin);
-    }
-
-	// Put the actor back to sleep.
-	deadline.async_wait(boost::bind(&update_client::http_request<Body, IncludeVersion>::check_deadline_callback, this));
+void update_client::http_request<Body, IncludeVersion>::set_deadline()
+{
+	deadline.expires_from_now(boost::posix_time::seconds(deadline_default_timeout));
+	check_deadline_callback_err(make_error_code(boost::system::errc::success));
 }
 
 struct update_client::pid
@@ -953,6 +945,8 @@ void handle_file_response_buffer( update_client::file *file_ctx, const asio::con
 
 void update_client::handle_file_response_body(boost::system::error_code &error, size_t bytes_read, file_request<http::dynamic_body> *request_ctx, update_client::file *file_ctx)
 {
+	request_ctx->deadline.cancel();
+
 	if (error)
 	{
 		std::string msg = fmt::format("Failed file response body ({})", request_ctx->target);
@@ -978,6 +972,7 @@ void update_client::handle_file_response_body(boost::system::error_code &error, 
 	if (response_parser.is_done())
 	{
 		int worker_id = request_ctx->worker_id;
+		request_ctx->deadline.cancel();
 
 		delete request_ctx;
 
@@ -990,12 +985,15 @@ void update_client::handle_file_response_body(boost::system::error_code &error, 
 		this->handle_file_response_body(i, e, request_ctx, file_ctx);
 	};
 
-	//request_ctx->deadline.expires_from_now(boost::posix_time::seconds(request_ctx->deadline_default_timeout));
+	request_ctx->set_deadline();
+
 	http::async_read_some(request_ctx->ssl_socket, request_ctx->response_buf, response_parser, read_handler);
 }
 
 void update_client::handle_file_response_header(boost::system::error_code &error, size_t bytes, file_request<http::dynamic_body> *request_ctx)
 {
+	request_ctx->deadline.cancel();
+
 	if (error)
 	{
 		std::string msg = fmt::format("Failed file response header ({})", request_ctx->target);
@@ -1059,12 +1057,15 @@ void update_client::handle_file_response_header(boost::system::error_code &error
 		this->handle_file_response_body(i, e, request_ctx, file_ctx);
 	};
 
-	//request_ctx->deadline.expires_from_now(boost::posix_time::seconds(request_ctx->deadline_default_timeout));
+	request_ctx->set_deadline();
+
 	http::async_read_some(request_ctx->ssl_socket, request_ctx->response_buf, response_parser, read_handler);
 }
 
 void update_client::handle_file_request(boost::system::error_code &error, size_t bytes, file_request<http::dynamic_body> *request_ctx)
 {
+	request_ctx->deadline.cancel();
+
 	if (error)
 	{
 		std::string msg = fmt::format("Failed file request ({})", request_ctx->target);
@@ -1077,11 +1078,15 @@ void update_client::handle_file_request(boost::system::error_code &error, size_t
 		this->handle_file_response_header(i, e, request_ctx);
 	};
 
+	request_ctx->set_deadline();
+
 	http::async_read_header(request_ctx->ssl_socket, request_ctx->response_buf, request_ctx->response_parser, read_handler);
 }
 
 void update_client::handle_file_handshake(const boost::system::error_code& error, file_request<http::dynamic_body> *request_ctx)
 {
+	request_ctx->deadline.cancel();
+
 	if (error)
 	{
 		std::string msg = fmt::format("Failed manifest handshake ({}): {}", request_ctx->target, error.message().c_str());
@@ -1094,12 +1099,15 @@ void update_client::handle_file_handshake(const boost::system::error_code& error
 		this->handle_file_request(e, b, request_ctx);
 	};
 
-	//request_ctx->deadline.expires_from_now(boost::posix_time::seconds(request_ctx->deadline_default_timeout));
+	request_ctx->set_deadline();
+
 	http::async_write(request_ctx->ssl_socket, request_ctx->request, request_handler);
 }
 
 void update_client::handle_file_connect(const boost::system::error_code &error, const tcp::endpoint &ep, file_request<http::dynamic_body> *request_ctx)
 {
+	request_ctx->deadline.cancel();
+
 	if (error)
 	{
 		handle_file_download_error(request_ctx, error, "Failed to connect to host for file");
@@ -1109,6 +1117,8 @@ void update_client::handle_file_connect(const boost::system::error_code &error, 
 	auto handshake_handler = [this, request_ctx](auto e) {
 		this->handle_file_handshake(e, request_ctx);
 	};
+	
+	request_ctx->set_deadline();
 
 	request_ctx->ssl_socket.async_handshake(ssl::stream_base::handshake_type::client, handshake_handler);
 }
@@ -1119,7 +1129,8 @@ void update_client::handle_manifest_entry(file_request<http::dynamic_body> *requ
 		this->handle_file_connect(e, b, request_ctx);
 	};
 
-	//request_ctx->deadline.expires_from_now(boost::posix_time::seconds(1));
+	request_ctx->set_deadline();
+	
 	asio::async_connect(request_ctx->ssl_socket.lowest_layer(), this->endpoints, connect_handler);
 }
 

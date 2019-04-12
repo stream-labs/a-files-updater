@@ -9,20 +9,29 @@ var server;
 var proxy;
 var proxyServer;
 
+var ssl_options = {
+  key: fs.readFileSync('valid-ssl-key.pem', 'utf8'),
+  cert: fs.readFileSync('valid-ssl-cert.pem', 'utf8')
+};
+
 var files_served = 0;
 var file_to_block;
-
 var have_trouble = 0;
 
 exports.start_https_update_server = function (testinfo) {
-  var options = {
-    key: fs.readFileSync('valid-ssl-key.pem', 'utf8'),
-    cert: fs.readFileSync('valid-ssl-cert.pem', 'utf8')
-  };
+
+  files_served = 0;
+  file_to_block = "";
+  have_trouble = 0;
 
   proxy = httpProxy.createProxyServer();
 
-  proxyServer = https.createServer(options, function (req, res) {
+  proxy.on('error', function (err, req, res) 
+  { 
+    //console.log("just proxy error");
+  });
+
+  proxyServer = https.createServer(ssl_options, function (req, res) {
     let test_timeout = 100 + Math.floor(Math.random() * Math.floor(500));
     let chanse_for_trouble = Math.floor(Math.random() * Math.floor(100));
     
@@ -61,11 +70,11 @@ exports.start_https_update_server = function (testinfo) {
         return;
       } else if(testinfo.let_5sec)
       {
-        test_timeout = 5*1000+100;
+        test_timeout = 5*1000;
         console.log("Will make this request delayed for "+test_timeout + "ms, " + req.url);
       } else if(testinfo.let_15sec)
       {
-        test_timeout = 15*1000+100;
+        test_timeout = 15*1000;
         console.log("Will make this request delayed for "+test_timeout + "ms, " + req.url);
       }
     } else {
@@ -91,10 +100,11 @@ exports.start_https_update_server = function (testinfo) {
 
   server.listen(8443);
   
-  console.log('Update server emulator listening at http://' + 'localhost' + ':' + '443');
+  console.log('Update server emulator listening at https://' + 'localhost' + ':' + '443');
 }
 
 exports.stop_https_update_server = function () {
-  server.close()
+  proxy.close();
   proxyServer.close();
+  server.close()
 }

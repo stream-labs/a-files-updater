@@ -9,69 +9,61 @@ const morefilesmax = 128;
 const filecontentlines = 100;
 const hugefileincrese = 20;
 
-async function generate_file(filedir, filename, filecontentextended = "", emptyfile = false, hugefile = false) 
-{
+async function generate_file(filedir, filename, filecontentextended = "", emptyfile = false, hugefile = false) {
   return new Promise((resolve, reject) => {
     const filepath = path.join(filedir, filename)
     fse.outputFileSync(filepath);
 
     var stream = fs.createWriteStream(filepath);
-    if (!emptyfile) 
-    {
+    if (!emptyfile) {
       var i;
       var lines = filecontentlines;
-      if(hugefile) 
-      {
+      if (hugefile) {
         filecontentextended = hugefilecontent;
-        lines = filecontentlines*hugefileincrese;
+        lines = filecontentlines * hugefileincrese;
       }
       stream.write(filename + `\n`);
-      
+
       var cipher = crypto.createCipheriv('aes-256-ctr', 'b2df428b9929d3ace7c598bbf4e496b2', 'dkfirosnfkdyrifj')
 
-      for (i = 0; i < lines; i++) 
-      {
-        var crypted = cipher.update(filecontentextended+i,'utf8','hex')
+      for (i = 0; i < lines; i++) {
+        var crypted = cipher.update(filecontentextended + i, 'utf8', 'hex')
         stream.write(i + ` ${crypted}` + `\n`);
       }
     }
 
     stream.end();
-    stream.on("finish",  () => { resolve(true); }); 
-    stream.on("error", reject); 
+    stream.on("finish", () => { resolve(true); });
+    stream.on("error", reject);
 
   });
 }
 
-function generate_file_sync(filedir, filename, filecontentextended = "", emptyfile = false, hugefile = false) 
-{
-    const filepath = path.join(filedir, filename)
-    fse.outputFileSync(filepath);
+function generate_file_sync(filedir, filename, filecontentextended = "", emptyfile = false, hugefile = false) {
+  const filepath = path.join(filedir, filename)
+  fse.outputFileSync(filepath);
 
-    var stream = fs.openSync(filepath);
-    if (!emptyfile) 
-    {
-      var i;
-      var lines = filecontentlines;
-      if(hugefile) 
-      {
-        filecontentextended = hugefilecontent;
-        lines = filecontentlines*hugefileincrese;
-      }
-      stream.writeSync(filename + `\n`);
-      
-      var cipher = crypto.createCipheriv('aes-256-ctr', 'b2df428b9929d3ace7c598bbf4e496b2', 'dkfirosnfkdyrifj')
-
-      for (i = 0; i < lines; i++) 
-      {
-        var crypted = cipher.update(filecontentextended+i,'utf8','hex')
-        stream.writeSync(i + ` ${crypted}` + `\n`);
-      }
+  var stream = fs.openSync(filepath);
+  if (!emptyfile) {
+    var i;
+    var lines = filecontentlines;
+    if (hugefile) {
+      filecontentextended = hugefilecontent;
+      lines = filecontentlines * hugefileincrese;
     }
+    stream.writeSync(filename + `\n`);
 
-    stream.end();
-    //stream.on("finish",  () => { resolve(true); }); 
-    //stream.on("error", reject); 
+    var cipher = crypto.createCipheriv('aes-256-ctr', 'b2df428b9929d3ace7c598bbf4e496b2', 'dkfirosnfkdyrifj')
+
+    for (i = 0; i < lines; i++) {
+      var crypted = cipher.update(filecontentextended + i, 'utf8', 'hex')
+      stream.writeSync(i + ` ${crypted}` + `\n`);
+    }
+  }
+
+  stream.end();
+  //stream.on("finish",  () => { resolve(true); }); 
+  //stream.on("error", reject); 
 }
 
 function filewalker(dir, done) {
@@ -109,7 +101,7 @@ function generate_manifest(testinfo) {
   return new Promise((resolve, reject) => {
     const filepath = path.join(testinfo.serverDir, testinfo.versionName + ".sha256")
     fse.outputFileSync(filepath);
-    
+
     filewalker(testinfo.serverDir, function (err, data) {
       if (err) {
         throw err;
@@ -159,12 +151,16 @@ async function generate_server_dir(testinfo) {
   await generate_file(update_subdirpath, "file 1.txt")
   await generate_file(update_subdirpath, "dir\\file6.ept", "", true)
 
-  if(testinfo.morebigfiles)
-  {
+  if (testinfo.morebigfiles) {
     let file_index;
-    for (file_index = 0; file_index < morefilesmax; file_index++) 
-    {
-      let file_name = "dir_bigs\\file"+file_index+".txt";
+    for (file_index = 0; file_index < morefilesmax; file_index++) {
+      let file_name = "dir_bigs\\file" + file_index + ".txt";
+      await generate_file(update_subdirpath, file_name, "", false, true)
+    }
+  } else {
+    let file_index;
+    for (file_index = 0; file_index < 16; file_index++) {
+      let file_name = "dir_some\\file" + file_index + ".txt";
       await generate_file(update_subdirpath, file_name, "", false, true)
     }
   }
@@ -188,6 +184,13 @@ async function generate_initial_dir(testinfo, dirpath = "") {
   await generate_file(dirpath, "test2.txt", "old content", false)
   await generate_file(dirpath, "dir\\file3.zip")
 
+  if (false) {
+    let file_index;
+    for (file_index = 0; file_index < 16; file_index++) {
+      let file_name = "dir_other\\file" + file_index + ".txt";
+      await generate_file(dirpath, file_name, "", false, true)
+    }
+  }
   console.log("finish generate_initial_dir");
 }
 
@@ -203,12 +206,16 @@ async function generate_result_dir(testinfo, dirpath) {
   await generate_file(dirpath, "dir\\file3.zip")
   await generate_file(dirpath, "dir\\file6.ept", "", true)
 
-  if(testinfo.morebigfiles)
-  {
+  if (testinfo.morebigfiles) {
     let file_index;
-    for (file_index = 0; file_index < morefilesmax; file_index++) 
-    {
-      let file_name = "dir_bigs\\file"+file_index+".txt";
+    for (file_index = 0; file_index < morefilesmax; file_index++) {
+      let file_name = "dir_bigs\\file" + file_index + ".txt";
+      await generate_file(dirpath, file_name, "", false, true)
+    }
+  } else {
+    let file_index;
+    for (file_index = 0; file_index < 16; file_index++) {
+      let file_name = "dir_some\\file" + file_index + ".txt";
       await generate_file(dirpath, file_name, "", false, true)
     }
   }
@@ -242,7 +249,7 @@ exports.generate_test_files = async function (testinfo) {
   if (testinfo.expectedResult == "filesupdated")
     await generate_result_dir(testinfo, testinfo.resultDir);
   if (testinfo.expectedResult == "filesnotchanged")
-    await   generate_initial_dir(testinfo, testinfo.resultDir);
+    await generate_initial_dir(testinfo, testinfo.resultDir);
 
 }
 
@@ -275,9 +282,9 @@ exports.check_results = function (testinfo) {
   if (ret) {
     const report_path = path.join(testinfo.reporterDir, "crash_report.json")
     const have_report = fs.existsSync(report_path);
-    
-    if ((testinfo.expectedCrashReport && have_report ) 
-    || (!testinfo.expectedCrashReport && !have_report )) {
+
+    if ((testinfo.expectedCrashReport && have_report)
+      || (!testinfo.expectedCrashReport && !have_report)) {
       ret = true;
     } else {
       ret = false;
