@@ -15,8 +15,9 @@ exports.gettestinfo = function () {
     manifestGenerated: true,
     manifestWrongFile: false,
     blockFileFromUpdating: false,
+    
     morebigfiles: false,
-
+    
     let_404 : false,
     let_drop : false,
     let_wrong_header: false,

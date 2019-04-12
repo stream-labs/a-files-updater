@@ -45,6 +45,11 @@ exports.start_https_update_server = function (testinfo) {
     {
       do_block = true;
     }
+    
+    if( do_block && req.url == "//0.11.9-preview.1.sha256")
+    {
+      do_block = false;
+    }
 
     if( do_block )
     {
