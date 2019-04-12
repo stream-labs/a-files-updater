@@ -11,7 +11,7 @@ exports.start_updater = async function (testinfo) {
     '--version', `"${testinfo.versionName}"`,
     '--exec', `"${updaterPathE}"`,
     '--cwd', `"${updateDirE}"`,
-    '--interactive', `0`,
+    '--interactive', `"${testinfo.runAsInteractive}"`,
     '--app-dir', `"${updateDirE}"`,
     '--force-temp'
   ];

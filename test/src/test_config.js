@@ -15,16 +15,30 @@ exports.gettestinfo = function () {
     manifestGenerated: true,
     manifestWrongFile: false,
     blockFileFromUpdating: false,
+    morebigfiles: false,
 
+    let_404 : false,
+    let_drop : false,
+    let_wrong_header: false,
+    let_5sec : false,
+    let_15sec : false,
+    max_trouble : 20,
+
+    let_block_one_file : false,
+    block_file_number : 10,
+    
+    //sentry emulator
     reporterHost: "localhost",
     reporterPort: 80,
 
+    //how to run updater 
     skipUpdaterLaunch: false,
+    runAsInteractive: '0',
 
+    //test results 
     expectedResult: "filesupdated", // "filesnotchanged", ""
     expectedCrashReport: false,
 
-    morebigfiles: false,
     
     not_keep_files: false
   }

@@ -14,7 +14,7 @@ exports.test_update = async function (testinfo) {
 
   console.log("--- Test server will be started.");
   if (testinfo.serverStarted) {
-    updater_server.start_https_update_server(testinfo.serverDir);
+    updater_server.start_https_update_server(testinfo);
 
     reporter_server.start_crash_report_server(testinfo);
   }

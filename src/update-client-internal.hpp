@@ -165,7 +165,8 @@ struct update_client::http_request
 	beast::multi_buffer response_buf;
 	http::response_parser<Body> response_parser;
 
-	void check_deadline_callback(const boost::system::error_code& error);
+	void check_deadline_callback_err(const boost::system::error_code& error);
+	void check_deadline_callback();
 };
 
 struct FileUpdater

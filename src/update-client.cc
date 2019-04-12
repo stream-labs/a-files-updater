@@ -9,6 +9,7 @@
 #include <boost/asio/ssl/error.hpp>
 #include <boost/asio/ssl/stream.hpp>
 #include <boost/beast.hpp>
+#include <boost/bind.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/iostreams/chain.hpp>
 #include <boost/iostreams/device/file_descriptor.hpp>
@@ -262,7 +263,10 @@ update_client::http_request<Body, IncludeVersion>::http_request(update_client *c
 
 	deadline.expires_at(boost::posix_time::pos_infin);
 
-	check_deadline_callback(make_error_code(boost::system::errc::success));
+	//check_deadline_callback_err(make_error_code(boost::system::errc::success));
+	
+	//check_deadline_callback();
+	//deadline.async_wait(boost::bind(&update_client::http_request<Body, IncludeVersion>::check_deadline_callback, this));
 }
 
 template<class Body, bool IncludeVersion>
@@ -272,13 +276,13 @@ update_client::http_request<Body, IncludeVersion>::~http_request()
 }
 
 template<class Body, bool IncludeVersion>
-void update_client::http_request<Body, IncludeVersion>::check_deadline_callback(const boost::system::error_code& error)
+void update_client::http_request<Body, IncludeVersion>::check_deadline_callback_err(const boost::system::error_code& error)
 {
 	if (error)
 	{
 		return;
 	}
-
+	
 	if (deadline.expires_at() <= boost::asio::deadline_timer::traits_type::now())
 	{
 		deadline_reached = true;
@@ -289,10 +293,27 @@ void update_client::http_request<Body, IncludeVersion>::check_deadline_callback(
 
 		deadline.expires_at(boost::posix_time::pos_infin);
 	}
-	else {
-		// Put the actor back to sleep.
-		deadline.async_wait(bind(&update_client::http_request<Body, IncludeVersion>::check_deadline_callback, this, std::placeholders::_1));
-	}
+
+	// Put the actor back to sleep.
+	deadline.async_wait(bind(&update_client::http_request<Body, IncludeVersion>::check_deadline_callback_err, this, std::placeholders::_1));
+}
+
+template<class Body, bool IncludeVersion>
+void update_client::http_request<Body, IncludeVersion>::check_deadline_callback()
+{ 
+	if (deadline.expires_at() <= boost::asio::deadline_timer::traits_type::now())
+	{
+		deadline_reached = true;
+
+		//boost::system::error_code ignored_ec;
+		//ssl_socket.shutdown(ignored_ec);
+		//ssl_socket.lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored_ec);
+
+		deadline.expires_at(boost::posix_time::pos_infin);
+    }
+
+	// Put the actor back to sleep.
+	deadline.async_wait(boost::bind(&update_client::http_request<Body, IncludeVersion>::check_deadline_callback, this));
 }
 
 struct update_client::pid
@@ -382,8 +403,7 @@ void update_client::handle_file_download_error(file_request<http::dynamic_body> 
 		}
 		handle_error(ec, str);
 		return;
-	}
-	else {
+	} else {
 		auto new_request_ctx = new file_request<http::dynamic_body>{ this, request_ctx->target, request_ctx->worker_id };
 		new_request_ctx->retries = request_ctx->retries + 1;
 
@@ -926,14 +946,9 @@ void update_client::handle_file_result(update_client::file *file_ctx, int index)
 }
 
 
-void handle_file_response_buffer(
-	update_client::file *file_ctx,
-	const asio::const_buffer &buffer
-) {
-	file_ctx->output_chain.write(
-		(const char*)buffer.data(),
-		buffer.size()
-	);
+void handle_file_response_buffer( update_client::file *file_ctx, const asio::const_buffer &buffer) 
+{
+	file_ctx->output_chain.write( (const char*)buffer.data(), buffer.size()	);
 }
 
 void update_client::handle_file_response_body(boost::system::error_code &error, size_t bytes_read, file_request<http::dynamic_body> *request_ctx, update_client::file *file_ctx)
@@ -975,7 +990,7 @@ void update_client::handle_file_response_body(boost::system::error_code &error, 
 		this->handle_file_response_body(i, e, request_ctx, file_ctx);
 	};
 
-	request_ctx->deadline.expires_from_now(boost::posix_time::seconds(request_ctx->deadline_default_timeout));
+	//request_ctx->deadline.expires_from_now(boost::posix_time::seconds(request_ctx->deadline_default_timeout));
 	http::async_read_some(request_ctx->ssl_socket, request_ctx->response_buf, response_parser, read_handler);
 }
 
@@ -1001,8 +1016,23 @@ void update_client::handle_file_response_header(boost::system::error_code &error
 		handle_file_download_error(request_ctx, {}, output_str.c_str());
 		return;
 	}
+	
+	try {
+		request_ctx->content_length = response_parser.content_length().value();
+	}
+	catch (...) {
+		request_ctx->content_length = 0;
+	}
 
-	request_ctx->content_length = response_parser.content_length().value();
+	if (request_ctx->content_length == 0)
+	{
+		auto target = request_ctx->request.target();
+
+		std::string output_str = fmt::format("Receive empty header: \nFile: {}\n", fmt::string_view(target.data(), target.size()));
+
+		handle_file_download_error(request_ctx, {}, output_str.c_str());
+		return;
+	}
 
 	this->downloader_events->download_file(
 		request_ctx->worker_id,
@@ -1029,7 +1059,7 @@ void update_client::handle_file_response_header(boost::system::error_code &error
 		this->handle_file_response_body(i, e, request_ctx, file_ctx);
 	};
 
-	request_ctx->deadline.expires_from_now(boost::posix_time::seconds(request_ctx->deadline_default_timeout));
+	//request_ctx->deadline.expires_from_now(boost::posix_time::seconds(request_ctx->deadline_default_timeout));
 	http::async_read_some(request_ctx->ssl_socket, request_ctx->response_buf, response_parser, read_handler);
 }
 
@@ -1064,8 +1094,7 @@ void update_client::handle_file_handshake(const boost::system::error_code& error
 		this->handle_file_request(e, b, request_ctx);
 	};
 
-	request_ctx->deadline.expires_from_now(boost::posix_time::seconds(request_ctx->deadline_default_timeout));
-
+	//request_ctx->deadline.expires_from_now(boost::posix_time::seconds(request_ctx->deadline_default_timeout));
 	http::async_write(request_ctx->ssl_socket, request_ctx->request, request_handler);
 }
 
@@ -1090,7 +1119,7 @@ void update_client::handle_manifest_entry(file_request<http::dynamic_body> *requ
 		this->handle_file_connect(e, b, request_ctx);
 	};
 
-	request_ctx->deadline.expires_from_now(boost::posix_time::seconds(request_ctx->deadline_default_timeout));
+	//request_ctx->deadline.expires_from_now(boost::posix_time::seconds(1));
 	asio::async_connect(request_ctx->ssl_socket.lowest_layer(), this->endpoints, connect_handler);
 }
 

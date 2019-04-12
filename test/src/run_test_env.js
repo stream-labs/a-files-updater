@@ -8,6 +8,7 @@ async function run_tests() {
     testinfo.morebigfiles = true;
     testinfo.skipUpdaterLaunch = true;
     testinfo.manifestGenerated = true;
+    testinfo.let_15sec = true;
     await run_test.test_update(testinfo)
 }
 
