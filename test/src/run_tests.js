@@ -8,7 +8,7 @@ async function run_tests() {
     if(run_one_test) {
         //single test for manual use 
         testinfo = test_config.gettestinfo();
-        testinfo.let_15sec = true;
+        testinfo.let_404 = true;
         failed_tests = failed_tests + await run_test.test_update(testinfo);
     } else {
         //good update

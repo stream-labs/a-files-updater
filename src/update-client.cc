@@ -127,6 +127,10 @@ bool FileUpdater::update_entry_with_retries(update_client::manifest_map::iterato
 	{
 		retries++;
 		ret = update_entry(iter, new_files_dir);
+		if (!ret)
+		{
+			Sleep(0);
+		}
 	}
 	
 	if (!ret)
