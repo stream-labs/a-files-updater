@@ -312,18 +312,6 @@ void update_client::http_request<Body, IncludeVersion>::set_deadline()
 	check_deadline_callback_err(make_error_code(boost::system::errc::success));
 }
 
-struct update_client::pid
-{
-	uint64_t id{ 0 };
-	asio::windows::object_handle wrapper;
-
-	pid(asio::io_context &ctx, HANDLE hProcess);
-};
-
-update_client::pid::pid(asio::io_context &io_ctx, HANDLE hProcess) : wrapper(io_ctx, hProcess)
-{
-}
-
 void update_client::start_file_update()
 {
 	FileUpdater updater(this);
@@ -342,6 +330,18 @@ void update_client::start_file_update()
 	}
 }
 
+struct update_client::pid
+{
+	uint64_t id{ 0 };
+	asio::windows::object_handle wrapper;
+
+	pid(asio::io_context &ctx, HANDLE hProcess);
+};
+
+update_client::pid::pid(asio::io_context &io_ctx, HANDLE hProcess) : wrapper(io_ctx, hProcess)
+{
+}
+
 void update_client::handle_pid(const boost::system::error_code& error, update_client::pid* context)
 {
 	pid_events->pid_wait_finished(context->id);
@@ -349,7 +349,7 @@ void update_client::handle_pid(const boost::system::error_code& error, update_cl
 	if (--active_pids == 0)
 	{
 		pid_events->pid_wait_complete();
-		start_file_update();
+		handle_manifest_results();
 	}
 
 	delete context;
@@ -361,7 +361,7 @@ void update_client::handle_pids()
 
 	if (active_pids == 0)
 	{
-		start_file_update();
+		handle_manifest_results();
 	}
 
 	for (auto iter = params->pids.begin(); iter != params->pids.end(); ++iter)
@@ -765,7 +765,9 @@ void update_client::handle_manifest_response(boost::system::error_code &ec, size
 
 	/* Flatbuffer doesn't return a buffer sequence.  */
 	handle_manifest_read_buffer(this->manifest, buffer.data());
-	handle_manifest_results();
+	
+	/*  make sure that SLOBS process not blocking files from updatating before start of download  */
+	handle_pids(); 
 };
 
 void update_client::handle_manifest_request(boost::system::error_code &error, size_t bytes, manifest_request<manifest_body> *request_ctx)
@@ -914,7 +916,7 @@ void update_client::handle_file_result(update_client::file *file_ctx, int index)
 		if (this->active_workers == 0)
 		{
 			this->downloader_events->downloader_complete();
-			this->handle_pids();
+			this->start_file_update();
 		}
 
 		return;
