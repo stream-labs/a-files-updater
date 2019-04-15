@@ -12,12 +12,25 @@ yarn install
 node src\run_tests.js
 ```
 
+To run just one test. Change `src\run_test.js` and run it as `node src\run_test.js`
+
+
+To just create test environment without automaticaly launching updater use `node src\run_test_env.js`. 
+
+It will generate files and start servers. 
+
+Updater then can be started from IDE as: 
+
+```--base-url "https://localhost/" --version "0.11.9-preview.1" --exec "C:\\work\\repos\\a-files-updater\\build\\Debug\\slobs-updater.exe" --cwd "C:\\work\\repos\\a-files-updater\\test\\testfiles" --app-dir "C:\\work\\repos\\a-files-updater\\test\\testfiles\\initial" --force-temp```
+
 ## What?
 
-This test prepare test env and run debug build of updater to test what it can handle sommon usecases. 
-* It crates 3 folder and generate some files in each folder such as it represent 1 some slobs instalation 2 some update on the server 3 what result should be. 
-* Then it start local https server what will emulate update server. 
-* And start updater with option that it will use folder 1 and local server.
-* After updater finishes then test compare folder 1 with folder 3 to check if all files was updated as expected.  
+This test prepare a test environment and run a debug build of updater to test what updater can handle common usecases. 
+* It crates 3 folder and generate some files in each folder such as it represent (A) some slobs instalation (B) some update on the server (C) what result should be. 
+* Then it start local https server what will emulate update server. Actually it will be two servers. 
+* * First just http server to host files from update folder (B) . `http://localhost:8443`
+* * Second server is a proxy that should recieve request from updater and forward it to first server or do something to emulate real life bad connection. `https://localhost:443`
+* And start the updater with option that it will use folder (A) and local proxy server `https://localhost:443`.
+* After updater finishes then test script will compare updated folder (A) with folder (C) to check if all files was updated as expected.  
 
-It also test `failed usecases` in which something block/interupt update. And it that case content of folder 1 should not be changed. 
+It also test `failed usecases` in which something block/interupt update. And in that case content of folder 1 should not be changed. 
