@@ -9,6 +9,9 @@ async function run_tests() {
         //single test for manual use 
         testinfo = test_config.gettestinfo();
         testinfo.let_404 = true;
+        testinfo.let_block_one_file = true;
+        testinfo.morebigfiles = true;
+        testinfo.runAsInteractive = 1;
         failed_tests = failed_tests + await run_test.test_update(testinfo);
     } else {
         //good update
@@ -43,6 +46,14 @@ async function run_tests() {
         //test server more slow to responce connection
         testinfo = test_config.gettestinfo();
         testinfo.let_15sec = true;
+        failed_tests = failed_tests + await run_test.test_update(testinfo);
+
+        //test that update not continue after one file totaly failed 
+        testinfo = test_config.gettestinfo();
+        testinfo.let_404 = true;
+        testinfo.let_block_one_file = true;
+        testinfo.morebigfiles = true;
+        testinfo.expectedResult = "filesnotchanged"
         failed_tests = failed_tests + await run_test.test_update(testinfo);
 
         //bad update - no server. files have to not change 
