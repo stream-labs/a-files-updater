@@ -629,7 +629,7 @@ LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case CUSTOM_ERROR_MSG: {
 		LONG_PTR user_data = GetWindowLongPtr(hwnd, GWLP_USERDATA);
 		auto ctx = reinterpret_cast<callbacks_impl *>(user_data);
-
+		
 		ShowError(ctx->error_buf);
 		delete [] ctx->error_buf;
 		ctx->error_buf = nullptr;

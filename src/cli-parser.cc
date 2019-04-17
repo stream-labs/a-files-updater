@@ -130,6 +130,16 @@ static fs::path fetch_default_temp_dir()
 	boost::system::error_code ec{};
 	fs::path temp_dir = fs::temp_directory_path();
 	temp_dir /= "slobs-updater";
+	
+	time_t t = time(NULL);
+	struct tm *lt = localtime(&t);
+	
+	srand(time(NULL));
+
+	char buf[24];
+	sprintf(buf, "%04i%c%03i%c%02i%c%02i%c%02i%c\0", lt->tm_year+1900, 'a'+rand()%20,lt->tm_yday, 'a' + rand() % 20,lt->tm_hour, 'a' + rand() % 20, lt->tm_min, 'a' + rand() % 20, lt->tm_sec, 'a' + rand() % 20);
+
+	temp_dir /= buf;
 
 	fs::create_directories(temp_dir);
 
@@ -237,9 +247,7 @@ bool su_parse_command_line(
 
 		log_info("Temporary directory not provided.");
 
-		log_info("Generated temporary directory: %s",
-			params->temp_dir.string().c_str()
-		);
+		log_info("Generated temporary directory: %s", params->temp_dir.string().c_str() );
 
 		if (params->temp_dir.empty())
 			success = false;
