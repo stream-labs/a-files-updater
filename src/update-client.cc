@@ -411,6 +411,8 @@ void update_client::handle_file_download_error(file_request<http::dynamic_body> 
 
 		delete request_ctx;
 
+		Sleep( new_request_ctx->retries*100 );
+
 		handle_manifest_entry(new_request_ctx);
 	}
 }
