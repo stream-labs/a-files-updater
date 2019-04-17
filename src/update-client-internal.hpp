@@ -83,9 +83,13 @@ struct update_client {
 
 	std::vector<std::thread> thread_pool;
 
+	bool					 update_canceled = false;
+	char					 cancel_message[256];
+
 private:
 	inline void handle_error(const boost::system::error_code &error, const char* str);
 	void handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code &error, const char* str);
+	void handle_file_download_canceled(file_request<http::dynamic_body> *request_ctx);
 
 	void start_downloader();
 	//manifest 
@@ -118,6 +122,8 @@ private:
 	void handle_file_response_body(boost::system::error_code &error, size_t bytes_read, file_request<http::dynamic_body> *request_ctx, update_client::file *file_ctx);
 
 	void handle_file_result(update_client::file *file_ctx, int index);
+
+	void next_manifest_entry(int index);
 
 	//update 
 	void handle_pids();
