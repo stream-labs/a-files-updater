@@ -3,6 +3,9 @@
 #include <windows.h>
 #include <shellapi.h>
 #include <CommCtrl.h>
+#include <functional>
+#include <numeric>
+
 
 #include <boost/filesystem.hpp>
 #include <fmt/format.h>
@@ -19,7 +22,9 @@ using chrono::high_resolution_clock;
 using chrono::duration_cast;
 
 /* Some basic constants that are adjustable at compile time */
-const double average_bw_time_span = 1000;
+const double average_bw_time_span = 250;
+const int max_bandwidth_in_average = 8;
+
 struct update_parameters params;
 bool update_completed = false;
 
@@ -301,6 +306,7 @@ struct callbacks_impl :
 	high_resolution_clock::time_point start_time;
 	size_t total_consumed{0};
 	size_t total_consumed_last_tick{0};
+	std::list<double>  last_bandwidths;
 	std::atomic<double> last_calculated_bandwidth{0.0};
 	LPWSTR error_buf{nullptr};
 	bool should_start{false};
@@ -500,11 +506,8 @@ void callbacks_impl::downloader_start(int num_threads, size_t num_files_)
 	SetTimer(frame, 1, average_bw_time_span, &bandwidth_tick);
 }
 
-void callbacks_impl::download_file(
-  int thread_index,
-  std::string &relative_path,
-  size_t size
-) {
+void callbacks_impl::download_file( int thread_index, std::string &relative_path, size_t size) 
+{
 	/* Our specific UI doesn't care when we start, we only
 	 * care when we're finished. A more technical UI could show
 	 * what each thread is doing if they so wanted. */
@@ -522,17 +525,31 @@ void callbacks_impl::bandwidth_tick(
 
 	/* Compare current total to last previous total,
 	 * then divide by timeout time */
-	double bandwidth =
-		(double)(ctx->total_consumed - ctx->total_consumed_last_tick);
+	double bandwidth = (double)(ctx->total_consumed - ctx->total_consumed_last_tick);
+	ctx->total_consumed_last_tick = ctx->total_consumed;
+	
+	
+	ctx->last_bandwidths.push_back(bandwidth);
+	while (ctx->last_bandwidths.size() > max_bandwidth_in_average)
+	{
+		ctx->last_bandwidths.pop_front();
+	}
+	
+	double average_bandwidth = std::accumulate(ctx->last_bandwidths.begin(), ctx->last_bandwidths.end(), 0.0);
+	//std::for_each(ctx->last_bandwidths.begin(), ctx->last_bandwidths.end(), [&average_bandwidth](double &n) { average_bandwidth+=n; });
+	if (ctx->last_bandwidths.size() > 0)
+	{
+		average_bandwidth /= ctx->last_bandwidths.size();
+	}
 
 	/* Average over a set period of time */
-	bandwidth /= average_bw_time_span / 1000;
-
+	average_bandwidth /= average_bw_time_span / 1000;
+	
 	/* Convert from bytes to megabytes */
 	/* Note that it's important to have only one place where
 	 * we atomically assign to last_calculated_bandwidth */
-	ctx->last_calculated_bandwidth = bandwidth * 0.000001;
-	ctx->total_consumed_last_tick = ctx->total_consumed;
+	
+	ctx->last_calculated_bandwidth = average_bandwidth * 0.000001;
 
 	std::wstring label(fmt::format(
 		ctx->label_format,
@@ -546,17 +563,15 @@ void callbacks_impl::bandwidth_tick(
 }
 
 
-void callbacks_impl::download_progress(
-  int thread_index,
-  size_t consumed,
-  size_t accum
-) {
+void callbacks_impl::download_progress( int thread_index, size_t consumed, size_t accum) 
+{
 	total_consumed += consumed;
 	/* We don't currently show per-file progress but we could
 	 * progress the bar based on files_done + remainder of
 	 * all in-progress files done. */
 
-	if (accum != file_sizes[thread_index]) {
+	if (accum != file_sizes[thread_index]) 
+	{
 		return;
 	}
 
@@ -564,10 +579,7 @@ void callbacks_impl::download_progress(
 
 	double percent = (double)files_done / (double)num_files;
 
-	std::wstring label(fmt::format(
-		label_format, files_done,
-		num_files, last_calculated_bandwidth
-	));
+	std::wstring label(fmt::format( label_format, files_done, num_files, last_calculated_bandwidth ));
 
 	int pos = lround(percent * INT_MAX);
 	PostMessage(progress_worker, PBM_SETPOS, pos, 0);
