@@ -3,11 +3,19 @@ const fse = require('fs-extra')
 const path = require('path');
 const crypto = require('crypto');
 const zlib = require('zlib');
+const kill = require('tree-kill');
 
 const hugefilecontent = "asdfasdf23rdsf34rsdfasdfasdf23rdsf34rsdfasdfasdf23rdsf34rsdfasdfasdf23rdsf34rsdf"
 const morefilesmax = 128;
 const filecontentlines = 100;
 const hugefileincrese = 20;
+
+const selfblockingfile_server = "file_self_blocker_v1.exe";
+const selfblockingfile_init = "file_self_blocker_v4.exe";
+const selfblockingfile_name = "file_self_blocker.exe";
+
+
+let self_blocking_process;
 
 async function generate_file(filedir, filename, filecontentextended = "", emptyfile = false, hugefile = false) {
   return new Promise((resolve, reject) => {
@@ -62,8 +70,6 @@ function generate_file_sync(filedir, filename, filecontentextended = "", emptyfi
   }
 
   stream.end();
-  //stream.on("finish",  () => { resolve(true); }); 
-  //stream.on("error", reject); 
 }
 
 function filewalker(dir, done) {
@@ -118,7 +124,7 @@ function generate_manifest(testinfo) {
 
           hash.update(input);
           var update_subdirpath = path.join(testinfo.serverDir, testinfo.versionName)
-          stream.write(`${hash.digest('hex')}` + " " + foundfile.substring(update_subdirpath.length) + "\n");
+          stream.write(`${hash.digest('hex')}` + " " + foundfile.substring(update_subdirpath.length + 1) + "\n");
 
           const gzip = zlib.createGzip();
           const inp = fs.createReadStream(foundfile);
@@ -148,6 +154,7 @@ async function generate_server_dir(testinfo) {
   await generate_file(update_subdirpath, "file2.jpeg")
   await generate_file(update_subdirpath, "file4.log.txt")
   await generate_file(update_subdirpath, "file5.1")
+  await generate_file(update_subdirpath, "resources\\app.asar")  
   await generate_file(update_subdirpath, "file 1.txt")
   await generate_file(update_subdirpath, "dir\\file6.ept", "", true)
 
@@ -165,62 +172,93 @@ async function generate_server_dir(testinfo) {
     }
   }
 
+  await put_file_blocking(testinfo, selfblockingfile_server, update_subdirpath, false);
+
   if (testinfo.manifestGenerated) {
     await generate_manifest(testinfo)
   }
 
-  console.log("finish generate_server_dir");
+  console.log("Finish generate_server_dir");
 }
 
-async function generate_initial_dir(testinfo, dirpath = "") {
-  if (dirpath == "") {
-    dirpath = testinfo.initialDir
+async function generate_initial_dir(testinfo, update_subdirpath = "") {
+  if (update_subdirpath == "") {
+    update_subdirpath = testinfo.initialDir
   }
 
-  await generate_file(dirpath, "filea.exe", "", true)
-  await generate_file(dirpath, "file1.exe")
-  await generate_file(dirpath, "file2.txt")
-  await generate_file(dirpath, "file2.jpeg")
-  await generate_file(dirpath, "test2.txt", "old content", false)
-  await generate_file(dirpath, "dir\\file3.zip")
+  await generate_file(update_subdirpath, "filea.exe", "", true)
+  await generate_file(update_subdirpath, "file1.exe")
+  await generate_file(update_subdirpath, "file2.txt")
+  await generate_file(update_subdirpath, "file2.jpeg")
+  await generate_file(update_subdirpath, "resources\\app.asar", "old content", false, true )
+  await generate_file(update_subdirpath, "test2.txt", "old content", false)
+  await generate_file(update_subdirpath, "dir\\file3.zip")
 
   if (false) {
     let file_index;
     for (file_index = 0; file_index < 16; file_index++) {
       let file_name = "dir_other\\file" + file_index + ".txt";
-      await generate_file(dirpath, file_name, "", false, true)
+      await generate_file(update_subdirpath, file_name, "", false, true)
     }
   }
-  console.log("finish generate_initial_dir");
+
+  await put_file_blocking(testinfo, selfblockingfile_init, update_subdirpath, update_subdirpath === testinfo.initialDir);
+
+  console.log("Finish generate_initial_dir");
 }
 
-async function generate_result_dir(testinfo, dirpath) {
-  await generate_file(dirpath, "filea.exe", "", true)
-  await generate_file(dirpath, "file1.exe")
-  await generate_file(dirpath, "file2.txt")
-  await generate_file(dirpath, "file2.jpeg")
-  await generate_file(dirpath, "test2.txt", "new change")
-  await generate_file(dirpath, "file4.log.txt")
-  await generate_file(dirpath, "file5.1")
-  await generate_file(dirpath, "file 1.txt")
-  await generate_file(dirpath, "dir\\file3.zip")
-  await generate_file(dirpath, "dir\\file6.ept", "", true)
+async function put_file_blocking(testinfo, selfblockingfile, update_subdirpath, need_to_launch) {
+  if (testinfo.selfBlockingFile || testinfo.selfLockingFile) {
+    let pathInResources = path.join(__dirname, "..", "resources", selfblockingfile);
+    let pathInTest = path.join(update_subdirpath, selfblockingfile_name);
+    fse.copySync(pathInResources, pathInTest);
+
+    let arg1 = "";
+
+    if (testinfo.selfLockingFile) {
+      arg1 = "-l";
+    }
+
+    if (need_to_launch) {
+      self_blocking_process = require('child_process').spawn(pathInTest, [
+        arg1, 'arg2', 'arg3',
+      ], {
+          detached: true,
+          shell: true
+        });
+      console.log("Blocker process pid = " + self_blocking_process.pid);
+    }
+  }
+}
+
+async function generate_result_dir(testinfo, update_subdirpath) {
+  await generate_file(update_subdirpath, "filea.exe", "", true)
+  await generate_file(update_subdirpath, "file1.exe")
+  await generate_file(update_subdirpath, "file2.txt")
+  await generate_file(update_subdirpath, "file2.jpeg")
+  await generate_file(update_subdirpath, "test2.txt", "new change")
+  await generate_file(update_subdirpath, "file4.log.txt")
+  await generate_file(update_subdirpath, "file5.1")
+  await generate_file(update_subdirpath, "file 1.txt")
+  await generate_file(update_subdirpath, "resources\\app.asar")
+  await generate_file(update_subdirpath, "dir\\file3.zip")
+  await generate_file(update_subdirpath, "dir\\file6.ept", "", true)
 
   if (testinfo.morebigfiles) {
     let file_index;
     for (file_index = 0; file_index < morefilesmax; file_index++) {
       let file_name = "dir_bigs\\file" + file_index + ".txt";
-      await generate_file(dirpath, file_name, "", false, true)
+      await generate_file(update_subdirpath, file_name, "", false, true)
     }
   } else {
     let file_index;
     for (file_index = 0; file_index < 16; file_index++) {
       let file_name = "dir_some\\file" + file_index + ".txt";
-      await generate_file(dirpath, file_name, "", false, true)
+      await generate_file(update_subdirpath, file_name, "", false, true)
     }
   }
 
-  console.log("finish generate_result_dir");
+  console.log("Finish generate_result_dir");
 }
 
 clean_test_dir = function (dirpath) {
@@ -228,20 +266,32 @@ clean_test_dir = function (dirpath) {
     fse.removeSync(dirpath);
   }
   catch (error) {
-
+    console.log("Failed to clean_dir for " + dirpath+ " , error: "+error);  
+    return;
   }
-  console.log("finish clean_dir for " + dirpath);
+
+  console.log("Finish clean_dir for " + dirpath);
 }
 
-exports.clean_test_dirs = function (testinfo) {
-  clean_test_dir(testinfo.serverDir);
-  clean_test_dir(testinfo.initialDir);
-  clean_test_dir(testinfo.resultDir);
-  clean_test_dir(testinfo.reporterDir);
+exports.clean_after_test = function (testinfo, force) {
+  if (self_blocking_process) {
+    console.log("Close file blocking process");
+    //kill.treeKillSync(self_blocking_process.pid);
+    kill(self_blocking_process.pid);
+    //process.kill(-self_blocking_process.pid);
+    self_blocking_process = '';
+  }
+
+  if (testinfo.not_keep_files || force) {
+    clean_test_dir(testinfo.serverDir);
+    clean_test_dir(testinfo.initialDir);
+    clean_test_dir(testinfo.resultDir);
+    clean_test_dir(testinfo.reporterDir);
+  }
 }
 
 exports.generate_test_files = async function (testinfo) {
-  exports.clean_test_dirs(testinfo);
+  exports.clean_after_test(testinfo, true);
 
   await generate_server_dir(testinfo);
   await generate_initial_dir(testinfo);

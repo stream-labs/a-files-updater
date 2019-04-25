@@ -129,12 +129,14 @@ bool FileUpdater::update_entry_with_retries(update_client::manifest_map::iterato
 		ret = update_entry(iter, new_files_dir);
 		if (!ret)
 		{
-			Sleep(0);
+			wlog_warn(L"Have failed to update file: %s, will retry", iter->first.c_str());
+			Sleep(100*retries);
 		}
 	}
 
 	if (!ret)
 	{
+		wlog_warn(L"Have failed to update file: %s", iter->first.c_str());
 		throw std::runtime_error("Error: failed to update file");
 	}
 	return ret;
@@ -152,18 +154,26 @@ bool FileUpdater::update_entry(update_client::manifest_map::iterator &iter, boos
 
 	fs::path from_path(new_files_dir);
 	from_path /= iter->first;
-
+	
 	try
 	{
 		fs::create_directories(old_file_path.parent_path());
 		fs::create_directories(to_path.parent_path());
-
-		if (fs::exists(to_path))
+   
+ 		if (fs::exists(to_path))
 		{
 			fs::rename(to_path, old_file_path);
 		}
 
-		fs::rename(from_path, to_path);
+		fs::rename(from_path, to_path, ec);
+		if (ec)
+		{
+			std::string msg = ec.message();
+			std::wstring wmsg(msg.begin(), msg.end());
+
+			wlog_warn(L" FAILD %s %s", to_path.c_str(), wmsg.c_str());
+			return false;
+		}
 
 		try
 		{
@@ -171,12 +181,14 @@ bool FileUpdater::update_entry(update_client::manifest_map::iterator &iter, boos
 		}
 		catch (...)
 		{
+			wlog_warn(L"Have failed to update file rights: %s", to_path.c_str());
 		}
 
 		return true;
 	}
 	catch (...)
 	{
+		wlog_warn(L"Have failed to update file in function: %s", to_path.c_str());
 	}
 
 	return false;
@@ -217,19 +229,21 @@ void FileUpdater::revert()
 		fs::remove(to_path, ec);
 		if (ec)
 		{
+			wlog_warn(L"Revert have failed to correctly remove changed file: %s ", to_path.c_str());
 			error_count++;
 		}
 
 		fs::rename(iter->path(), to_path, ec);
 		if (ec)
 		{
+			wlog_warn(L"Revert have failed to correctly move file back: %s ", to_path.c_str());
 			error_count++;
 		}
 	}
 
 	if (error_count > 0)
 	{
-		wlog_warn(L"Revert have failed to correctly revert some files. Fails : %i", error_count);
+		wlog_warn(L"Revert have failed to correctly revert some files. Fails: %i", error_count);
 	}
 }
 
@@ -314,14 +328,19 @@ void update_client::http_request<Body, IncludeVersion>::set_deadline()
 
 void update_client::start_file_update()
 {
+	log_debug("Ready to start update.");
 	FileUpdater updater(this);
 
 	try {
+		log_debug("Start updating files.");
 		updater.update();
+		log_debug("Finished updating files without errors.");
 		client_events->success();
 	}
 	catch (...) {
+		log_debug("Got error while updating files. Have to revert.");
 		updater.revert();
+		log_debug("Revert complited .");
 		client_events->error(
 			"Failed to move files.\n"
 			"Please make sure the application files "
@@ -584,6 +603,8 @@ void update_client::clean_manifest()
 		if (manifest_iter == this->manifest.end())
 			continue;
 
+		check_file(entry, true);
+
 		std::string checksum = calculate_checksum(entry);
 
 		/* If the checksum is the same as in the manifest,
@@ -595,15 +616,15 @@ void update_client::clean_manifest()
 			continue;
 		}
 
-		check_file(entry);
+		check_file(entry, false);
 	}
 }
 
-void update_client::check_file(fs::path & check_path)
+void update_client::check_file(fs::path & check_path, bool check_read)
 {
 	const std::wstring path_str = check_path.generic_wstring();
 
-	HANDLE hFile = CreateFile(path_str.c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	HANDLE hFile = CreateFile(path_str.c_str(), check_read? GENERIC_READ: GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hFile == INVALID_HANDLE_VALUE)
 	{
 		DWORD errorCode = GetLastError();
@@ -926,6 +947,8 @@ void update_client::handle_file_result(update_client::file *file_ctx, int index)
 
 void update_client::next_manifest_entry(int index)
 {
+	log_debug("go to next manifest entry . index %i", index);
+
 	std::unique_lock<std::mutex> manifest_lock(this->manifest_mutex);
 
 	if (this->manifest_iterator == this->manifest.end() || update_canceled)
@@ -981,14 +1004,17 @@ void update_client::handle_file_response_body(boost::system::error_code &error, 
 
 	if (update_canceled)
 	{
+		delete file_ctx;
+
 		handle_file_download_canceled(request_ctx);
 		return;
 	}
 
 	if (error)
 	{
-		std::string msg = fmt::format("Failed file response body ({})", request_ctx->target);
+		delete file_ctx;
 
+		std::string msg = fmt::format("Failed file response body ({})", request_ctx->target);
 		handle_file_download_error(request_ctx, error, msg.c_str());
 		return;
 	}
