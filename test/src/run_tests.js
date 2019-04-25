@@ -1,91 +1,146 @@
 const run_test = require('./run_test.js');
 const test_config = require('./test_config.js');
+
+const fse = require('fs-extra')
+const path = require('path');
+
 const run_one_test = false;
 
 async function run_tests() {
-    let testinfo
-    let failed_tests = 0;
-    if(run_one_test) {
-        //single test for manual use 
-        testinfo = test_config.gettestinfo();
-        testinfo.let_404 = true;
-        testinfo.let_block_one_file = true;
-        testinfo.morebigfiles = true;
-        testinfo.runAsInteractive = 1;
-        failed_tests = failed_tests + await run_test.test_update(testinfo);
-    } else {
-        //good update
-        testinfo = test_config.gettestinfo()
-        failed_tests = failed_tests + await run_test.test_update(testinfo)
+    let testinfo;
+    let failed_test_names = [];
+    let test_result = 0;
 
-        //good huge files 
-        testinfo = test_config.gettestinfo();
-        testinfo.morebigfiles = true;
-        failed_tests = failed_tests + await run_test.test_update(testinfo);
+    const testfilesDir = path.join(__dirname, "..", "testfiles");
+    fse.removeSync(testfilesDir);
 
-        //test recovering server error responce 
-        testinfo = test_config.gettestinfo();
-        testinfo.let_404 = true;
-        failed_tests = failed_tests + await run_test.test_update(testinfo);
-
-        //test closed server connection
-        testinfo = test_config.gettestinfo();
-        testinfo.let_drop = true;
-        failed_tests = failed_tests + await run_test.test_update(testinfo);
-
-        //test wrong content
-        testinfo = test_config.gettestinfo();
-        testinfo.let_wrong_header = true;
-        failed_tests = failed_tests + await run_test.test_update(testinfo);
-
-        //test server slow to responce connection
-        testinfo = test_config.gettestinfo();
-        testinfo.let_5sec = true;
-        failed_tests = failed_tests + await run_test.test_update(testinfo);
-
-        //test server more slow to responce connection
-        testinfo = test_config.gettestinfo();
-        testinfo.let_15sec = true;
-        failed_tests = failed_tests + await run_test.test_update(testinfo);
-
-        //test that update not continue after one file totaly failed 
-        testinfo = test_config.gettestinfo();
-        testinfo.let_404 = true;
-        testinfo.let_block_one_file = true;
-        testinfo.morebigfiles = true;
-        testinfo.expectedResult = "filesnotchanged"
-        failed_tests = failed_tests + await run_test.test_update(testinfo);
-
-        //bad update - no server. files have to not change 
-        testinfo = test_config.gettestinfo()
-        testinfo.expectedResult = "filesnotchanged"
-        testinfo.serverStarted = false
-        failed_tests = failed_tests + await run_test.test_update(testinfo)
-
-        //bad update - no manifest on server. files have to not change 
-        testinfo = test_config.gettestinfo()
-        testinfo.expectedResult = "filesnotchanged"
-        testinfo.manifestGenerated = false
-        failed_tests = failed_tests + await run_test.test_update(testinfo);
-
-        //bad update - wrong file in manifest. files have to not change 
-        testinfo = test_config.gettestinfo()
-        testinfo.expectedResult = "filesnotchanged"
-        testinfo.manifestWrongFile = true
-        failed_tests = failed_tests + await run_test.test_update(testinfo);
-
-        if (false) {
-            //wrong file in manifest. files have to not change 
-            testinfo = test_config.gettestinfo()
-            testinfo.expectedResult = "filesnotchanged"
-            testinfo.blockFileFromUpdating = true
-            await run_test.test_update(testinfo);
+    if (run_one_test) {
+        console.log("--- Tests launched in manual set of tests mode! ");
+        //testinfo.let_404 = true;
+        //testinfo.let_block_one_file = true;
+        //testinfo.morebigfiles = true;
+        //testinfo.expectedResult = "filesnotchanged"
+        //testinfo.selfBlockingFile = true;
+        //testinfo.selfLockingFile = true;
+        //testinfo.runAsInteractive = 1;
+        //testinfo.expectedResult = "filesnotchanged"
+        //testinfo.manifestGenerated = false;
+        let i;
+        for (i = 0; i < 10; i++) 
+        {
+            testinfo = test_config.gettestinfo(" // test for manual use ");
+            testinfo.let_5sec = true;
+            test_result = await run_test.test_update(testinfo);
+            if (test_result != 0) {
+                failed_test_names.push(testinfo.testName);
+            }
         }
-    }
-    if (failed_tests == 0) {
-        console.log("Total result: all test completed.");
+
     } else {
-        console.log("Total result: " + failed_tests + " tests failed.");
+        testinfo = test_config.gettestinfo(" //good update ");
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //good huge files  ");
+        testinfo.morebigfiles = true;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //test recovering server error responce  ");
+        testinfo.let_404 = true;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //test closed server connection ");
+        testinfo.let_drop = true;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //test wrong content ");
+        testinfo.let_wrong_header = true;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //test server slow to responce connection ");
+        testinfo.let_5sec = true;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //test server more slow to responce connection ");
+        testinfo.let_15sec = true;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //test that update not continue after one file totaly failed  ");
+        testinfo.let_404 = true;
+        testinfo.let_block_one_file = true;
+        testinfo.morebigfiles = true;
+        testinfo.expectedResult = "filesnotchanged"
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //bad update - no server. files have to not change  ");
+        testinfo.expectedResult = "filesnotchanged"
+        testinfo.serverStarted = false;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //test some exe file blocked by rinnig it   ");
+        testinfo.expectedResult = "filesnotchanged"
+        testinfo.selfBlockingFile = true;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //test some file blocked by win api  ");
+        testinfo.expectedResult = "filesnotchanged"
+        testinfo.selfLockingFile = true;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //bad update - no manifest on server. files have to not change  ");
+        testinfo.expectedResult = "filesnotchanged"
+        testinfo.manifestGenerated = false;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //bad update - wrong file in manifest. files have to not change  ");
+        testinfo.expectedResult = "filesnotchanged"
+        testinfo.manifestWrongFile = true;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+    }
+
+    if (failed_test_names.length == 0) {
+        console.log("=== Total result: all test completed.");
+    } else {
+        console.log("=== Total result: " + failed_test_names.length + " tests failed. \n Tests:" + failed_test_names);
     }
 }
 

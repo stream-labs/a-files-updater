@@ -106,7 +106,7 @@ private:
 	void handle_manifest_results();
 
 	void clean_manifest();
-	void check_file(fs::path & check_path);
+	void check_file(fs::path & check_path, bool check_read);
 
 	//files
 	void handle_manifest_entry(file_request<http::dynamic_body> *request_ctx);

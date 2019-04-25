@@ -30,17 +30,15 @@ exports.test_update = async function (testinfo) {
 
     if (!generate_files.check_results(testinfo)) {
       ret = 1;
-      console.log("\nTest result: after updater files not as expected");
+      console.log("=== Test result: after updater files not as expected");
     } else {
-      console.log("\nTest result: files as expected");
-    }
-
-    if (testinfo.not_keep_files) {
-      generate_files.clean_test_dirs(testinfo);
+      console.log("=== Test result: files as expected");
     }
 
     updater_server.stop_https_update_server();
     reporter_server.stop_crash_report_server();
+
+    generate_files.clean_after_test(testinfo, false);
 
     return ret
   }

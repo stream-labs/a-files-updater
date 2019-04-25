@@ -5,10 +5,12 @@ async function run_tests() {
     let testinfo
     //good 
     testinfo = test_config.gettestinfo()
-    testinfo.morebigfiles = true;
+    //testinfo.morebigfiles = true;
     testinfo.skipUpdaterLaunch = true;
-    testinfo.manifestGenerated = true;
-    testinfo.let_15sec = true;
+    //testinfo.manifestGenerated = true;
+    //testinfo.let_15sec = true;
+    testinfo.expectedResult = "filesnotchanged"
+    testinfo.selfBlockingFile = true;
     await run_test.test_update(testinfo)
 }
 
