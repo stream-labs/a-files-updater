@@ -26,10 +26,14 @@ async function run_tests() {
         //testinfo.expectedResult = "filesnotchanged"
         //testinfo.manifestGenerated = false;
         let i;
-        for (i = 0; i < 10; i++) 
+        for (i = 0; i < 1; i++) 
         {
             testinfo = test_config.gettestinfo(" // test for manual use ");
-            testinfo.let_5sec = true;
+            //testinfo.let_5sec = true;
+            testinfo.let_404 = true;
+            testinfo.let_block_one_file = true;
+            testinfo.runAsInteractive = 1;
+            // testinfo.morebigfiles = true;
             test_result = await run_test.test_update(testinfo);
             if (test_result != 0) {
                 failed_test_names.push(testinfo.testName);
@@ -140,7 +144,7 @@ async function run_tests() {
     if (failed_test_names.length == 0) {
         console.log("=== Total result: all test completed.");
     } else {
-        console.log("=== Total result: " + failed_test_names.length + " tests failed. \n Tests:" + failed_test_names);
+        console.log("=== Total result: " + failed_test_names.length + " tests failed. \n Tests:" + failed_test_names.join("\n"));
     }
 }
 

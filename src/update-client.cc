@@ -39,6 +39,13 @@ const size_t file_buffer_size = 4096;
 
 #include "update-client-internal.hpp"
 
+const std::string failed_to_revert_message = "Failed to move files.\nPlease make sure the application files are not in use and try again.";
+const std::string failed_to_update_message = "Failed to move files.\nPlease make sure the application files are not in use and try again.";
+const std::string failed_connect_to_server_message = "Failed to connect to update server.";
+const std::string blocked_file_message = "Failed to move files.\nSome files may be blocked by other program. Please restart your PC and try to update again.";
+const std::string locked_file_message = "Failed to move files.\nSome files could not be updated. Please download SLOBS installer from our site and run full installation.";
+const std::string restart_or_install_message = "Streamlabs OBS encountered an issue while downloading the update. \nPlease restart the application to finish updating. \nIf the issue persists, please download a new installer from www.streamlabs.com.";
+
 /*##############################################
  *#
  *# Utility functions
@@ -129,14 +136,16 @@ bool FileUpdater::update_entry_with_retries(update_client::manifest_map::iterato
 		ret = update_entry(iter, new_files_dir);
 		if (!ret)
 		{
-			wlog_warn(L"Have failed to update file: %s, will retry", iter->first.c_str());
+			std::wstring wmsg(iter->first.begin(), iter->first.end());
+			wlog_warn(L"Have failed to update file: %s, will retry", wmsg.c_str());
 			Sleep(100*retries);
 		}
 	}
 
 	if (!ret)
 	{
-		wlog_warn(L"Have failed to update file: %s", iter->first.c_str());
+		std::wstring wmsg(iter->first.begin(), iter->first.end());
+		wlog_warn(L"Have failed to update file: %s", wmsg.c_str());
 		throw std::runtime_error("Error: failed to update file");
 	}
 	return ret;
@@ -162,7 +171,15 @@ bool FileUpdater::update_entry(update_client::manifest_map::iterator &iter, boos
    
  		if (fs::exists(to_path))
 		{
-			fs::rename(to_path, old_file_path);
+			fs::rename(to_path, old_file_path, ec);
+			if (ec)
+			{
+				std::string msg = ec.message();
+				std::wstring wmsg(msg.begin(), msg.end());
+
+				wlog_debug(L"Failed to move file %s %s, error %s", to_path.c_str(), old_file_path.c_str(), wmsg.c_str());
+				return false;
+			}
 		}
 
 		fs::rename(from_path, to_path, ec);
@@ -171,7 +188,7 @@ bool FileUpdater::update_entry(update_client::manifest_map::iterator &iter, boos
 			std::string msg = ec.message();
 			std::wstring wmsg(msg.begin(), msg.end());
 
-			wlog_warn(L" FAILD %s %s", to_path.c_str(), wmsg.c_str());
+			wlog_debug(L"Failed to move file %s %s, error %s", from_path.c_str(), to_path.c_str(), wmsg.c_str());
 			return false;
 		}
 
@@ -328,24 +345,39 @@ void update_client::http_request<Body, IncludeVersion>::set_deadline()
 
 void update_client::start_file_update()
 {
-	log_debug("Ready to start update.");
+	log_debug("Files downloaded and ready to start update.");
 	FileUpdater updater(this);
-
+	bool updated = false;
 	try {
-		log_debug("Start updating files.");
 		updater.update();
 		log_debug("Finished updating files without errors.");
 		client_events->success();
+		updated = true;
 	}
 	catch (...) {
+		
+	}
+
+	if (!updated)
+	{
+		bool reverted = true;
 		log_debug("Got error while updating files. Have to revert.");
-		updater.revert();
-		log_debug("Revert complited .");
-		client_events->error(
-			"Failed to move files.\n"
-			"Please make sure the application files "
-			"are not in use and try again."
-		);
+		try {
+			updater.revert();
+			reverted = true;
+			log_debug("Revert complited.");
+		}
+		catch (...) {
+			log_debug("Revert failed.");
+		}	
+		
+		if (reverted) 
+		{
+			client_events->error(failed_to_revert_message.c_str());
+		}
+		else {
+			client_events->error(failed_to_update_message.c_str());
+		}
 	}
 }
 
@@ -398,13 +430,17 @@ void update_client::handle_pids()
 	}
 }
 
-inline void update_client::handle_error(const boost::system::error_code & error, const char * str)
+inline void update_client::handle_network_error(const boost::system::error_code & error, const char * str)
 {
 	char error_buf[256];
 
-	snprintf(error_buf, sizeof(error_buf), "%s - %s", error.message().c_str(), str);
+	snprintf(error_buf, sizeof(error_buf), "%s\0", restart_or_install_message.c_str());
 
 	client_events->error(error_buf);
+
+	snprintf(error_buf, sizeof(error_buf), "%s - %s\0", str, error.message().c_str());
+
+	log_error(error_buf);
 }
 
 void update_client::handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code & error, const char * str)
@@ -419,7 +455,8 @@ void update_client::handle_file_download_error(file_request<http::dynamic_body> 
 
 		update_canceled = true;
 
-		snprintf(cancel_message, sizeof(cancel_message), "%s - %s", error.message().c_str(), str);
+		cancel_message = str;
+		cancel_error = error;
 
 		handle_file_download_canceled(request_ctx);
 		return;
@@ -447,7 +484,7 @@ void update_client::handle_file_download_canceled(file_request<http::dynamic_bod
 /* FIXME Make the other handlers part of the client class. */
 void update_client::handle_resolve(const boost::system::error_code &error, tcp::resolver::results_type results) {
 	if (error) {
-		client_events->error("Failed to connect to update server.");
+		handle_network_error(error, failed_connect_to_server_message.c_str());
 		return;
 	}
 
@@ -668,20 +705,12 @@ void update_client::handle_manifest_results()
 	}
 	catch (update_exception_blocked& error)
 	{
-		client_events->error(
-			"Failed to move files.\n"
-			"Some files may be blocked by other program. Please restart "
-			"your PC and try to update again."
-		);
+		client_events->error(blocked_file_message.c_str());
 		return;
 	}
 	catch (update_exception_failed& error)
 	{
-		client_events->error(
-			"Failed to move files.\n"
-			"Some files could not be updated. Please download "
-			"SLOBS installer from our site and run full installation"
-		);
+		client_events->error(locked_file_message.c_str());
 		return;
 	}
 
@@ -783,7 +812,7 @@ void update_client::handle_manifest_response(boost::system::error_code &ec, size
 	{
 		std::string msg = fmt::format("Failed manifest response ({})", safe_request_ctx->target);
 
-		handle_error(ec, msg.c_str());
+		handle_network_error(ec, msg.c_str());
 		return;
 	}
 
@@ -795,8 +824,8 @@ void update_client::handle_manifest_response(boost::system::error_code &ec, size
 	{
 		auto target = safe_request_ctx->request.target();
 
-		/* FIXME Signal failure */
-		handle_error(boost::asio::error::basic_errors::connection_aborted, "No manifest file on server");
+		std::string msg = fmt::format("Manifest response with code {} for ({})", status_code, safe_request_ctx->target);
+		handle_network_error(boost::asio::error::basic_errors::connection_aborted, msg.c_str());
 		return;
 	}
 
@@ -811,9 +840,9 @@ void update_client::handle_manifest_request(boost::system::error_code &error, si
 {
 	if (error)
 	{
-		std::string msg = fmt::format("Failed manifest request ({}): {}", request_ctx->target, error.message().c_str());
+		std::string msg = fmt::format("Failed manifest request ({})", request_ctx->target);
 
-		handle_error(error, msg.c_str());
+		handle_network_error(error, msg.c_str());
 		return;
 	}
 
@@ -823,7 +852,8 @@ void update_client::handle_manifest_request(boost::system::error_code &error, si
 
 	if (request_ctx->response_parser.is_done())
 	{
-		handle_error(boost::asio::error::basic_errors::connection_aborted, "No body message provided");
+		std::string msg = fmt::format("No body message provided ({})", request_ctx->target);
+		handle_network_error(boost::asio::error::basic_errors::connection_aborted, msg.c_str());
 		delete request_ctx;
 		return;
 	}
@@ -835,9 +865,9 @@ void update_client::handle_manifest_handshake(const boost::system::error_code& e
 {
 	if (error)
 	{
-		std::string msg = fmt::format("Failed manifest handshake ({}): {}", request_ctx->target, error.message().c_str());
+		std::string msg = fmt::format("Failed manifest handshake ({})", request_ctx->target);
 
-		handle_error(error, msg.c_str());
+		handle_network_error(error, msg.c_str());
 	}
 
 	auto request_handler = [this, request_ctx](auto e, auto b) {
@@ -851,7 +881,9 @@ void update_client::handle_manifest_connect(const boost::system::error_code &err
 {
 	if (error)
 	{
-		handle_error(error, "Failed to connect to host for manifest");
+		std::string msg = fmt::format("Failed to connect to host for manifest ({})", request_ctx->target);
+
+		handle_network_error(error, msg.c_str());
 		return;
 	}
 
@@ -947,8 +979,6 @@ void update_client::handle_file_result(update_client::file *file_ctx, int index)
 
 void update_client::next_manifest_entry(int index)
 {
-	log_debug("go to next manifest entry . index %i", index);
-
 	std::unique_lock<std::mutex> manifest_lock(this->manifest_mutex);
 
 	if (this->manifest_iterator == this->manifest.end() || update_canceled)
@@ -962,7 +992,7 @@ void update_client::next_manifest_entry(int index)
 			this->downloader_events->downloader_complete();
 			if (update_canceled)
 			{
-				client_events->error(cancel_message);
+				handle_network_error(cancel_error, cancel_message.c_str());
 			}
 			else {
 				this->start_file_update();
@@ -991,7 +1021,6 @@ void update_client::next_manifest_entry(int index)
 
 	handle_manifest_entry(request_ctx);
 }
-
 
 void handle_file_response_buffer(update_client::file *file_ctx, const asio::const_buffer &buffer)
 {
@@ -1079,7 +1108,7 @@ void update_client::handle_file_response_header(boost::system::error_code &error
 	{
 		auto target = request_ctx->request.target();
 
-		std::string output_str = fmt::format("Status Code: {}\nFile: {}\n", status_code, fmt::string_view(target.data(), target.size()));
+		std::string output_str = fmt::format("Server send status Code: {} for file: {}", status_code, fmt::string_view(target.data(), target.size()));
 
 		handle_file_download_error(request_ctx, boost::asio::error::basic_errors::connection_aborted, output_str.c_str());
 		return;
@@ -1096,7 +1125,7 @@ void update_client::handle_file_response_header(boost::system::error_code &error
 	{
 		auto target = request_ctx->request.target();
 
-		std::string output_str = fmt::format("Receive empty header: \nFile: {}\n", fmt::string_view(target.data(), target.size()));
+		std::string output_str = fmt::format("Receive empty header ({})", fmt::string_view(target.data(), target.size()));
 
 		handle_file_download_error(request_ctx, boost::asio::error::basic_errors::connection_aborted, output_str.c_str());
 		return;
@@ -1112,7 +1141,8 @@ void update_client::handle_file_response_header(boost::system::error_code &error
 
 	if (file_path.empty())
 	{
-		handle_error({}, "Failed to create file path\n");
+		std::string msg = fmt::format("Failed to create file path ({})", request_ctx->target);
+		handle_network_error({}, msg.c_str());
 		return;
 	}
 
@@ -1171,7 +1201,7 @@ void update_client::handle_file_handshake(const boost::system::error_code& error
 
 	if (error)
 	{
-		std::string msg = fmt::format("Failed manifest handshake ({}): {}", request_ctx->target, error.message().c_str());
+		std::string msg = fmt::format("Failed manifest handshake ({})", request_ctx->target);
 
 		handle_file_download_error(request_ctx, error, msg.c_str());
 		return;
@@ -1199,7 +1229,9 @@ void update_client::handle_file_connect(const boost::system::error_code &error, 
 
 	if (error)
 	{
-		handle_file_download_error(request_ctx, error, "Failed to connect to host for file");
+		std::string msg = fmt::format("Failed to connect to host for file ({})", request_ctx->target);
+
+		handle_file_download_error(request_ctx, error, msg.c_str());
 		return;
 	}
 
