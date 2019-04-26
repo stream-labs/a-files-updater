@@ -551,12 +551,7 @@ void callbacks_impl::bandwidth_tick(
 	
 	ctx->last_calculated_bandwidth = average_bandwidth * 0.000001;
 
-	std::wstring label(fmt::format(
-		ctx->label_format,
-		ctx->files_done,
-		ctx->num_files,
-		ctx->last_calculated_bandwidth
-	));
+	std::wstring label( fmt::format(ctx->label_format, ctx->files_done, ctx->num_files, ctx->last_calculated_bandwidth ) );
 
 	SetWindowTextW(ctx->progress_label, label.c_str());
 	SetTimer(hwnd, idEvent, average_bw_time_span, &bandwidth_tick);
