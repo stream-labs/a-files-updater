@@ -84,10 +84,11 @@ struct update_client {
 	std::vector<std::thread> thread_pool;
 
 	bool					 update_canceled = false;
-	char					 cancel_message[256];
+	std::string				 cancel_message;
+	boost::system::error_code cancel_error;
 
 private:
-	inline void handle_error(const boost::system::error_code &error, const char* str);
+	inline void handle_network_error(const boost::system::error_code &error, const char* str);
 	void handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code &error, const char* str);
 	void handle_file_download_canceled(file_request<http::dynamic_body> *request_ctx);
 
