@@ -15,6 +15,7 @@
 #include <boost/iostreams/device/file_descriptor.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/traits.hpp>
+
 #include <fmt/format.h>
 #include <aclapi.h>
 
@@ -31,6 +32,8 @@ using std::cmatch;
 using std::regex_search;
 
 const size_t file_buffer_size = 4096;
+
+#include "update-blockers.hpp"
 
 #include "update-client.hpp"
 #include "checksum-filters.hpp"
@@ -424,9 +427,7 @@ void update_client::handle_pids()
 		update_client::pid *pid_ctx = new update_client::pid(io_ctx, hProcess);
 
 		pid_ctx->id = *iter;
-		pid_ctx->wrapper.async_wait([this, pid_ctx](auto ec) {
-			this->handle_pid(ec, pid_ctx);
-		});
+		pid_ctx->wrapper.async_wait([this, pid_ctx](auto ec) { this->handle_pid(ec, pid_ctx); });
 	}
 }
 
@@ -508,6 +509,7 @@ void update_client::handle_resolve(const boost::system::error_code &error, tcp::
 
 update_client::update_client(struct update_parameters *params)
 	: params(params),
+	wait_for_blockers(io_ctx),
 	active_workers(0),
 	resolver(io_ctx)
 {
@@ -570,12 +572,7 @@ void update_client::do_stuff()
 
 	client_events->initialize();
 
-	resolver.async_resolve(
-		params->host.authority,
-		params->host.scheme,
-		//		boost::asio::ip::tcp::resolver::query::address_configured,
-		cb
-	);
+	resolver.async_resolve( params->host.authority, params->host.scheme, cb );
 
 	reset_work();
 }
@@ -617,7 +614,7 @@ static std::string calculate_checksum(fs::path &path)
 
 /* TODO Read a book on how to properly name things.
  * This removes unneeded entries in the manifest */
-void update_client::clean_manifest()
+bool update_client::clean_manifest(blockers_map_t &blockers)
 {
 	/* Generate the manifest for the current application directory */
 	fs::recursive_directory_iterator app_dir_iter(this->params->app_dir);
@@ -639,69 +636,70 @@ void update_client::clean_manifest()
 		 * TODO Should we delete unknown files? */
 		if (manifest_iter == this->manifest.end())
 			continue;
-
-		check_file(entry, true);
-
-		std::string checksum = calculate_checksum(entry);
-
-		/* If the checksum is the same as in the manifest,
-		 * remove it from the manifest entirely, there's no need
-		 * to download it (as it's already the same). */
-		if (checksum.compare(manifest_iter->second) == 0)
+		
+		if (check_file_updatable(entry, true, blockers))
 		{
-			this->manifest.erase(manifest_iter);
-			continue;
-		}
+			std::string checksum = calculate_checksum(entry);
 
-		check_file(entry, false);
-	}
-}
+			/* If the checksum is the same as in the manifest,
+			 * remove it from the manifest entirely, there's no need
+			 * to download it (as it's already the same). */
+			if (checksum.compare(manifest_iter->second) == 0)
+			{
+				this->manifest.erase(manifest_iter);
+				continue;
+			}
 
-void update_client::check_file(fs::path & check_path, bool check_read)
-{
-	const std::wstring path_str = check_path.generic_wstring();
-
-	HANDLE hFile = CreateFile(path_str.c_str(), check_read? GENERIC_READ: GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (hFile == INVALID_HANDLE_VALUE)
-	{
-		DWORD errorCode = GetLastError();
-
-		switch (errorCode)
-		{
-		case ERROR_SUCCESS:
-		case ERROR_FILE_NOT_FOUND:
-		case ERROR_PATH_NOT_FOUND:
-			//its normal we can update file that not exist before
-			break;
-		case ERROR_SHARING_VIOLATION:
-		case ERROR_LOCK_VIOLATION:
-			//its bad, but it probaly zombie process and restart can help 
-			throw update_exception_blocked();
-			break;
-		case ERROR_ACCESS_DENIED:
-		case ERROR_WRITE_PROTECT:
-		case ERROR_WRITE_FAULT:
-		case ERROR_OPEN_FAILED:
-		default:
-			//its bad 
-			throw update_exception_failed();
+			check_file_updatable(entry, false, blockers);
 		}
 	}
-	else
-	{
-		CloseHandle(hFile);
-	}
-	return;
+
+	return true;
 }
 
 void update_client::handle_manifest_results()
 {
 	/* TODO We should be able to make max configurable.*/
 	int max_threads = 4;
-
 	try
 	{
-		this->clean_manifest();
+		blockers_map_t blockers;
+		this->clean_manifest(blockers);
+
+		if (blockers.size() > 0)
+		{
+			std::wstring process_list;
+			for (auto it = blockers.begin(); it != blockers.end(); it++)
+			{
+				log_debug("Got blocker process info %i %ls", (*it).second.Process.dwProcessId, (*it).second.strAppName);
+				process_list += (*it).second.strAppName;
+				process_list += L"\r\n";
+				process_list += (*it).second.strAppName;
+				process_list += L"1 \r\n";
+				process_list += (*it).second.strAppName;
+				process_list += L"2 \r\n";
+				process_list += (*it).second.strAppName;
+				process_list += L"3 \r\n";
+				process_list += (*it).second.strAppName;
+				process_list += L"4 \r\n";
+				process_list += (*it).second.strAppName;
+				process_list += L"5 \r\n";
+				process_list += (*it).second.strAppName;
+				process_list += L"6 \r\n";
+			}
+			
+			this->blocker_events->blocker_start(process_list);
+			
+			wait_for_blockers.expires_from_now(boost::posix_time::seconds(1));
+
+			wait_for_blockers.async_wait(boost::bind(&update_client::handle_manifest_results, this) );
+
+			return;
+		}
+		else {
+			this->blocker_events->blocker_wait_complete();
+		}
+
 	}
 	catch (update_exception_blocked& error)
 	{
@@ -831,7 +829,7 @@ void update_client::handle_manifest_response(boost::system::error_code &ec, size
 
 	/* Flatbuffer doesn't return a buffer sequence.  */
 	handle_manifest_read_buffer(this->manifest, buffer.data());
-
+	
 	/*  make sure that SLOBS process not blocking files from updatating before start of download  */
 	handle_pids();
 };
@@ -1296,6 +1294,11 @@ extern "C" {
 	void update_client_set_pid_events(struct update_client *client, struct pid_callbacks *events)
 	{
 		client->set_pid_events(events);
+	}
+
+	void update_client_set_blocker_events(struct update_client *client, struct blocker_callbacks *events)
+	{
+		client->set_blocker_events(events);
 	}
 
 	void update_client_start(struct update_client *client)

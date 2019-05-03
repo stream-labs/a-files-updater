@@ -32,12 +32,7 @@ void ShowError(LPCWSTR lpMsg)
 {
 	if(params.interactive)
 	{
-		MessageBoxW(
-			NULL,
-			lpMsg,
-			TEXT("Error"),
-			MB_ICONEXCLAMATION | MB_OK
-		);
+		MessageBoxW( NULL, lpMsg, TEXT("Error"), MB_ICONEXCLAMATION | MB_OK);
 	}
 }
 
@@ -45,12 +40,7 @@ void ShowInfo(LPCWSTR lpMsg)
 {
 	if(params.interactive)
 	{
-		MessageBoxW(
-			NULL,
-			lpMsg,
-			TEXT("Info"),
-			MB_ICONINFORMATION | MB_OK
-		);
+		MessageBoxW( NULL,  lpMsg, TEXT("Info"), MB_ICONINFORMATION | MB_OK );
 	}
 }
 
@@ -153,10 +143,7 @@ BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory)
 
 	GetWindowThreadProcessId(hwndShell, &dwShellProcId);
 
-	hShellProc = OpenProcess(
-		PROCESS_QUERY_INFORMATION,
-		FALSE, dwShellProcId
-	);
+	hShellProc = OpenProcess( PROCESS_QUERY_INFORMATION, FALSE, dwShellProcId );
 
 	if (hShellProc == NULL) {
 		LogLastError(L"OpenProcess");
@@ -206,19 +193,11 @@ BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory)
 
 static LPWSTR ConvertToUtf16(const char *from, int *from_size)
 {
-	int to_size = MultiByteToWideChar(
-		CP_UTF8, 0,
-		from, *from_size,
-		NULL, 0
-	);
+	int to_size = MultiByteToWideChar( CP_UTF8, 0, from, *from_size, NULL, 0 );
 
 	auto to = new WCHAR[to_size];
 
-	int size = MultiByteToWideChar(
-		CP_UTF8, 0,
-		from, *from_size,
-		to, to_size
-	);
+	int size = MultiByteToWideChar( CP_UTF8, 0, from, *from_size, to, to_size );
 
 	if (size == 0) {
 		*from_size = 0;
@@ -276,29 +255,27 @@ struct bandwidth_chunk {
 
 static LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-static LRESULT CALLBACK ProgressLabelWndProc(
-	HWND hwnd,
-	UINT msg,
-	WPARAM wParam,
-	LPARAM lParam,
-	UINT_PTR  uIdSubclass,
-	DWORD_PTR dwRefData
-);
+static LRESULT CALLBACK ProgressLabelWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR  uIdSubclass, DWORD_PTR dwRefData );
+static LRESULT CALLBACK BlockersListWndProc( HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR  uIdSubclass, DWORD_PTR dwRefData );
 
 struct callbacks_impl :
 	public
 	  client_callbacks,
 	  downloader_callbacks,
 	  updater_callbacks,
-	  pid_callbacks
+	  pid_callbacks,
+	  blocker_callbacks
 {
 	int screen_width{0};
 	int screen_height{0};
 	int width{400};
 	int height{180};
+	
 	HWND frame{NULL}; /* Toplevel window */
 	HWND progress_worker{NULL};
 	HWND progress_label{NULL};
+	HWND blockers_list{ NULL };
+
 	std::atomic_uint files_done{0};
 	std::vector<size_t> file_sizes{0};
 	size_t num_files{0};
@@ -325,33 +302,20 @@ struct callbacks_impl :
 	void error(const char* error) final;
 
 	void downloader_start(int num_threads, size_t num_files_) final;
-
-	void download_file(
-	  int thread_index,
-	  std::string &relative_path,
-	  size_t size
-	);
-
-	static void bandwidth_tick(
-	  HWND hwnd,
-	  UINT uMsg,
-	  UINT_PTR idEvent,
-	  DWORD dwTime
-	);
-
-	void download_progress(
-	  int thread_index,
-	  size_t consumed,
-	  size_t accum
-	) final;
-
+	void download_file( int thread_index, std::string &relative_path,size_t size );
+	void download_progress( int thread_index, size_t consumed, size_t accum ) final;
 	void download_worker_finished(int thread_index) final { }
 	void downloader_complete() final;
+	static void bandwidth_tick(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime);
 
 	void pid_start() final { }
 	void pid_waiting_for(uint64_t pid) final { }
 	void pid_wait_finished(uint64_t pid) final { }
 	void pid_wait_complete() final { }
+
+	void blocker_start(const std::wstring &processes_list) final;
+	void blocker_waiting_for() final { }
+	void blocker_wait_complete() final;
 
 	void updater_start() final;
 	void update_file(std::string &filename) final { }
@@ -365,9 +329,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	WNDCLASSEX wc;
 	RECT rcParent;
 
-	HICON app_icon = LoadIcon(
-		GetModuleHandle(NULL), TEXT("AppIcon")
-	);
+	HICON app_icon = LoadIcon( GetModuleHandle(NULL), TEXT("AppIcon") );
 
 	wc.cbSize        = sizeof(WNDCLASSEX);
 	wc.style         = CS_NOCLOSE;
@@ -454,18 +416,24 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 		do_fail(L"Failed to create progress label!", L"CreateWindow");
 	}
 
-	success = SetWindowSubclass(
-		progress_label,
-		ProgressLabelWndProc,
-		CLS_PROGRESS_LABEL,
-		(DWORD_PTR)this
-	);
+	success = SetWindowSubclass( progress_label, ProgressLabelWndProc, CLS_PROGRESS_LABEL, (DWORD_PTR)this );
 
 	if (!success) {
-		do_fail(
-			L"Failed to subclass progress label!",
-			L"SetWindowSubclass"
-		);
+		do_fail(L"Failed to subclass progress label!", L"SetWindowSubclass");
+	}
+
+	blockers_list = CreateWindowEx(
+		0, L"EDIT", NULL,         
+		WS_CHILD | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_WANTRETURN | ES_AUTOVSCROLL | ES_READONLY | WS_BORDER,
+		x_pos, y_pos,
+		x_size, y_size*2,
+		frame,   
+		NULL, NULL, NULL);        
+
+	success = SetWindowSubclass(blockers_list, BlockersListWndProc, CLS_PROGRESS_LABEL, (DWORD_PTR)this);
+
+	if (!success) {
+		do_fail( L"Failed to subclass progress label!", L"SetWindowSubclass");
 	}
 
 	SendMessage(progress_worker, PBM_SETBARCOLOR, 0, RGB(49, 195, 162));
@@ -586,20 +554,35 @@ void callbacks_impl::downloader_complete()
 	KillTimer(frame, 1);
 }
 
+void callbacks_impl::blocker_start(const std::wstring & processes_list)
+{
+	SetWindowTextW(progress_label, L"Update blocked by:");
+	ShowWindow(blockers_list, SW_SHOW);
+	ShowWindow(progress_worker, SW_HIDE);
+
+	SetWindowTextW(blockers_list, processes_list.c_str());
+}
+
+void callbacks_impl::blocker_wait_complete()
+{
+	ShowWindow(blockers_list, SW_HIDE);
+	ShowWindow(progress_worker, SW_SHOW);
+}
+
 void callbacks_impl::updater_start()
 {
 	SetWindowTextW(progress_label, L"Copying files...");
 }
 
 LRESULT CALLBACK ProgressLabelWndProc(
-  HWND hwnd,
-  UINT msg,
-  WPARAM wParam,
-  LPARAM lParam,
-  UINT_PTR  uIdSubclass,
-  DWORD_PTR dwRefData
+	HWND hwnd,
+	UINT msg,
+	WPARAM wParam,
+	LPARAM lParam,
+	UINT_PTR  uIdSubclass,
+	DWORD_PTR dwRefData
 ) {
-	switch(msg) {
+	switch (msg) {
 	case WM_SETTEXT: {
 		RECT rect;
 		HWND parent = GetParent(hwnd);
@@ -607,12 +590,32 @@ LRESULT CALLBACK ProgressLabelWndProc(
 		GetWindowRect(hwnd, &rect);
 		MapWindowPoints(HWND_DESKTOP, parent, (LPPOINT)&rect, 2);
 
-		RedrawWindow(
-			parent,
-			&rect,
-			NULL,
-			RDW_ERASE | RDW_INVALIDATE
-		);
+		RedrawWindow(parent, &rect, NULL, RDW_ERASE | RDW_INVALIDATE);
+
+		break;
+	}
+	}
+
+	return DefSubclassProc(hwnd, msg, wParam, lParam);
+}
+
+LRESULT CALLBACK BlockersListWndProc(
+	HWND hwnd,
+	UINT msg,
+	WPARAM wParam,
+	LPARAM lParam,
+	UINT_PTR  uIdSubclass,
+	DWORD_PTR dwRefData
+) {
+	switch (msg) {
+	case WM_SETTEXT: {
+		RECT rect;
+		HWND parent = GetParent(hwnd);
+
+		GetWindowRect(hwnd, &rect);
+		MapWindowPoints(HWND_DESKTOP, parent, (LPPOINT)&rect, 2);
+
+		RedrawWindow(parent, &rect, NULL, RDW_ERASE | RDW_INVALIDATE);
 
 		break;
 	}
@@ -691,6 +694,7 @@ int wWinMain(
 	update_client_set_downloader_events(client.get(), &cb_impl);
 	update_client_set_updater_events(client.get(), &cb_impl);
 	update_client_set_pid_events(client.get(), &cb_impl);
+	update_client_set_blocker_events(client.get(), &cb_impl);
 
 	update_client_start(client.get());
 

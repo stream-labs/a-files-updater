@@ -148,6 +148,30 @@ function generate_manifest(testinfo) {
   });
 }
 
+async function put_file_blocking(testinfo, selfblockingfile, update_subdirpath, need_to_launch) {
+  if (testinfo.selfBlockingFile || testinfo.selfLockingFile) {
+    let pathInResources = path.join(__dirname, "..", "resources", selfblockingfile);
+    let pathInTest = path.join(update_subdirpath, selfblockingfile_name);
+    fse.copySync(pathInResources, pathInTest);
+
+    let arg1 = "";
+
+    if (testinfo.selfLockingFile) {
+      arg1 = "-l";
+    }
+
+    if (need_to_launch) {
+      self_blocking_process = require('child_process').spawn(pathInTest, [
+        arg1, 'arg2', 'arg3',
+      ], {
+          detached: true,
+          shell: true
+        });
+      console.log("Blocker process pid = " + self_blocking_process.pid);
+    }
+  }
+}
+
 async function generate_server_dir(testinfo) {
   const update_subdirpath = path.join(testinfo.serverDir, testinfo.versionName)
   await generate_file(update_subdirpath, "test2.txt", "new change")
@@ -207,30 +231,6 @@ async function generate_initial_dir(testinfo, update_subdirpath = "") {
   console.log("Finish generate_initial_dir");
 }
 
-async function put_file_blocking(testinfo, selfblockingfile, update_subdirpath, need_to_launch) {
-  if (testinfo.selfBlockingFile || testinfo.selfLockingFile) {
-    let pathInResources = path.join(__dirname, "..", "resources", selfblockingfile);
-    let pathInTest = path.join(update_subdirpath, selfblockingfile_name);
-    fse.copySync(pathInResources, pathInTest);
-
-    let arg1 = "";
-
-    if (testinfo.selfLockingFile) {
-      arg1 = "-l";
-    }
-
-    if (need_to_launch) {
-      self_blocking_process = require('child_process').spawn(pathInTest, [
-        arg1, 'arg2', 'arg3',
-      ], {
-          detached: true,
-          shell: true
-        });
-      console.log("Blocker process pid = " + self_blocking_process.pid);
-    }
-  }
-}
-
 async function generate_result_dir(testinfo, update_subdirpath) {
   await generate_file(update_subdirpath, "filea.exe", "", true)
   await generate_file(update_subdirpath, "file1.exe")
@@ -257,6 +257,8 @@ async function generate_result_dir(testinfo, update_subdirpath) {
       await generate_file(update_subdirpath, file_name, "", false, true)
     }
   }
+  
+  await put_file_blocking(testinfo, selfblockingfile_server, update_subdirpath, false);
 
   console.log("Finish generate_result_dir");
 }
