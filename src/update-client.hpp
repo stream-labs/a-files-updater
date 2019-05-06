@@ -51,6 +51,17 @@ struct pid_callbacks {
 	virtual void pid_wait_complete() = 0;
 };
 
+/* Sequence of events:
+ *
+ * blocker_found -> blocker_waiting_for -> blocker_wait_complete
+ */
+
+struct blocker_callbacks {
+	virtual void blocker_start() = 0;
+	virtual void blocker_waiting_for(const std::wstring &processes_list) = 0;
+	virtual void blocker_wait_complete() = 0;
+};
+
 extern "C" {
 
 	struct update_client;
@@ -76,6 +87,11 @@ extern "C" {
 	void update_client_set_pid_events(
 		struct update_client *,
 		struct pid_callbacks*
+	);
+
+	void update_client_set_blocker_events(
+		struct update_client *,
+		struct blocker_callbacks*
 	);
 
 	void update_client_start(struct update_client *);

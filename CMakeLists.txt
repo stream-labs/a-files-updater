@@ -30,6 +30,7 @@ add_executable(slobs-updater
 	WIN32
 	src/main.cc
 	src/update-parameters.hpp
+	src/update-blockers.cc src/update-blockers.hpp 
 	src/cli-parser.cc src/cli-parser.hpp
 	src/uri-parser.cc src/uri-parser.hpp
 	src/update-client.cc src/update-client-internal.hpp src/update-client.hpp
