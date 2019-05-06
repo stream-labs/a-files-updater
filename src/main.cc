@@ -30,27 +30,17 @@ bool update_completed = false;
 
 void ShowError(LPCWSTR lpMsg)
 {
-	if(params.interactive)
+	if (params.interactive)
 	{
-		MessageBoxW(
-			NULL,
-			lpMsg,
-			TEXT("Error"),
-			MB_ICONEXCLAMATION | MB_OK
-		);
+		MessageBoxW(NULL, lpMsg, TEXT("Error"), MB_ICONEXCLAMATION | MB_OK);
 	}
 }
 
 void ShowInfo(LPCWSTR lpMsg)
 {
-	if(params.interactive)
+	if (params.interactive)
 	{
-		MessageBoxW(
-			NULL,
-			lpMsg,
-			TEXT("Info"),
-			MB_ICONINFORMATION | MB_OK
-		);
+		MessageBoxW(NULL, lpMsg, TEXT("Info"), MB_ICONINFORMATION | MB_OK);
 	}
 }
 
@@ -70,8 +60,8 @@ struct MultiByteCommandLine {
 	int argc() { return m_argc; };
 
 private:
-	int m_argc{0};
-	LPSTR *m_argv{nullptr};
+	int m_argc{ 0 };
+	LPSTR *m_argv{ nullptr };
 };
 
 MultiByteCommandLine::MultiByteCommandLine()
@@ -88,22 +78,13 @@ MultiByteCommandLine::MultiByteCommandLine()
 	 * UTF-16LE (or UCS-2 as they call it).
 	 * Anyways... this converts each UTF-16LE string
 	 * to UTF-8 (or something it understands). */
-	for (int i = 0; i < m_argc; ++i) {
-		DWORD size = WideCharToMultiByte(
-			CP_UTF8, 0,
-			wargv[i], -1,
-			NULL, 0,
-			NULL, NULL
-		);
+	for (int i = 0; i < m_argc; ++i)
+	{
+		DWORD size = WideCharToMultiByte(CP_UTF8, 0, wargv[i], -1, NULL, 0, NULL, NULL);
 
 		m_argv[i] = new CHAR[size];
 
-		size = WideCharToMultiByte(
-			CP_UTF8, 0,
-			wargv[i], -1,
-			m_argv[i], size,
-			NULL, NULL
-		);
+		size = WideCharToMultiByte(CP_UTF8, 0, wargv[i], -1, m_argv[i], size, NULL, NULL);
 	}
 
 	LocalFree(wargv);
@@ -111,11 +92,12 @@ MultiByteCommandLine::MultiByteCommandLine()
 
 MultiByteCommandLine::~MultiByteCommandLine()
 {
-	for (int i = 0; i < m_argc; ++i) {
-		delete [] m_argv[i];
+	for (int i = 0; i < m_argc; ++i)
+	{
+		delete[] m_argv[i];
 	}
 
-	delete [] m_argv;
+	delete[] m_argv;
 }
 
 void LogLastError(LPCWSTR lpFunctionName)
@@ -134,7 +116,7 @@ void LogLastError(LPCWSTR lpFunctionName)
 
 	wlog_debug(L"%s: %.*s", lpFunctionName, szMsgBuf, strMsgBuf);
 
-	delete [] strMsgBuf;
+	delete[] strMsgBuf;
 }
 
 BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory)
@@ -153,19 +135,18 @@ BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory)
 
 	GetWindowThreadProcessId(hwndShell, &dwShellProcId);
 
-	hShellProc = OpenProcess(
-		PROCESS_QUERY_INFORMATION,
-		FALSE, dwShellProcId
-	);
+	hShellProc = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, dwShellProcId);
 
-	if (hShellProc == NULL) {
+	if (hShellProc == NULL)
+	{
 		LogLastError(L"OpenProcess");
 		return FALSE;
 	}
 
 	bSuccess = OpenProcessToken(hShellProc, TOKEN_DUPLICATE, &hShellToken);
 
-	if (bSuccess == 0) {
+	if (bSuccess == 0)
+	{
 		LogLastError(L"OpenProcessToken");
 		return FALSE;
 	}
@@ -181,7 +162,8 @@ BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory)
 		&hNewToken
 	);
 
-	if (bSuccess == 0) {
+	if (bSuccess == 0)
+	{
 		LogLastError(L"DuplicateTokenEx");
 		return FALSE;
 	}
@@ -196,7 +178,8 @@ BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory)
 		&xProcInfo
 	);
 
-	if (bSuccess == 0) {
+	if (bSuccess == 0)
+	{
 		LogLastError(L"CreateProcessWithTokenW");
 		return FALSE;
 	}
@@ -206,21 +189,14 @@ BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory)
 
 static LPWSTR ConvertToUtf16(const char *from, int *from_size)
 {
-	int to_size = MultiByteToWideChar(
-		CP_UTF8, 0,
-		from, *from_size,
-		NULL, 0
-	);
+	int to_size = MultiByteToWideChar(CP_UTF8, 0, from, *from_size, NULL, 0);
 
 	auto to = new WCHAR[to_size];
 
-	int size = MultiByteToWideChar(
-		CP_UTF8, 0,
-		from, *from_size,
-		to, to_size
-	);
+	int size = MultiByteToWideChar(CP_UTF8, 0, from, *from_size, to, to_size);
 
-	if (size == 0) {
+	if (size == 0)
+	{
 		*from_size = 0;
 		LogLastError(L"MultiByteToWideChar");
 		return NULL;
@@ -267,50 +243,49 @@ struct bandwidth_chunk {
  * DestroyWindow for us. */
 #define CUSTOM_CLOSE_MSG (WM_USER + 1)
 
-/* Same as above but this differentiates behavior.
- * It allows us to assume there's an error and to
- * handle that error before closing. */
+ /* Same as above but this differentiates behavior.
+  * It allows us to assume there's an error and to
+  * handle that error before closing. */
 #define CUSTOM_ERROR_MSG (WM_USER + 2)
 
 #define CLS_PROGRESS_LABEL (1)
+#define CLS_BLOCKERS_LIST (2)
 
 static LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-static LRESULT CALLBACK ProgressLabelWndProc(
-	HWND hwnd,
-	UINT msg,
-	WPARAM wParam,
-	LPARAM lParam,
-	UINT_PTR  uIdSubclass,
-	DWORD_PTR dwRefData
-);
+static LRESULT CALLBACK ProgressLabelWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR  uIdSubclass, DWORD_PTR dwRefData);
+static LRESULT CALLBACK BlockersListWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR  uIdSubclass, DWORD_PTR dwRefData);
 
 struct callbacks_impl :
 	public
-	  client_callbacks,
-	  downloader_callbacks,
-	  updater_callbacks,
-	  pid_callbacks
+	client_callbacks,
+	downloader_callbacks,
+	updater_callbacks,
+	pid_callbacks,
+	blocker_callbacks
 {
-	int screen_width{0};
-	int screen_height{0};
-	int width{400};
-	int height{180};
-	HWND frame{NULL}; /* Toplevel window */
-	HWND progress_worker{NULL};
-	HWND progress_label{NULL};
-	std::atomic_uint files_done{0};
-	std::vector<size_t> file_sizes{0};
-	size_t num_files{0};
-	int num_workers{0};
+	int screen_width{ 0 };
+	int screen_height{ 0 };
+	int width{ 400 };
+	int height{ 180 };
+
+	HWND frame{ NULL }; /* Toplevel window */
+	HWND progress_worker{ NULL };
+	HWND progress_label{ NULL };
+	HWND blockers_list{ NULL };
+
+	std::atomic_uint files_done{ 0 };
+	std::vector<size_t> file_sizes{ 0 };
+	size_t num_files{ 0 };
+	int num_workers{ 0 };
 	high_resolution_clock::time_point start_time;
-	size_t total_consumed{0};
-	size_t total_consumed_last_tick{0};
+	size_t total_consumed{ 0 };
+	size_t total_consumed_last_tick{ 0 };
 	std::list<double>  last_bandwidths;
-	std::atomic<double> last_calculated_bandwidth{0.0};
-	LPWSTR error_buf{nullptr};
-	bool should_start{false};
-	LPCWSTR label_format{L"Downloading {} of {} - {:.2f} MB/s"};
+	std::atomic<double> last_calculated_bandwidth{ 0.0 };
+	LPWSTR error_buf{ nullptr };
+	bool should_start{ false };
+	LPCWSTR label_format{ L"Downloading {} of {} - {:.2f} MB/s" };
 
 	callbacks_impl(const callbacks_impl&) = delete;
 	callbacks_impl(const callbacks_impl&&) = delete;
@@ -325,33 +300,20 @@ struct callbacks_impl :
 	void error(const char* error) final;
 
 	void downloader_start(int num_threads, size_t num_files_) final;
-
-	void download_file(
-	  int thread_index,
-	  std::string &relative_path,
-	  size_t size
-	);
-
-	static void bandwidth_tick(
-	  HWND hwnd,
-	  UINT uMsg,
-	  UINT_PTR idEvent,
-	  DWORD dwTime
-	);
-
-	void download_progress(
-	  int thread_index,
-	  size_t consumed,
-	  size_t accum
-	) final;
-
+	void download_file(int thread_index, std::string &relative_path, size_t size);
+	void download_progress(int thread_index, size_t consumed, size_t accum) final;
 	void download_worker_finished(int thread_index) final { }
 	void downloader_complete() final;
+	static void bandwidth_tick(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime);
 
 	void pid_start() final { }
 	void pid_waiting_for(uint64_t pid) final { }
 	void pid_wait_finished(uint64_t pid) final { }
 	void pid_wait_complete() final { }
+
+	void blocker_start() final;
+	void blocker_waiting_for(const std::wstring &processes_list) final;
+	void blocker_wait_complete() final;
 
 	void updater_start() final;
 	void update_file(std::string &filename) final { }
@@ -365,24 +327,23 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	WNDCLASSEX wc;
 	RECT rcParent;
 
-	HICON app_icon = LoadIcon(
-		GetModuleHandle(NULL), TEXT("AppIcon")
-	);
+	HICON app_icon = LoadIcon(GetModuleHandle(NULL), TEXT("AppIcon"));
 
-	wc.cbSize        = sizeof(WNDCLASSEX);
-	wc.style         = CS_NOCLOSE;
-	wc.lpfnWndProc   = FrameWndProc;
-	wc.cbClsExtra    = 0;
-	wc.cbWndExtra    = 0;
-	wc.hInstance     = hInstance;
-	wc.hIcon         = app_icon;
-	wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+	wc.cbSize = sizeof(WNDCLASSEX);
+	wc.style = CS_NOCLOSE;
+	wc.lpfnWndProc = FrameWndProc;
+	wc.cbClsExtra = 0;
+	wc.cbWndExtra = 0;
+	wc.hInstance = hInstance;
+	wc.hIcon = app_icon;
+	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
 	wc.hbrBackground = CreateSolidBrush(RGB(23, 36, 45));;
-	wc.lpszMenuName  = NULL;
+	wc.lpszMenuName = NULL;
 	wc.lpszClassName = TEXT("UpdaterFrame");
-	wc.hIconSm       = app_icon;
+	wc.hIconSm = app_icon;
 
-	if(!RegisterClassEx(&wc)) {
+	if (!RegisterClassEx(&wc))
+	{
 		ShowError(L"Window registration failed!");
 		LogLastError(L"RegisterClassEx");
 
@@ -394,7 +355,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	screen_height = GetSystemMetrics(SM_CYSCREEN);
 
 	/* FIXME: This feels a little dirty */
-	auto do_fail = [this] (LPCWSTR user_msg, LPCWSTR context_msg) {
+	auto do_fail = [this](LPCWSTR user_msg, LPCWSTR context_msg) {
 		if (this->frame) DestroyWindow(this->frame);
 		ShowError(user_msg);
 		LogLastError(context_msg);
@@ -415,7 +376,8 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 
 	SetWindowLongPtr(frame, GWLP_USERDATA, (LONG_PTR)this);
 
-	if (!frame) {
+	if (!frame)
+	{
 		do_fail(L"Failed to create window!", L"CreateWindowEx");
 	}
 
@@ -436,10 +398,11 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 		NULL, NULL
 	);
 
-	if (!progress_worker) {
+	if (!progress_worker)
+	{
 		do_fail(L"Failed to create progress worker!", L"CreateWindow");
 	}
-
+	
 	progress_label = CreateWindow(
 		WC_STATIC,
 		TEXT("Looking for new files..."),
@@ -450,22 +413,32 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 		NULL, NULL
 	);
 
-	if (!progress_label) {
+	if (!progress_label)
+	{
 		do_fail(L"Failed to create progress label!", L"CreateWindow");
 	}
 
-	success = SetWindowSubclass(
-		progress_label,
-		ProgressLabelWndProc,
-		CLS_PROGRESS_LABEL,
-		(DWORD_PTR)this
-	);
+	success = SetWindowSubclass(progress_label, ProgressLabelWndProc, CLS_PROGRESS_LABEL, (DWORD_PTR)this);
 
-	if (!success) {
-		do_fail(
-			L"Failed to subclass progress label!",
-			L"SetWindowSubclass"
-		);
+	if (!success)
+	{
+		do_fail(L"Failed to subclass progress label!", L"SetWindowSubclass");
+	}
+
+	blockers_list = CreateWindow(
+		WC_EDIT, 
+		L"Blockers list",
+		WS_CHILD | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_WANTRETURN | ES_AUTOVSCROLL | WS_BORDER  | ES_READONLY ,
+		x_pos, y_pos,
+		x_size, y_size * 2,
+		frame,
+		NULL, NULL, NULL);
+
+	success = SetWindowSubclass(blockers_list, BlockersListWndProc, CLS_BLOCKERS_LIST, (DWORD_PTR)this);
+
+	if (!success)
+	{
+		do_fail(L"Failed to subclass blockers list!", L"SetWindowSubclass");
 	}
 
 	SendMessage(progress_worker, PBM_SETBARCOLOR, 0, RGB(49, 195, 162));
@@ -506,7 +479,7 @@ void callbacks_impl::downloader_start(int num_threads, size_t num_files_)
 	SetTimer(frame, 1, average_bw_time_span, &bandwidth_tick);
 }
 
-void callbacks_impl::download_file( int thread_index, std::string &relative_path, size_t size) 
+void callbacks_impl::download_file(int thread_index, std::string &relative_path, size_t size)
 {
 	/* Our specific UI doesn't care when we start, we only
 	 * care when we're finished. A more technical UI could show
@@ -514,12 +487,8 @@ void callbacks_impl::download_file( int thread_index, std::string &relative_path
 	file_sizes[thread_index] = size;
 }
 
-void callbacks_impl::bandwidth_tick(
-  HWND hwnd,
-  UINT uMsg,
-  UINT_PTR idEvent,
-  DWORD dwTime
-) {
+void callbacks_impl::bandwidth_tick(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
+{
 	LONG_PTR data = GetWindowLongPtr(hwnd, GWLP_USERDATA);
 	auto ctx = reinterpret_cast<callbacks_impl *>(data);
 
@@ -527,14 +496,14 @@ void callbacks_impl::bandwidth_tick(
 	 * then divide by timeout time */
 	double bandwidth = (double)(ctx->total_consumed - ctx->total_consumed_last_tick);
 	ctx->total_consumed_last_tick = ctx->total_consumed;
-	
-	
+
+
 	ctx->last_bandwidths.push_back(bandwidth);
 	while (ctx->last_bandwidths.size() > max_bandwidth_in_average)
 	{
 		ctx->last_bandwidths.pop_front();
 	}
-	
+
 	double average_bandwidth = std::accumulate(ctx->last_bandwidths.begin(), ctx->last_bandwidths.end(), 0.0);
 	//std::for_each(ctx->last_bandwidths.begin(), ctx->last_bandwidths.end(), [&average_bandwidth](double &n) { average_bandwidth+=n; });
 	if (ctx->last_bandwidths.size() > 0)
@@ -544,28 +513,28 @@ void callbacks_impl::bandwidth_tick(
 
 	/* Average over a set period of time */
 	average_bandwidth /= average_bw_time_span / 1000;
-	
+
 	/* Convert from bytes to megabytes */
 	/* Note that it's important to have only one place where
 	 * we atomically assign to last_calculated_bandwidth */
-	
+
 	ctx->last_calculated_bandwidth = average_bandwidth * 0.000001;
 
-	std::wstring label( fmt::format(ctx->label_format, ctx->files_done, ctx->num_files, ctx->last_calculated_bandwidth ) );
+	std::wstring label(fmt::format(ctx->label_format, ctx->files_done, ctx->num_files, ctx->last_calculated_bandwidth));
 
 	SetWindowTextW(ctx->progress_label, label.c_str());
 	SetTimer(hwnd, idEvent, average_bw_time_span, &bandwidth_tick);
 }
 
 
-void callbacks_impl::download_progress( int thread_index, size_t consumed, size_t accum) 
+void callbacks_impl::download_progress(int thread_index, size_t consumed, size_t accum)
 {
 	total_consumed += consumed;
 	/* We don't currently show per-file progress but we could
 	 * progress the bar based on files_done + remainder of
 	 * all in-progress files done. */
 
-	if (accum != file_sizes[thread_index]) 
+	if (accum != file_sizes[thread_index])
 	{
 		return;
 	}
@@ -574,7 +543,7 @@ void callbacks_impl::download_progress( int thread_index, size_t consumed, size_
 
 	double percent = (double)files_done / (double)num_files;
 
-	std::wstring label(fmt::format( label_format, files_done, num_files, last_calculated_bandwidth ));
+	std::wstring label(fmt::format(label_format, files_done, num_files, last_calculated_bandwidth));
 
 	int pos = lround(percent * INT_MAX);
 	PostMessage(progress_worker, PBM_SETPOS, pos, 0);
@@ -586,20 +555,35 @@ void callbacks_impl::downloader_complete()
 	KillTimer(frame, 1);
 }
 
+void callbacks_impl::blocker_start()
+{
+	SetWindowTextW(progress_label, L"Update blocked by:");
+	ShowWindow(blockers_list, SW_SHOW);
+	ShowWindow(progress_worker, SW_HIDE);
+
+	SetWindowTextW(blockers_list, L"");
+}
+
+void callbacks_impl::blocker_waiting_for(const std::wstring & processes_list)
+{
+	SetWindowTextW(blockers_list, processes_list.c_str());
+}
+
+void callbacks_impl::blocker_wait_complete()
+{
+	ShowWindow(blockers_list, SW_HIDE);
+	ShowWindow(progress_worker, SW_SHOW);
+	SetWindowTextW(blockers_list, L"");
+}
+
 void callbacks_impl::updater_start()
 {
 	SetWindowTextW(progress_label, L"Copying files...");
 }
 
-LRESULT CALLBACK ProgressLabelWndProc(
-  HWND hwnd,
-  UINT msg,
-  WPARAM wParam,
-  LPARAM lParam,
-  UINT_PTR  uIdSubclass,
-  DWORD_PTR dwRefData
-) {
-	switch(msg) {
+LRESULT CALLBACK ProgressLabelWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR  uIdSubclass, DWORD_PTR dwRefData)
+{
+	switch (msg) {
 	case WM_SETTEXT: {
 		RECT rect;
 		HWND parent = GetParent(hwnd);
@@ -607,15 +591,29 @@ LRESULT CALLBACK ProgressLabelWndProc(
 		GetWindowRect(hwnd, &rect);
 		MapWindowPoints(HWND_DESKTOP, parent, (LPPOINT)&rect, 2);
 
-		RedrawWindow(
-			parent,
-			&rect,
-			NULL,
-			RDW_ERASE | RDW_INVALIDATE
-		);
-
-		break;
+		RedrawWindow(parent, &rect, NULL, RDW_ERASE | RDW_INVALIDATE);
 	}
+	break;
+	}
+
+	return DefSubclassProc(hwnd, msg, wParam, lParam);
+}
+
+LRESULT CALLBACK BlockersListWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR  uIdSubclass, DWORD_PTR dwRefData)
+{
+	switch (msg) {
+	case WM_HSCROLL:
+	case WM_VSCROLL:
+	case WM_SETTEXT: {
+		RECT rect;
+		HWND parent = GetParent(hwnd);
+
+		GetWindowRect(hwnd, &rect);
+		MapWindowPoints(HWND_DESKTOP, parent, (LPPOINT)&rect, 2);
+
+		RedrawWindow(parent, &rect, NULL, RDW_ERASE | RDW_INVALIDATE);
+	}
+	break;
 	}
 
 	return DefSubclassProc(hwnd, msg, wParam, lParam);
@@ -623,7 +621,7 @@ LRESULT CALLBACK ProgressLabelWndProc(
 
 LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	switch(msg) {
+	switch (msg) {
 	case WM_CLOSE:
 		/* Prevent closing in a normal manner. */
 		return 0;
@@ -636,9 +634,9 @@ LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case CUSTOM_ERROR_MSG: {
 		LONG_PTR user_data = GetWindowLongPtr(hwnd, GWLP_USERDATA);
 		auto ctx = reinterpret_cast<callbacks_impl *>(user_data);
-		
+
 		ShowError(ctx->error_buf);
-		delete [] ctx->error_buf;
+		delete[] ctx->error_buf;
 		ctx->error_buf = nullptr;
 
 		DestroyWindow(hwnd);
@@ -646,43 +644,41 @@ LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		break;
 	}
 	case WM_CTLCOLORSTATIC:
-		SetTextColor((HDC)wParam, RGB(255, 255, 255));
-		SetBkMode((HDC)wParam, TRANSPARENT);
-		return (LRESULT)GetStockObject(HOLLOW_BRUSH);
+		LONG_PTR user_data = GetWindowLongPtr(hwnd, GWLP_USERDATA);
+		auto ctx = reinterpret_cast<callbacks_impl *>(user_data);
+		
+		if ((HWND)lParam != ctx->blockers_list)
+		{
+			SetTextColor((HDC)wParam, RGB(255, 255, 255));
+			SetBkMode((HDC)wParam, TRANSPARENT);
+			return (LRESULT)GetStockObject(HOLLOW_BRUSH);
+		}		
 	}
 
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
- 
+
 extern "C"
-int wWinMain(
-  HINSTANCE hInstance,
-  HINSTANCE hPrevInstance,
-  LPWSTR    lpCmdLineUnused,
-  int       nCmdShow
-) {
-	
+int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnused, int nCmdShow) {
+
 	setup_crash_reporting();
 
 	callbacks_impl cb_impl(hInstance, nCmdShow);
 
 	MultiByteCommandLine command_line;
 
-	update_completed = su_parse_command_line(
-		command_line.argc(),
-		command_line.argv(),
-		&params
-	);
+	update_completed = su_parse_command_line(command_line.argc(), command_line.argv(), &params);
 
-	if (!update_completed) {
+	if (!update_completed)
+	{
 		ShowError(L"Failed to parse cli arguments!");
 		return 0;
 	}
 
-	auto client_deleter = [] (struct update_client *client) {
+	auto client_deleter = [](struct update_client *client) {
 		destroy_update_client(client);
 	};
-	
+
 
 	std::unique_ptr<struct update_client, decltype(client_deleter)>
 		client(create_update_client(&params), client_deleter);
@@ -691,12 +687,14 @@ int wWinMain(
 	update_client_set_downloader_events(client.get(), &cb_impl);
 	update_client_set_updater_events(client.get(), &cb_impl);
 	update_client_set_pid_events(client.get(), &cb_impl);
+	update_client_set_blocker_events(client.get(), &cb_impl);
 
 	update_client_start(client.get());
 
 	MSG msg;
 
-	while(GetMessage(&msg, NULL, 0, 0) > 0) {
+	while (GetMessage(&msg, NULL, 0, 0) > 0)
+	{
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}
@@ -704,7 +702,8 @@ int wWinMain(
 	update_client_flush(client.get());
 
 	/* Don't attempt start if application failed to update */
-	if (!cb_impl.should_start) {
+	if (!cb_impl.should_start)
+	{
 		return 1;
 	}
 
@@ -716,11 +715,10 @@ int wWinMain(
 		THERE_OR_NOT(params.exec_cwd)
 	);
 
-	if (!update_completed) {
-		ShowInfo(
-			L"The application has finished updating.\n"
-			"Please manually start Streamlabs OBS."
-		);
+	if (!update_completed)
+	{
+		ShowInfo(L"The application has finished updating.\n"
+			"Please manually start Streamlabs OBS.");
 	}
 #undef THERE_OR_NOT
 

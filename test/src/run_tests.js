@@ -4,7 +4,7 @@ const test_config = require('./test_config.js');
 const fse = require('fs-extra')
 const path = require('path');
 
-const run_one_test = false;
+const run_one_test = true;
 
 async function run_tests() {
     let testinfo;
@@ -25,19 +25,17 @@ async function run_tests() {
         //testinfo.runAsInteractive = 1;
         //testinfo.expectedResult = "filesnotchanged"
         //testinfo.manifestGenerated = false;
-        let i;
-        for (i = 0; i < 1; i++) 
-        {
-            testinfo = test_config.gettestinfo(" // test for manual use ");
-            //testinfo.let_5sec = true;
-            testinfo.let_404 = true;
-            testinfo.let_block_one_file = true;
-            testinfo.runAsInteractive = 1;
-            // testinfo.morebigfiles = true;
-            test_result = await run_test.test_update(testinfo);
-            if (test_result != 0) {
-                failed_test_names.push(testinfo.testName);
-            }
+        testinfo = test_config.gettestinfo(" // test for manual use ");
+        //testinfo.let_5sec = true;
+        //testinfo.runAsInteractive = 1;
+        //testinfo.morebigfiles = true;
+        testinfo.selfBlockersCount = 5;
+        testinfo.selfBlockingFile = true;
+        //testinfo.selfLockingFile = true;
+
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
         }
 
     } else {
@@ -108,7 +106,6 @@ async function run_tests() {
         }
 
         testinfo = test_config.gettestinfo(" //test some exe file blocked by rinnig it   ");
-        testinfo.expectedResult = "filesnotchanged"
         testinfo.selfBlockingFile = true;
         test_result = await run_test.test_update(testinfo);
         if (test_result != 0) {

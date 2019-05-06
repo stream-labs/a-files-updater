@@ -17,8 +17,8 @@ struct update_parameters {
 	std::string exec_cwd;
 	std::vector<int> pids;
 	std::string version;
-	FILE *log_file;
-	bool interactive;
+	FILE *log_file = nullptr;
+	bool interactive = false;
 
 	~update_parameters()
 	{

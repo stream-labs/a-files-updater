@@ -20,6 +20,7 @@ exports.gettestinfo = function (testname) {
     
     selfBlockingFile: false,
     selfLockingFile: false,
+    selfBlockersCount: 1,
 
     morebigfiles: false,
     
