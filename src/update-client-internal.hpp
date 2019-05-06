@@ -6,12 +6,24 @@
  *# Data definitions
  *#
  *############################################*/
+struct manifest_entry_t
+{
+	std::string hash_sum;
+	bool compared_to_local;
+	
+	manifest_entry_t(std::string &file_hash_sum) 
+	{
+		hash_sum = file_hash_sum;
+		compared_to_local = false;
+	}
+};
+
 struct update_client {
 	template <class Body, bool IncludeVersion>
 	struct http_request;
 
 	struct file;
-	struct pid;
+	struct pid;	
 
 	using manifest_body = http::basic_dynamic_body<beast::flat_buffer>;
 
@@ -26,7 +38,7 @@ struct update_client {
 	using io_context = asio::io_context;
 	using work_guard_type = executor_work_guard<io_context::executor_type>;
 	using resolver_type = tcp::resolver;
-	using manifest_map = std::unordered_map<std::string, std::string>;
+	using manifest_map_t = std::unordered_map<std::string, manifest_entry_t>;
 
 	update_client() = delete;
 	update_client(const update_client&) = delete;
@@ -65,9 +77,9 @@ struct update_client {
 
 	int                      active_workers{ 0 };
 	std::atomic_size_t       active_pids{ 0 };
-	manifest_map             manifest;
+	manifest_map_t             manifest;
 	std::mutex               manifest_mutex;
-	manifest_map::const_iterator manifest_iterator;
+	manifest_map_t::const_iterator manifest_iterator;
 
 	resolver_type            resolver;
 	resolver_type::results_type endpoints;
@@ -184,8 +196,8 @@ struct FileUpdater
 	~FileUpdater();
 
 	void update();
-	bool update_entry(update_client::manifest_map::iterator  &iter, boost::filesystem::path & new_files_dir);
-	bool update_entry_with_retries(update_client::manifest_map::iterator  &iter, boost::filesystem::path & new_files_dir);
+	bool update_entry(update_client::manifest_map_t::iterator  &iter, boost::filesystem::path & new_files_dir);
+	bool update_entry_with_retries(update_client::manifest_map_t::iterator  &iter, boost::filesystem::path & new_files_dir);
 	void revert();
 	bool reset_rights(const fs::path& path);
 

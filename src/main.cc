@@ -249,6 +249,7 @@ struct bandwidth_chunk {
 #define CUSTOM_ERROR_MSG (WM_USER + 2)
 
 #define CLS_PROGRESS_LABEL (1)
+#define CLS_BLOCKERS_LIST (2)
 
 static LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -401,7 +402,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	{
 		do_fail(L"Failed to create progress worker!", L"CreateWindow");
 	}
-
+	
 	progress_label = CreateWindow(
 		WC_STATIC,
 		TEXT("Looking for new files..."),
@@ -424,19 +425,20 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 		do_fail(L"Failed to subclass progress label!", L"SetWindowSubclass");
 	}
 
-	blockers_list = CreateWindowEx(
-		0, L"EDIT", NULL,
-		WS_CHILD | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_WANTRETURN | ES_AUTOVSCROLL | ES_READONLY | WS_BORDER,
+	blockers_list = CreateWindow(
+		WC_EDIT, 
+		L"Blockers list",
+		WS_CHILD | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_WANTRETURN | ES_AUTOVSCROLL | WS_BORDER  | ES_READONLY ,
 		x_pos, y_pos,
 		x_size, y_size * 2,
 		frame,
 		NULL, NULL, NULL);
 
-	success = SetWindowSubclass(blockers_list, BlockersListWndProc, CLS_PROGRESS_LABEL, (DWORD_PTR)this);
+	success = SetWindowSubclass(blockers_list, BlockersListWndProc, CLS_BLOCKERS_LIST, (DWORD_PTR)this);
 
 	if (!success)
 	{
-		do_fail(L"Failed to subclass progress label!", L"SetWindowSubclass");
+		do_fail(L"Failed to subclass blockers list!", L"SetWindowSubclass");
 	}
 
 	SendMessage(progress_worker, PBM_SETBARCOLOR, 0, RGB(49, 195, 162));
@@ -590,9 +592,8 @@ LRESULT CALLBACK ProgressLabelWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
 		MapWindowPoints(HWND_DESKTOP, parent, (LPPOINT)&rect, 2);
 
 		RedrawWindow(parent, &rect, NULL, RDW_ERASE | RDW_INVALIDATE);
-
-		break;
 	}
+	break;
 	}
 
 	return DefSubclassProc(hwnd, msg, wParam, lParam);
@@ -601,6 +602,8 @@ LRESULT CALLBACK ProgressLabelWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
 LRESULT CALLBACK BlockersListWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR  uIdSubclass, DWORD_PTR dwRefData)
 {
 	switch (msg) {
+	case WM_HSCROLL:
+	case WM_VSCROLL:
 	case WM_SETTEXT: {
 		RECT rect;
 		HWND parent = GetParent(hwnd);
@@ -609,9 +612,8 @@ LRESULT CALLBACK BlockersListWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
 		MapWindowPoints(HWND_DESKTOP, parent, (LPPOINT)&rect, 2);
 
 		RedrawWindow(parent, &rect, NULL, RDW_ERASE | RDW_INVALIDATE);
-
-		break;
 	}
+	break;
 	}
 
 	return DefSubclassProc(hwnd, msg, wParam, lParam);
@@ -642,9 +644,15 @@ LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		break;
 	}
 	case WM_CTLCOLORSTATIC:
-		SetTextColor((HDC)wParam, RGB(255, 255, 255));
-		SetBkMode((HDC)wParam, TRANSPARENT);
-		return (LRESULT)GetStockObject(HOLLOW_BRUSH);
+		LONG_PTR user_data = GetWindowLongPtr(hwnd, GWLP_USERDATA);
+		auto ctx = reinterpret_cast<callbacks_impl *>(user_data);
+		
+		if ((HWND)lParam != ctx->blockers_list)
+		{
+			SetTextColor((HDC)wParam, RGB(255, 255, 255));
+			SetBkMode((HDC)wParam, TRANSPARENT);
+			return (LRESULT)GetStockObject(HOLLOW_BRUSH);
+		}		
 	}
 
 	return DefWindowProc(hwnd, msg, wParam, lParam);
@@ -685,7 +693,7 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 
 	MSG msg;
 
-	while (GetMessage(&msg, NULL, 0, 0) > 0) 
+	while (GetMessage(&msg, NULL, 0, 0) > 0)
 	{
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
@@ -694,7 +702,7 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 	update_client_flush(client.get());
 
 	/* Don't attempt start if application failed to update */
-	if (!cb_impl.should_start) 
+	if (!cb_impl.should_start)
 	{
 		return 1;
 	}
@@ -707,10 +715,10 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 		THERE_OR_NOT(params.exec_cwd)
 	);
 
-	if (!update_completed) 
+	if (!update_completed)
 	{
-		ShowInfo( L"The application has finished updating.\n"
-			"Please manually start Streamlabs OBS." );
+		ShowInfo(L"The application has finished updating.\n"
+			"Please manually start Streamlabs OBS.");
 	}
 #undef THERE_OR_NOT
 

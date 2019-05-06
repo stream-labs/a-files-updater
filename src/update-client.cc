@@ -106,8 +106,8 @@ FileUpdater::~FileUpdater()
 
 void FileUpdater::update()
 {
-	update_client::manifest_map::iterator iter;
-	update_client::manifest_map &manifest = m_client_ctx->manifest;
+	update_client::manifest_map_t::iterator iter;
+	update_client::manifest_map_t &manifest = m_client_ctx->manifest;
 
 	fs::path &new_files_dir = m_client_ctx->new_files_dir;
 	std::string version_file_key = "resources\app.asar";
@@ -127,7 +127,7 @@ void FileUpdater::update()
 	}
 }
 
-bool FileUpdater::update_entry_with_retries(update_client::manifest_map::iterator &iter, boost::filesystem::path &new_files_dir)
+bool FileUpdater::update_entry_with_retries(update_client::manifest_map_t::iterator &iter, boost::filesystem::path &new_files_dir)
 {
 	int retries = 0;
 	const int max_retries = 5;
@@ -154,7 +154,7 @@ bool FileUpdater::update_entry_with_retries(update_client::manifest_map::iterato
 	return ret;
 }
 
-bool FileUpdater::update_entry(update_client::manifest_map::iterator &iter, boost::filesystem::path &new_files_dir)
+bool FileUpdater::update_entry(update_client::manifest_map_t::iterator &iter, boost::filesystem::path &new_files_dir)
 {
 	boost::system::error_code ec;
 
@@ -349,10 +349,13 @@ void update_client::http_request<Body, IncludeVersion>::set_deadline()
 void update_client::start_file_update()
 {
 	log_debug("Files downloaded and ready to start update.");
+
 	FileUpdater updater(this);
 	bool updated = false;
+
 	try {
 		updater.update();
+
 		log_debug("Finished updating files without errors.");
 		client_events->success();
 		updated = true;
@@ -640,15 +643,21 @@ bool update_client::clean_manifest(blockers_map_t &blockers)
 		
 		if (check_file_updatable(entry, true, blockers))
 		{
-			std::string checksum = calculate_checksum(entry);
-
-			/* If the checksum is the same as in the manifest,
-			 * remove it from the manifest entirely, there's no need
-			 * to download it (as it's already the same). */
-			if (checksum.compare(manifest_iter->second) == 0)
+			if (!manifest_iter->second.compared_to_local)
 			{
-				this->manifest.erase(manifest_iter);
-				continue;
+				std::string checksum = calculate_checksum(entry);
+
+				/* If the checksum is the same as in the manifest,
+				 * remove it from the manifest entirely, there's no need
+				 * to download it (as it's already the same). */
+				if (checksum.compare(manifest_iter->second.hash_sum) == 0)
+				{
+					this->manifest.erase(manifest_iter);
+					continue;
+				}
+				else {
+					manifest_iter->second.compared_to_local = true;
+				}
 			}
 
 			check_file_updatable(entry, false, blockers);
@@ -753,7 +762,7 @@ void update_client::handle_manifest_results()
 }
 
 template <class ConstBuffer>
-static size_t handle_manifest_read_buffer(update_client::manifest_map &map, const ConstBuffer &buffer)
+static size_t handle_manifest_read_buffer(update_client::manifest_map_t &map, const ConstBuffer &buffer)
 {
 	/* TODO: Hardcoded for SHA-256 checksums. */
 	static const regex manifest_regex("([A-Fa-f0-9]{64}) ([^\r\n]+)\r?\n");
@@ -795,9 +804,9 @@ static size_t handle_manifest_read_buffer(update_client::manifest_map &map, cons
 			break;
 		}
 
-		checksum.assign(matches[2].first, matches[2].length());
-		file.assign(matches[1].first, matches[1].length());
-		map.emplace(std::make_pair(checksum, file));
+		file.assign(matches[2].first, matches[2].length());
+		checksum.assign(matches[1].first, matches[1].length());
+		map.emplace(std::make_pair(file, manifest_entry_t( checksum) ));
 
 		accum += matches.length();
 	}
