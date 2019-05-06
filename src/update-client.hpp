@@ -57,8 +57,8 @@ struct pid_callbacks {
  */
 
 struct blocker_callbacks {
-	virtual void blocker_start(const std::wstring &processes_list) = 0;
-	virtual void blocker_waiting_for() = 0;
+	virtual void blocker_start() = 0;
+	virtual void blocker_waiting_for(const std::wstring &processes_list) = 0;
 	virtual void blocker_wait_complete() = 0;
 };
 

@@ -76,6 +76,8 @@ struct update_client {
 	std::vector<std::thread> thread_pool;
 
 	boost::asio::deadline_timer wait_for_blockers;
+	bool show_user_blockers_list;
+	std::wstring process_list_text;
 
 	bool					 update_canceled = false;
 	std::string				 cancel_message;

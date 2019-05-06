@@ -510,6 +510,7 @@ void update_client::handle_resolve(const boost::system::error_code &error, tcp::
 update_client::update_client(struct update_parameters *params)
 	: params(params),
 	wait_for_blockers(io_ctx),
+	show_user_blockers_list( true),
 	active_workers(0),
 	resolver(io_ctx)
 {
@@ -668,29 +669,30 @@ void update_client::handle_manifest_results()
 
 		if (blockers.size() > 0)
 		{
-			std::wstring process_list;
+			std::wstring new_process_list_text;
 			for (auto it = blockers.begin(); it != blockers.end(); it++)
 			{
 				log_debug("Got blocker process info %i %ls", (*it).second.Process.dwProcessId, (*it).second.strAppName);
-				process_list += (*it).second.strAppName;
-				process_list += L"\r\n";
-				process_list += (*it).second.strAppName;
-				process_list += L"1 \r\n";
-				process_list += (*it).second.strAppName;
-				process_list += L"2 \r\n";
-				process_list += (*it).second.strAppName;
-				process_list += L"3 \r\n";
-				process_list += (*it).second.strAppName;
-				process_list += L"4 \r\n";
-				process_list += (*it).second.strAppName;
-				process_list += L"5 \r\n";
-				process_list += (*it).second.strAppName;
-				process_list += L"6 \r\n";
+
+				new_process_list_text += std::to_wstring((*it).second.Process.dwProcessId);
+				new_process_list_text += L": ";
+				new_process_list_text += (*it).second.strAppName;
+				new_process_list_text += L"\r\n";
 			}
 			
-			this->blocker_events->blocker_start(process_list);
+			if (show_user_blockers_list)
+			{
+				show_user_blockers_list = false;
+				this->blocker_events->blocker_start();
+			}
 			
-			wait_for_blockers.expires_from_now(boost::posix_time::seconds(1));
+			if (process_list_text.compare(new_process_list_text) != 0)
+			{
+				process_list_text = new_process_list_text;
+				this->blocker_events->blocker_waiting_for(process_list_text);
+			}
+
+			wait_for_blockers.expires_from_now(boost::posix_time::seconds(2));
 
 			wait_for_blockers.async_wait(boost::bind(&update_client::handle_manifest_results, this) );
 
@@ -698,6 +700,8 @@ void update_client::handle_manifest_results()
 		}
 		else {
 			this->blocker_events->blocker_wait_complete();
+			show_user_blockers_list = true;
+			process_list_text = L"";
 		}
 
 	}

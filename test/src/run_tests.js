@@ -28,7 +28,8 @@ async function run_tests() {
         testinfo = test_config.gettestinfo(" // test for manual use ");
         //testinfo.let_5sec = true;
         //testinfo.runAsInteractive = 1;
-        // testinfo.morebigfiles = true;
+        //testinfo.morebigfiles = true;
+        testinfo.selfBlockersCount = 5;
         testinfo.selfBlockingFile = true;
         //testinfo.selfLockingFile = true;
 

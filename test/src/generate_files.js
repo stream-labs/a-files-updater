@@ -11,11 +11,11 @@ const filecontentlines = 100;
 const hugefileincrese = 20;
 
 const selfblockingfile_server = "file_self_blocker_v1.exe";
-const selfblockingfile_init = "file_self_blocker_v4.exe";
-const selfblockingfile_name = "file_self_blocker.exe";
+const selfblockingfile_init = "file_self_blocker_v5.exe";
+const selfblockingfile_name = "file_self_blocker";
 
 
-let self_blocking_process;
+let self_blocking_process=[];
 
 async function generate_file(filedir, filename, filecontentextended = "", emptyfile = false, hugefile = false) {
   return new Promise((resolve, reject) => {
@@ -148,10 +148,10 @@ function generate_manifest(testinfo) {
   });
 }
 
-async function put_file_blocking(testinfo, selfblockingfile, update_subdirpath, need_to_launch) {
+async function put_file_blocking(testinfo, use_blocking_program, update_subdirpath, need_to_launch, blocker_id) {
   if (testinfo.selfBlockingFile || testinfo.selfLockingFile) {
-    let pathInResources = path.join(__dirname, "..", "resources", selfblockingfile);
-    let pathInTest = path.join(update_subdirpath, selfblockingfile_name);
+    let pathInResources = path.join(__dirname, "..", "resources", use_blocking_program);
+    let pathInTest = path.join(update_subdirpath, selfblockingfile_name+blocker_id+".exe");
     fse.copySync(pathInResources, pathInTest);
 
     let arg1 = "";
@@ -161,13 +161,14 @@ async function put_file_blocking(testinfo, selfblockingfile, update_subdirpath, 
     }
 
     if (need_to_launch) {
-      self_blocking_process = require('child_process').spawn(pathInTest, [
+      let new_blocking_process = require('child_process').spawn(pathInTest, [
         arg1, 'arg2', 'arg3',
       ], {
           detached: true,
           shell: true
         });
-      console.log("Blocker process pid = " + self_blocking_process.pid);
+      console.log("Blocker process pid = " + new_blocking_process.pid);
+      self_blocking_process.push(new_blocking_process);
     }
   }
 }
@@ -196,7 +197,10 @@ async function generate_server_dir(testinfo) {
     }
   }
 
-  await put_file_blocking(testinfo, selfblockingfile_server, update_subdirpath, false);
+  for(i = 0; i< testinfo.selfBlockersCount; i++)
+  {
+    await put_file_blocking(testinfo, selfblockingfile_server, update_subdirpath, false, i);
+  }
 
   if (testinfo.manifestGenerated) {
     await generate_manifest(testinfo)
@@ -225,8 +229,11 @@ async function generate_initial_dir(testinfo, update_subdirpath = "") {
       await generate_file(update_subdirpath, file_name, "", false, true)
     }
   }
-
-  await put_file_blocking(testinfo, selfblockingfile_init, update_subdirpath, update_subdirpath === testinfo.initialDir);
+  
+  for(i = 0; i< testinfo.selfBlockersCount; i++)
+  {
+    await put_file_blocking(testinfo, selfblockingfile_init, update_subdirpath, update_subdirpath === testinfo.initialDir, i);
+  }
 
   console.log("Finish generate_initial_dir");
 }
@@ -258,7 +265,10 @@ async function generate_result_dir(testinfo, update_subdirpath) {
     }
   }
   
-  await put_file_blocking(testinfo, selfblockingfile_server, update_subdirpath, false);
+  for(i = 0; i< testinfo.selfBlockersCount; i++)
+  {
+    await put_file_blocking(testinfo, selfblockingfile_server, update_subdirpath, false, i);
+  }
 
   console.log("Finish generate_result_dir");
 }
@@ -276,13 +286,13 @@ clean_test_dir = function (dirpath) {
 }
 
 exports.clean_after_test = function (testinfo, force) {
-  if (self_blocking_process) {
+  self_blocking_process.forEach(function(item){
     console.log("Close file blocking process");
     //kill.treeKillSync(self_blocking_process.pid);
-    kill(self_blocking_process.pid);
+    kill(item.pid);
     //process.kill(-self_blocking_process.pid);
-    self_blocking_process = '';
-  }
+  });
+  self_blocking_process = [];
 
   if (testinfo.not_keep_files || force) {
     clean_test_dir(testinfo.serverDir);
