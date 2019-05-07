@@ -45,6 +45,7 @@ const size_t file_buffer_size = 4096;
 const std::string failed_to_revert_message = "Failed to move files.\nPlease make sure the application files are not in use and try again.";
 const std::string failed_to_update_message = "Failed to move files.\nPlease make sure the application files are not in use and try again.";
 const std::string failed_connect_to_server_message = "Failed to connect to update server.";
+const std::string update_was_canceled_message = "Update was canceled.";
 const std::string blocked_file_message = "Failed to move files.\nSome files may be blocked by other program. Please restart your PC and try to update again.";
 const std::string locked_file_message = "Failed to move files.\nSome files could not be updated. Please download SLOBS installer from our site and run full installation.";
 const std::string restart_or_install_message = "Streamlabs OBS encountered an issue while downloading the update. \nPlease restart the application to finish updating. \nIf the issue persists, please download a new installer from www.streamlabs.com.";
@@ -681,11 +682,12 @@ void update_client::handle_manifest_results()
 			std::wstring new_process_list_text;
 			for (auto it = blockers.begin(); it != blockers.end(); it++)
 			{
-				log_debug("Got blocker process info %i %ls", (*it).second.Process.dwProcessId, (*it).second.strAppName);
-
-				new_process_list_text += std::to_wstring((*it).second.Process.dwProcessId);
-				new_process_list_text += L": ";
+				//log_debug("Got blocker process info %i %ls", (*it).second.Process.dwProcessId, (*it).second.strAppName);
+				
 				new_process_list_text += (*it).second.strAppName;
+				new_process_list_text += L"(";
+				new_process_list_text += std::to_wstring((*it).second.Process.dwProcessId);
+				new_process_list_text += L")";
 				new_process_list_text += L"\r\n";
 			}
 			
@@ -695,16 +697,44 @@ void update_client::handle_manifest_results()
 				this->blocker_events->blocker_start();
 			}
 			
-			if (process_list_text.compare(new_process_list_text) != 0)
+			bool list_changed = process_list_text.compare(new_process_list_text) != 0;
+
+			process_list_text = new_process_list_text;
+			int command = this->blocker_events->blocker_waiting_for(process_list_text, list_changed);
+			
+			switch (command)
 			{
-				process_list_text = new_process_list_text;
-				this->blocker_events->blocker_waiting_for(process_list_text);
+			case 1:
+				log_info("Got kill all command from ui");
+				for (auto it = blockers.begin(); it != blockers.end(); it++)
+				{
+					HANDLE explorer = NULL;
+					explorer = OpenProcess(PROCESS_TERMINATE, false, (*it).second.Process.dwProcessId);
+					if (explorer == NULL)
+					{
+						log_error("Cannot open process %i to terminate it with error: %d", (*it).second.Process.dwProcessId, GetLastError());
+					}
+					else {
+						if (TerminateProcess(explorer, 1))
+						{
+						} else {
+							log_error("Failed to terminate process %i with error: %d", (*it).second.Process.dwProcessId, GetLastError());
+						}
+					}
+				}
+			break;
+			case 2:
+			{
+				log_info("Got cancel command from ui");
+				client_events->error(update_was_canceled_message.c_str());
+				return;
 			}
+			break;
+			};
 
-			wait_for_blockers.expires_from_now(boost::posix_time::seconds(2));
+			wait_for_blockers.expires_from_now(boost::posix_time::seconds(1));
 
-			wait_for_blockers.async_wait(boost::bind(&update_client::handle_manifest_results, this) );
-
+			wait_for_blockers.async_wait(boost::bind(&update_client::handle_manifest_results, this));
 			return;
 		}
 		else {

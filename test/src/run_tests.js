@@ -27,7 +27,7 @@ async function run_tests() {
         //testinfo.manifestGenerated = false;
         testinfo = test_config.gettestinfo(" // test for manual use ");
         //testinfo.let_5sec = true;
-        //testinfo.runAsInteractive = 1;
+        testinfo.runAsInteractive = 1;
         //testinfo.morebigfiles = true;
         testinfo.selfBlockersCount = 5;
         testinfo.selfBlockingFile = true;
@@ -107,6 +107,7 @@ async function run_tests() {
 
         testinfo = test_config.gettestinfo(" //test some exe file blocked by rinnig it   ");
         testinfo.selfBlockingFile = true;
+        testinfo.selfBlockersCount = 5;
         test_result = await run_test.test_update(testinfo);
         if (test_result != 0) {
             failed_test_names.push(testinfo.testName);

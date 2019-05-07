@@ -146,10 +146,8 @@ static fs::path fetch_default_temp_dir()
 	return temp_dir;
 }
 
-bool su_parse_command_line(
-  int argc, char **argv,
-  struct update_parameters *params
-) {
+bool su_parse_command_line( int argc, char **argv, struct update_parameters *params) 
+{
 	bool success = true;
 	fs::path log_path;
 
@@ -273,11 +271,7 @@ bool su_parse_command_line(
 	/* We have all of the required parameters
 	 * and should be able to assume they exist
 	 * along with how many instances there are. */
-	success = su_parse_uri(
-		base_uri_arg->sval[0],
-		strlen(base_uri_arg->sval[0]),
-		&params->host
-	);
+	success = su_parse_uri(base_uri_arg->sval[0], strlen(base_uri_arg->sval[0]), &params->host );
 
 	if (success)
 		success = validate_https_uri(&params->host);
@@ -286,11 +280,7 @@ bool su_parse_command_line(
 		log_fatal("Invalid uri given for base_uri");
 	}
 
-	params->app_dir =
-		fetch_path(
-			app_dir_arg->sval[0],
-			strlen(app_dir_arg->sval[0])
-		);
+	params->app_dir = fetch_path( app_dir_arg->sval[0], strlen(app_dir_arg->sval[0]) );
 
 	params->exec.assign(exec_arg->sval[0]);
 
