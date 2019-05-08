@@ -575,7 +575,8 @@ void callbacks_impl::blocker_start()
 {
 	ShowWindow(progress_worker, SW_HIDE);
 
-	SetWindowTextW(progress_label, L"Update blocked by following programs:");
+	//SetWindowTextW(progress_label, L"Update blocked by following programs:");
+	SetWindowTextW(progress_label, L"The following programs are preventing Streamlabs OBS from updating :");
 	SetWindowTextW(blockers_list, L"");
 
 	SetWindowPos(frame, 0, 0, 0, width, height + ui_basic_height + ui_padding, SWP_NOMOVE | SWP_NOREPOSITION | SWP_ASYNCWINDOWPOS);
@@ -611,6 +612,7 @@ void callbacks_impl::blocker_wait_complete()
 	ShowWindow(kill_button, SW_HIDE);
 	ShowWindow(cancel_button, SW_HIDE);
 	SetWindowTextW(blockers_list, L"");
+	SetWindowTextW(progress_label, L"");
 
 	ShowWindow(progress_worker, SW_SHOW);
 

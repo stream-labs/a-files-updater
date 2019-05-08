@@ -61,6 +61,15 @@ bool get_blockers_list(fs::path & check_path, blockers_map_t &blockers)
 				ret = true;
 			}
 			else {
+				if (dwError = 5)
+				{
+					RM_PROCESS_INFO unknown_locker_process;
+					unknown_locker_process.Process.dwProcessId = 0;
+					const WCHAR * unknown_name = L"Unknown Process\0";
+					memcpy( unknown_locker_process.strAppName, unknown_name, 32 );
+					blockers.insert({ unknown_locker_process.Process.dwProcessId, unknown_locker_process });
+					ret = true;
+				}
 				log_debug("RmGetList returned %d\n", dwError);
 			}
 

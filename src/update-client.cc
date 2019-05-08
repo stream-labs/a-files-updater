@@ -685,7 +685,7 @@ void update_client::handle_manifest_results()
 				//log_debug("Got blocker process info %i %ls", (*it).second.Process.dwProcessId, (*it).second.strAppName);
 				
 				new_process_list_text += (*it).second.strAppName;
-				new_process_list_text += L"(";
+				new_process_list_text += L" (";
 				new_process_list_text += std::to_wstring((*it).second.Process.dwProcessId);
 				new_process_list_text += L")";
 				new_process_list_text += L"\r\n";
@@ -708,17 +708,21 @@ void update_client::handle_manifest_results()
 				log_info("Got kill all command from ui");
 				for (auto it = blockers.begin(); it != blockers.end(); it++)
 				{
-					HANDLE explorer = NULL;
-					explorer = OpenProcess(PROCESS_TERMINATE, false, (*it).second.Process.dwProcessId);
-					if (explorer == NULL)
+					if ((*it).second.Process.dwProcessId != 0)
 					{
-						log_error("Cannot open process %i to terminate it with error: %d", (*it).second.Process.dwProcessId, GetLastError());
-					}
-					else {
-						if (TerminateProcess(explorer, 1))
+						HANDLE explorer = NULL;
+						explorer = OpenProcess(PROCESS_TERMINATE, false, (*it).second.Process.dwProcessId);
+						if (explorer == NULL)
 						{
-						} else {
-							log_error("Failed to terminate process %i with error: %d", (*it).second.Process.dwProcessId, GetLastError());
+							log_error("Cannot open process %i to terminate it with error: %d", (*it).second.Process.dwProcessId, GetLastError());
+						}
+						else {
+							if (TerminateProcess(explorer, 1))
+							{
+							}
+							else {
+								log_error("Failed to terminate process %i with error: %d", (*it).second.Process.dwProcessId, GetLastError());
+							}
 						}
 					}
 				}
