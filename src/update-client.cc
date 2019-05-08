@@ -429,7 +429,7 @@ void update_client::handle_pids()
 		pid_events->pid_waiting_for(*iter);
 
 		update_client::pid *pid_ctx = new update_client::pid(io_ctx, hProcess);
-
+		// todo have to save them to be able to cancel 
 		pid_ctx->id = *iter;
 		pid_ctx->wrapper.async_wait([this, pid_ctx](auto ec) { this->handle_pid(ec, pid_ctx); });
 	}
@@ -487,8 +487,10 @@ void update_client::handle_file_download_canceled(file_request<http::dynamic_bod
 }
 
 /* FIXME Make the other handlers part of the client class. */
-void update_client::handle_resolve(const boost::system::error_code &error, tcp::resolver::results_type results) {
-	if (error) {
+void update_client::handle_resolve(const boost::system::error_code &error, tcp::resolver::results_type results) 
+{
+	if (error) 
+	{
 		handle_network_error(error, failed_connect_to_server_message.c_str());
 		return;
 	}
@@ -531,12 +533,10 @@ update_client::update_client(struct update_parameters *params)
 
 	for (unsigned i = 0; i < num_workers; ++i)
 	{
-		thread_pool.emplace_back(
-			std::thread([=]()
-		{
-			io_ctx.run();
-		})
-		);
+		thread_pool.emplace_back( std::thread([=]() 
+		{ 
+			io_ctx.run(); 
+		}) );
 	}
 }
 
@@ -670,8 +670,10 @@ bool update_client::clean_manifest(blockers_map_t &blockers)
 
 void update_client::handle_manifest_results()
 {
-	/* TODO We should be able to make max configurable.*/
-	int max_threads = 4;
+	// todo need mutex to handle case where both timer and pid wait was activated 
+	wait_for_blockers.cancel();
+	wait_for_blockers.expires_from_now(boost::posix_time::pos_infin);
+
 	try
 	{
 		blockers_map_t blockers;
@@ -683,25 +685,25 @@ void update_client::handle_manifest_results()
 			for (auto it = blockers.begin(); it != blockers.end(); it++)
 			{
 				//log_debug("Got blocker process info %i %ls", (*it).second.Process.dwProcessId, (*it).second.strAppName);
-				
+
 				new_process_list_text += (*it).second.strAppName;
 				new_process_list_text += L" (";
 				new_process_list_text += std::to_wstring((*it).second.Process.dwProcessId);
 				new_process_list_text += L")";
 				new_process_list_text += L"\r\n";
 			}
-			
+
 			if (show_user_blockers_list)
 			{
 				show_user_blockers_list = false;
 				this->blocker_events->blocker_start();
 			}
-			
+
 			bool list_changed = process_list_text.compare(new_process_list_text) != 0;
 
 			process_list_text = new_process_list_text;
 			int command = this->blocker_events->blocker_waiting_for(process_list_text, list_changed);
-			
+
 			switch (command)
 			{
 			case 1:
@@ -726,7 +728,7 @@ void update_client::handle_manifest_results()
 						}
 					}
 				}
-			break;
+				break;
 			case 2:
 			{
 				log_info("Got cancel command from ui");
@@ -758,6 +760,14 @@ void update_client::handle_manifest_results()
 		client_events->error(locked_file_message.c_str());
 		return;
 	}
+
+	start_downloading_files();
+}
+
+void update_client::start_downloading_files()
+{
+	/* TODO We should be able to make max configurable.*/
+	int max_threads = 4;
 
 	this->manifest_iterator = this->manifest.cbegin();
 	this->downloader_events->downloader_start(max_threads, this->manifest.size());
@@ -877,8 +887,14 @@ void update_client::handle_manifest_response(boost::system::error_code &ec, size
 	/* Flatbuffer doesn't return a buffer sequence.  */
 	handle_manifest_read_buffer(this->manifest, buffer.data());
 	
-	/*  make sure that SLOBS process not blocking files from updatating before start of download  */
-	handle_pids();
+	wait_for_blockers.expires_from_now(boost::posix_time::seconds(2));
+	wait_for_blockers.async_wait(boost::bind(&update_client::handle_manifest_results, this));
+
+	if (0) //use simple timeout 
+	{
+		/*  make sure that SLOBS process not blocking files from updatating before start of download  */
+		handle_pids();
+	}
 };
 
 void update_client::handle_manifest_request(boost::system::error_code &error, size_t bytes, manifest_request<manifest_body> *request_ctx)

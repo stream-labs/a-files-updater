@@ -70,7 +70,7 @@ bool get_blockers_list(fs::path & check_path, blockers_map_t &blockers)
 					blockers.insert({ unknown_locker_process.Process.dwProcessId, unknown_locker_process });
 					ret = true;
 				}
-				log_debug("RmGetList returned %d\n", dwError);
+				log_debug("RmGetList for (%ls) returned %d\n", pszFile, dwError);
 			}
 
 			if (rgpi != nullptr)

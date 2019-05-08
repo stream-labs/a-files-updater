@@ -77,7 +77,7 @@ struct update_client {
 
 	int                      active_workers{ 0 };
 	std::atomic_size_t       active_pids{ 0 };
-	manifest_map_t             manifest;
+	manifest_map_t           manifest;
 	std::mutex               manifest_mutex;
 	manifest_map_t::const_iterator manifest_iterator;
 
@@ -117,6 +117,8 @@ private:
 	bool clean_manifest(blockers_map_t &blockers);
 
 	//files
+	void start_downloading_files();
+
 	void handle_manifest_entry(file_request<http::dynamic_body> *request_ctx);
 
 	void handle_file_connect(const boost::system::error_code &error, const tcp::endpoint &ep, file_request<http::dynamic_body> *request_ctx);
