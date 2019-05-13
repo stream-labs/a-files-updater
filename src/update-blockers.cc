@@ -61,7 +61,7 @@ bool get_blockers_list(fs::path & check_path, blockers_map_t &blockers)
 				ret = true;
 			}
 			else {
-				if (dwError = 5)
+				if (dwError == 5)
 				{
 					RM_PROCESS_INFO unknown_locker_process;
 					unknown_locker_process.Process.dwProcessId = 0;
