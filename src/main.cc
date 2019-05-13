@@ -443,7 +443,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 
 	kill_button = CreateWindow(
 		WC_BUTTON,
-		L"Kill all",
+		L"Stop all",
 		WS_TABSTOP | WS_CHILD | BS_DEFPUSHBUTTON,
 		x_size + ui_padding - 100, rcParent.bottom - rcParent.top , 100, ui_basic_height,
 		frame,
