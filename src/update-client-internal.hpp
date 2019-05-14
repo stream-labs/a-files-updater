@@ -18,11 +18,23 @@ struct manifest_entry_t
 	}
 };
 
-struct update_client {
-	struct file;
-	struct pid;	
+struct update_file_t {
+	fs::path file_path;
+	fs::ofstream file_stream;
+	bio::gzip_decompressor decompress_filter;
+	sha256_filter checksum_filter;
 
-	using manifest_body = http::basic_dynamic_body<beast::flat_buffer>;
+	bio::chain<bio::output> output_chain;
+
+	explicit update_file_t(const fs::path &path);
+};
+
+void handle_file_response_buffer(update_file_t *file_ctx, const asio::const_buffer &buffer);
+
+fs::path generate_file_path(const fs::path &base, const fs::path &target);
+
+struct update_client {
+	struct pid;	
 
 	template <class Body>
 	using manifest_request = update_http_request<Body, false>;
@@ -92,43 +104,32 @@ struct update_client {
 	std::string				 cancel_message;
 	boost::system::error_code cancel_error;
 
-private:
+public:
 	inline void handle_network_error(const boost::system::error_code &error, const char* str);
 	void handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code &error, const char* str);
 	void handle_file_download_canceled(file_request<http::dynamic_body> *request_ctx);
+
+	void handle_manifest_download_error(manifest_request<manifest_body> *request_ctx, const boost::system::error_code & error, const char * str);
+	void handle_manifest_download_canceled(manifest_request<manifest_body>* request_ctx);
 
 	void start_downloader();
 	//manifest 
 	void handle_resolve(const boost::system::error_code &error, tcp::resolver::results_type results);
 
-	void handle_manifest_connect(const boost::system::error_code &error, const tcp::endpoint &ep, manifest_request<manifest_body> *request_ctx);
-
-	void handle_manifest_handshake(const boost::system::error_code &error, manifest_request<manifest_body> *request_ctx);
-
 	void handle_manifest_request(boost::system::error_code &error, size_t bytes, manifest_request<manifest_body> *request_ctx);
 
 	void handle_manifest_response(boost::system::error_code &ec, size_t bytes, manifest_request<manifest_body> *request_ctx);
 
-	void handle_manifest_results();
+	void handle_manifest_result(manifest_request<manifest_body> *request_ctx);
+
+	void process_manifest_results();
 
 	bool clean_manifest(blockers_map_t &blockers);
 
 	//files
 	void start_downloading_files();
 
-	void handle_manifest_entry(file_request<http::dynamic_body> *request_ctx);
-
-	void handle_file_connect(const boost::system::error_code &error, const tcp::endpoint &ep, file_request<http::dynamic_body> *request_ctx);
-
-	void handle_file_handshake(const boost::system::error_code& error, file_request<http::dynamic_body> *request_ctx);
-
-	void handle_file_request(boost::system::error_code &error, size_t bytes, file_request<http::dynamic_body> *request_ctx);
-
-	void handle_file_response_header(boost::system::error_code &error, size_t bytes, file_request<http::dynamic_body> *request_ctx);
-
-	void handle_file_response_body(boost::system::error_code &error, size_t bytes_read, file_request<http::dynamic_body> *request_ctx, update_client::file *file_ctx);
-
-	void handle_file_result(update_client::file *file_ctx, int index);
+	void handle_file_result(file_request<http::dynamic_body> *request_ctx, update_file_t *file_ctx, int index);
 
 	void next_manifest_entry(int index);
 
