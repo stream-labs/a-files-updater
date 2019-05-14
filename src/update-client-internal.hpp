@@ -112,13 +112,8 @@ public:
 	void handle_manifest_download_error(manifest_request<manifest_body> *request_ctx, const boost::system::error_code & error, const char * str);
 	void handle_manifest_download_canceled(manifest_request<manifest_body>* request_ctx);
 
-	void start_downloader();
 	//manifest 
 	void handle_resolve(const boost::system::error_code &error, tcp::resolver::results_type results);
-
-	void handle_manifest_request(boost::system::error_code &error, size_t bytes, manifest_request<manifest_body> *request_ctx);
-
-	void handle_manifest_response(boost::system::error_code &ec, size_t bytes, manifest_request<manifest_body> *request_ctx);
 
 	void handle_manifest_result(manifest_request<manifest_body> *request_ctx);
 
