@@ -1,7 +1,9 @@
 const path = require('path');
+let test_counter = 1;
 
-exports.gettestinfo = function () {
+exports.gettestinfo = function (testname) {
   let newinfo = {
+    testName:"",
     serverDir: "",
     initialDir: "",
     resultDir: "",
@@ -16,6 +18,10 @@ exports.gettestinfo = function () {
     manifestWrongFile: false,
     blockFileFromUpdating: false,
     
+    selfBlockingFile: false,
+    selfLockingFile: false,
+    selfBlockersCount: 1,
+
     morebigfiles: false,
     
     let_404 : false,
@@ -39,18 +45,24 @@ exports.gettestinfo = function () {
     //test results 
     expectedResult: "filesupdated", // "filesnotchanged", ""
     expectedCrashReport: false,
-
     
     not_keep_files: false
   }
+  newinfo.number = test_counter;
+  test_counter = test_counter + 1;
 
-  const testfilesDir = path.join(__dirname, "..", "testfiles");
+  newinfo.testName = newinfo.number + testname;
+
+  const testfilesDir = path.join(__dirname, "..", "testfiles", ""+newinfo.number);
   newinfo.serverDir = path.join(testfilesDir, "server")
   newinfo.initialDir = path.join(testfilesDir, "initial")
   newinfo.resultDir = path.join(testfilesDir, "result")
   newinfo.reporterDir = path.join(testfilesDir, "crash_reports")
 
   newinfo.updaterDir = path.join(__dirname, "..", "..", "build", "Debug")
+  
+  
 
+  console.log("Test created: " + newinfo.testName );
   return newinfo;
 }

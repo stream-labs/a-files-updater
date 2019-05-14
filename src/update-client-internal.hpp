@@ -3,27 +3,27 @@
 
 /*##############################################
  *#
- *# Update exceptions
- *#
- *############################################*/
-
-class update_exception_blocked : public std::exception
-{};
-
-class update_exception_failed : public std::exception
-{};
-
-/*##############################################
- *#
  *# Data definitions
  *#
  *############################################*/
+struct manifest_entry_t
+{
+	std::string hash_sum;
+	bool compared_to_local;
+	
+	manifest_entry_t(std::string &file_hash_sum) 
+	{
+		hash_sum = file_hash_sum;
+		compared_to_local = false;
+	}
+};
+
 struct update_client {
 	template <class Body, bool IncludeVersion>
 	struct http_request;
 
 	struct file;
-	struct pid;
+	struct pid;	
 
 	using manifest_body = http::basic_dynamic_body<beast::flat_buffer>;
 
@@ -38,7 +38,7 @@ struct update_client {
 	using io_context = asio::io_context;
 	using work_guard_type = executor_work_guard<io_context::executor_type>;
 	using resolver_type = tcp::resolver;
-	using manifest_map = std::unordered_map<std::string, std::string>;
+	using manifest_map_t = std::unordered_map<std::string, manifest_entry_t>;
 
 	update_client() = delete;
 	update_client(const update_client&) = delete;
@@ -56,6 +56,8 @@ struct update_client {
 	void set_updater_events(updater_callbacks *cbs) { updater_events = cbs; }
 
 	void set_pid_events(pid_callbacks *cbs) { pid_events = cbs; }
+	
+	void set_blocker_events(blocker_callbacks *cbs) { blocker_events = cbs; }
 
 	void do_stuff();
 	void flush();
@@ -66,16 +68,18 @@ struct update_client {
 
 	work_guard_type         *work{ nullptr };
 	fs::path                 new_files_dir;
+
 	client_callbacks        *client_events{ nullptr };
 	downloader_callbacks    *downloader_events{ nullptr };
 	updater_callbacks       *updater_events{ nullptr };
 	pid_callbacks           *pid_events{ nullptr };
+	blocker_callbacks       *blocker_events{ nullptr };
 
 	int                      active_workers{ 0 };
 	std::atomic_size_t       active_pids{ 0 };
-	manifest_map             manifest;
+	manifest_map_t           manifest;
 	std::mutex               manifest_mutex;
-	manifest_map::const_iterator manifest_iterator;
+	manifest_map_t::const_iterator manifest_iterator;
 
 	resolver_type            resolver;
 	resolver_type::results_type endpoints;
@@ -83,11 +87,16 @@ struct update_client {
 
 	std::vector<std::thread> thread_pool;
 
+	boost::asio::deadline_timer wait_for_blockers;
+	bool show_user_blockers_list;
+	std::wstring process_list_text;
+
 	bool					 update_canceled = false;
-	char					 cancel_message[256];
+	std::string				 cancel_message;
+	boost::system::error_code cancel_error;
 
 private:
-	inline void handle_error(const boost::system::error_code &error, const char* str);
+	inline void handle_network_error(const boost::system::error_code &error, const char* str);
 	void handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code &error, const char* str);
 	void handle_file_download_canceled(file_request<http::dynamic_body> *request_ctx);
 
@@ -105,10 +114,11 @@ private:
 
 	void handle_manifest_results();
 
-	void clean_manifest();
-	void check_file(fs::path & check_path);
+	bool clean_manifest(blockers_map_t &blockers);
 
 	//files
+	void start_downloading_files();
+
 	void handle_manifest_entry(file_request<http::dynamic_body> *request_ctx);
 
 	void handle_file_connect(const boost::system::error_code &error, const tcp::endpoint &ep, file_request<http::dynamic_body> *request_ctx);
@@ -188,8 +198,8 @@ struct FileUpdater
 	~FileUpdater();
 
 	void update();
-	bool update_entry(update_client::manifest_map::iterator  &iter, boost::filesystem::path & new_files_dir);
-	bool update_entry_with_retries(update_client::manifest_map::iterator  &iter, boost::filesystem::path & new_files_dir);
+	bool update_entry(update_client::manifest_map_t::iterator  &iter, boost::filesystem::path & new_files_dir);
+	bool update_entry_with_retries(update_client::manifest_map_t::iterator  &iter, boost::filesystem::path & new_files_dir);
 	void revert();
 	bool reset_rights(const fs::path& path);
 

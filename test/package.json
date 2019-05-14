@@ -16,7 +16,8 @@
     "http-proxy": "^1.8.1",
     "https-localhost": "1.3.0",
     "node-gzip": "1.1.2",
-    "serve-static": "^1.13.2"
+    "serve-static": "^1.13.2",
+    "tree-kill": "^1.2.1"
   },
   "devDependencies": {
     "request": "2.49.x"

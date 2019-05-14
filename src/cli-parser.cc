@@ -130,16 +130,24 @@ static fs::path fetch_default_temp_dir()
 	boost::system::error_code ec{};
 	fs::path temp_dir = fs::temp_directory_path();
 	temp_dir /= "slobs-updater";
+	
+	time_t t = time(NULL);
+	struct tm *lt = localtime(&t);
+	
+	srand(time(NULL));
+
+	char buf[24];
+	sprintf(buf, "%04i%c%03i%c%02i%c%02i%c%02i%c\0", lt->tm_year+1900, 'a'+rand()%20,lt->tm_yday, 'a' + rand() % 20,lt->tm_hour, 'a' + rand() % 20, lt->tm_min, 'a' + rand() % 20, lt->tm_sec, 'a' + rand() % 20);
+
+	temp_dir /= buf;
 
 	fs::create_directories(temp_dir);
 
 	return temp_dir;
 }
 
-bool su_parse_command_line(
-  int argc, char **argv,
-  struct update_parameters *params
-) {
+bool su_parse_command_line( int argc, char **argv, struct update_parameters *params) 
+{
 	bool success = true;
 	fs::path log_path;
 
@@ -237,9 +245,7 @@ bool su_parse_command_line(
 
 		log_info("Temporary directory not provided.");
 
-		log_info("Generated temporary directory: %s",
-			params->temp_dir.string().c_str()
-		);
+		log_info("Generated temporary directory: %s", params->temp_dir.string().c_str() );
 
 		if (params->temp_dir.empty())
 			success = false;
@@ -265,11 +271,7 @@ bool su_parse_command_line(
 	/* We have all of the required parameters
 	 * and should be able to assume they exist
 	 * along with how many instances there are. */
-	success = su_parse_uri(
-		base_uri_arg->sval[0],
-		strlen(base_uri_arg->sval[0]),
-		&params->host
-	);
+	success = su_parse_uri(base_uri_arg->sval[0], strlen(base_uri_arg->sval[0]), &params->host );
 
 	if (success)
 		success = validate_https_uri(&params->host);
@@ -278,11 +280,7 @@ bool su_parse_command_line(
 		log_fatal("Invalid uri given for base_uri");
 	}
 
-	params->app_dir =
-		fetch_path(
-			app_dir_arg->sval[0],
-			strlen(app_dir_arg->sval[0])
-		);
+	params->app_dir = fetch_path( app_dir_arg->sval[0], strlen(app_dir_arg->sval[0]) );
 
 	params->exec.assign(exec_arg->sval[0]);
 
