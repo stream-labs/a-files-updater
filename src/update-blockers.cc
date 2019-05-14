@@ -12,13 +12,11 @@ bool get_blockers_list(fs::path & check_path, blockers_map_t &blockers)
 	DWORD dwError;
 
 	dwError = RmStartSession(&dwSession, 0, szSessionKey);
-	log_debug("RmStartSession returned %d\n", dwError);
-
+	
 	if (dwError == ERROR_SUCCESS)
 	{
 		PCWSTR pszFile = check_path.wstring().c_str();
 		dwError = RmRegisterResources(dwSession, 1, &pszFile, 0, NULL, 0, NULL);
-		log_debug("RmRegisterResources(%ls) returned %d\n", pszFile, dwError);
 
 		if (dwError == ERROR_SUCCESS)
 		{
@@ -39,7 +37,6 @@ bool get_blockers_list(fs::path & check_path, blockers_map_t &blockers)
 
 				rgpi = new RM_PROCESS_INFO[nProcInfo];
 				dwError = RmGetList(dwSession, &nProcInfoNeeded, &nProcInfo, rgpi, &dwReason);
-				log_debug("RmGetList returned %d\n", dwError);
 
 				if (dwError != ERROR_MORE_DATA)
 				{
@@ -49,18 +46,31 @@ bool get_blockers_list(fs::path & check_path, blockers_map_t &blockers)
 
 			if (dwError == ERROR_SUCCESS)
 			{
-				log_debug("RmGetList returned %d infos\n", nProcInfo);
-
 				for (int i = 0; i < nProcInfo; i++)
 				{
-					log_debug("%d.ApplicationType = %d\n", i, rgpi[i].ApplicationType);
-					log_debug("%d.strAppName = %ls\n", i, rgpi[i].strAppName);
-					log_debug("%d.Process.dwProcessId = %d\n", i, rgpi[i].Process.dwProcessId);
+					if (0)
+					{
+						log_debug("%d.ApplicationType = %d\n", i, rgpi[i].ApplicationType);
+						log_debug("%d.strAppName = %ls\n", i, rgpi[i].strAppName);
+						log_debug("%d.Process.dwProcessId = %d\n", i, rgpi[i].Process.dwProcessId);
+					}
 
 					blockers.insert({ rgpi[i].Process.dwProcessId, rgpi[i] });
 				}
 
 				ret = true;
+			}
+			else {
+				if (dwError == 5)
+				{
+					RM_PROCESS_INFO unknown_locker_process;
+					unknown_locker_process.Process.dwProcessId = 0;
+					const WCHAR * unknown_name = L"Unknown Process\0";
+					memcpy( unknown_locker_process.strAppName, unknown_name, 32 );
+					blockers.insert({ unknown_locker_process.Process.dwProcessId, unknown_locker_process });
+					ret = true;
+				}
+				log_debug("RmGetList for (%ls) returned %d\n", pszFile, dwError);
 			}
 
 			if (rgpi != nullptr)
@@ -69,8 +79,14 @@ bool get_blockers_list(fs::path & check_path, blockers_map_t &blockers)
 				rgpi = nullptr;
 			}
 		}
+		else {
+			log_debug("RmRegisterResources(%ls) returned %d\n", pszFile, dwError);
+		}
 
 		RmEndSession(dwSession);
+	}
+	else {
+		log_error("RmStartSession returned %d\n", dwError);
 	}
 
 	return ret;

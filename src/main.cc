@@ -25,6 +25,9 @@ using chrono::duration_cast;
 const double average_bw_time_span = 250;
 const int max_bandwidth_in_average = 8;
 
+const int ui_padding = 10;
+const int ui_basic_height = 40;
+
 struct update_parameters params;
 bool update_completed = false;
 
@@ -106,13 +109,7 @@ void LogLastError(LPCWSTR lpFunctionName)
 	DWORD  szMsgBuf = 1024;
 	LPTSTR strMsgBuf = new wchar_t[szMsgBuf];
 
-	FormatMessageW(
-		FORMAT_MESSAGE_FROM_SYSTEM |
-		FORMAT_MESSAGE_IGNORE_INSERTS,
-		NULL, dwError, 0,
-		strMsgBuf, szMsgBuf,
-		NULL
-	);
+	FormatMessageW( FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, dwError, 0, strMsgBuf, szMsgBuf, NULL );
 
 	wlog_debug(L"%s: %.*s", lpFunctionName, szMsgBuf, strMsgBuf);
 
@@ -266,13 +263,15 @@ struct callbacks_impl :
 {
 	int screen_width{ 0 };
 	int screen_height{ 0 };
-	int width{ 400 };
-	int height{ 180 };
+	int width{ 500 };
+	int height{ ui_basic_height*4+ui_padding*2 };
 
 	HWND frame{ NULL }; /* Toplevel window */
 	HWND progress_worker{ NULL };
 	HWND progress_label{ NULL };
 	HWND blockers_list{ NULL };
+	HWND kill_button{ NULL };
+	HWND cancel_button{ NULL };
 
 	std::atomic_uint files_done{ 0 };
 	std::vector<size_t> file_sizes{ 0 };
@@ -285,6 +284,8 @@ struct callbacks_impl :
 	std::atomic<double> last_calculated_bandwidth{ 0.0 };
 	LPWSTR error_buf{ nullptr };
 	bool should_start{ false };
+	bool should_cancel{ false };
+	bool should_kill_blockers{ false };
 	LPCWSTR label_format{ L"Downloading {} of {} - {:.2f} MB/s" };
 
 	callbacks_impl(const callbacks_impl&) = delete;
@@ -312,7 +313,7 @@ struct callbacks_impl :
 	void pid_wait_complete() final { }
 
 	void blocker_start() final;
-	void blocker_waiting_for(const std::wstring &processes_list) final;
+	int blocker_waiting_for(const std::wstring &processes_list, bool list_changed) final;
 	void blocker_wait_complete() final;
 
 	void updater_start() final;
@@ -383,8 +384,8 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 
 	GetClientRect(frame, &rcParent);
 
-	int x_pos = 10;
-	int y_size = 40;
+	int x_pos = ui_padding;
+	int y_size = ui_basic_height;
 	int x_size = (rcParent.right - rcParent.left) - (x_pos * 2);
 	int y_pos = ((rcParent.bottom - rcParent.top) / 2) - (y_size / 2);
 
@@ -407,8 +408,8 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 		WC_STATIC,
 		TEXT("Looking for new files..."),
 		WS_CHILD | WS_VISIBLE | SS_CENTER | SS_CENTERIMAGE,
-		x_pos, 0,
-		x_size, (y_pos),
+		x_pos, ui_padding,
+		x_size, ui_basic_height,
 		frame, NULL,
 		NULL, NULL
 	);
@@ -429,8 +430,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 		WC_EDIT, 
 		L"Blockers list",
 		WS_CHILD | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_WANTRETURN | ES_AUTOVSCROLL | WS_BORDER  | ES_READONLY ,
-		x_pos, y_pos,
-		x_size, y_size * 2,
+		x_pos, y_pos, x_size, ui_basic_height * 2,
 		frame,
 		NULL, NULL, NULL);
 
@@ -440,6 +440,22 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	{
 		do_fail(L"Failed to subclass blockers list!", L"SetWindowSubclass");
 	}
+
+	kill_button = CreateWindow(
+		WC_BUTTON,
+		L"Stop all",
+		WS_TABSTOP | WS_CHILD | BS_DEFPUSHBUTTON,
+		x_size + ui_padding - 100, rcParent.bottom - rcParent.top , 100, ui_basic_height,
+		frame,
+		NULL, NULL, NULL);
+
+	cancel_button = CreateWindow(
+		WC_BUTTON,
+		L"Cancel",
+		WS_TABSTOP | WS_CHILD | BS_DEFPUSHBUTTON,
+		x_size + ui_padding - 100 - ui_padding - 100, rcParent.bottom - rcParent.top , 100, ui_basic_height,
+		frame,
+		NULL, NULL, NULL);
 
 	SendMessage(progress_worker, PBM_SETBARCOLOR, 0, RGB(49, 195, 162));
 	SendMessage(progress_worker, PBM_SETRANGE32, 0, INT_MAX);
@@ -557,23 +573,50 @@ void callbacks_impl::downloader_complete()
 
 void callbacks_impl::blocker_start()
 {
-	SetWindowTextW(progress_label, L"Update blocked by:");
-	ShowWindow(blockers_list, SW_SHOW);
 	ShowWindow(progress_worker, SW_HIDE);
 
+	//SetWindowTextW(progress_label, L"Update blocked by following programs:");
+	SetWindowTextW(progress_label, L"The following programs are preventing Streamlabs OBS from updating :");
 	SetWindowTextW(blockers_list, L"");
+
+	SetWindowPos(frame, 0, 0, 0, width, height + ui_basic_height + ui_padding, SWP_NOMOVE | SWP_NOREPOSITION | SWP_ASYNCWINDOWPOS);
+
+	ShowWindow(blockers_list, SW_SHOW);
+	ShowWindow(kill_button, SW_SHOW);
+	ShowWindow(cancel_button, SW_SHOW);
 }
 
-void callbacks_impl::blocker_waiting_for(const std::wstring & processes_list)
+int callbacks_impl::blocker_waiting_for(const std::wstring & processes_list, bool list_changed)
 {
-	SetWindowTextW(blockers_list, processes_list.c_str());
+	int ret = 0;
+	if (list_changed)
+	{
+		SetWindowTextW(blockers_list, processes_list.c_str());
+	}
+
+	if (should_cancel)
+	{
+		should_cancel = false;
+		ret = 2;
+	} else if (should_kill_blockers)
+	{
+		should_kill_blockers = false;
+		ret = 1;
+	}
+	return ret;
 }
 
 void callbacks_impl::blocker_wait_complete()
 {
 	ShowWindow(blockers_list, SW_HIDE);
-	ShowWindow(progress_worker, SW_SHOW);
+	ShowWindow(kill_button, SW_HIDE);
+	ShowWindow(cancel_button, SW_HIDE);
 	SetWindowTextW(blockers_list, L"");
+	SetWindowTextW(progress_label, L"");
+
+	ShowWindow(progress_worker, SW_SHOW);
+
+	SetWindowPos(frame, 0, 0, 0, width, height, SWP_NOMOVE | SWP_NOREPOSITION | SWP_ASYNCWINDOWPOS);
 }
 
 void callbacks_impl::updater_start()
@@ -643,16 +686,40 @@ LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 		break;
 	}
-	case WM_CTLCOLORSTATIC:
+	case WM_COMMAND:
+	{
 		LONG_PTR user_data = GetWindowLongPtr(hwnd, GWLP_USERDATA);
 		auto ctx = reinterpret_cast<callbacks_impl *>(user_data);
-		
+
+		if ((HWND)lParam == ctx->kill_button)
+		{
+			EnableWindow(ctx->kill_button, false);
+			ctx->should_kill_blockers = true;
+			break;
+		}
+		if ((HWND)lParam == ctx->cancel_button)
+		{
+			EnableWindow(ctx->kill_button, false);
+			EnableWindow(ctx->cancel_button, false);
+			ctx->should_kill_blockers = false;
+			ctx->should_cancel = true;
+			break;
+		}
+	}
+		break;
+	case WM_CTLCOLORSTATIC:
+	{
+		LONG_PTR user_data = GetWindowLongPtr(hwnd, GWLP_USERDATA);
+		auto ctx = reinterpret_cast<callbacks_impl *>(user_data);
+
 		if ((HWND)lParam != ctx->blockers_list)
 		{
 			SetTextColor((HDC)wParam, RGB(255, 255, 255));
 			SetBkMode((HDC)wParam, TRANSPARENT);
 			return (LRESULT)GetStockObject(HOLLOW_BRUSH);
-		}		
+		}
+	}
+	break;
 	}
 
 	return DefWindowProc(hwnd, msg, wParam, lParam);
