@@ -41,6 +41,7 @@ const size_t file_buffer_size = 4096;
 #include "logger/log.h"
 
 #include "update-client-internal.hpp"
+#include "update-http-request.hpp"
 
 const std::string failed_to_revert_message = "Failed to move files.\nPlease make sure the application files are not in use and try again.";
 const std::string failed_to_update_message = "Failed to move files.\nPlease make sure the application files are not in use and try again.";
@@ -266,85 +267,6 @@ void FileUpdater::revert()
 	{
 		wlog_warn(L"Revert have failed to correctly revert some files. Fails: %i", error_count);
 	}
-}
-
-// limit response_buf buffer size so together with deadline timeout 
-// it will create low speed limit for download 
-// 4kb in 4 seconds is somewhere of old modems 
-// and be recognized as stuck connection
-
-template <class Body, bool IncludeVersion>
-update_client::http_request<Body, IncludeVersion>::http_request(update_client *client_ctx, const std::string &target, const int id) :
-	worker_id(id),
-	client_ctx(client_ctx),
-	target(target),
-	ssl_socket(client_ctx->io_ctx, client_ctx->ssl_context),
-	response_buf(file_buffer_size), // see reasons above ^
-	deadline(client_ctx->io_ctx)
-{
-	std::string full_target;
-
-	if (IncludeVersion)
-	{
-		full_target = fmt::format("{}/{}/{}", client_ctx->params->host.path, client_ctx->params->version, target);
-	}
-	else {
-		full_target = fmt::format("{}/{}", client_ctx->params->host.path, target);
-	}
-
-	request = { http::verb::get, full_target, 11 };
-
-	request.set(http::field::host, client_ctx->params->host.authority);
-
-	request.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
-
-	response_parser.body_limit(std::numeric_limits<unsigned long long>::max());
-
-	deadline.expires_at(boost::posix_time::pos_infin);
-}
-
-template<class Body, bool IncludeVersion>
-update_client::http_request<Body, IncludeVersion>::~http_request()
-{
-	deadline.cancel();
-}
-
-template<class Body, bool IncludeVersion>
-void update_client::http_request<Body, IncludeVersion>::check_deadline_callback_err(const boost::system::error_code& error)
-{
-	if (error)
-	{
-		if (error == boost::asio::error::operation_aborted)
-		{
-			return;
-		}
-		else {
-			log_error("File download operation deadline error %i", error.value());
-			return;
-		}
-	}
-
-	if (deadline.expires_at() <= boost::asio::deadline_timer::traits_type::now())
-	{
-		log_info("Timeout for file download operation trigered.");
-		deadline_reached = true;
-
-		boost::system::error_code ignored_ec;
-		ssl_socket.lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored_ec);
-
-		deadline.expires_at(boost::posix_time::pos_infin);
-	}
-	else {
-		// Put the actor back to sleep.
-		deadline.async_wait(bind(&update_client::http_request<Body, IncludeVersion>::check_deadline_callback_err, this, std::placeholders::_1));
-	}
-}
-
-template<class Body, bool IncludeVersion>
-void update_client::http_request<Body, IncludeVersion>::set_deadline()
-{
-	deadline.expires_from_now(boost::posix_time::seconds(deadline_default_timeout));
-	check_deadline_callback_err(make_error_code(boost::system::errc::success));
 }
 
 void update_client::start_file_update()
@@ -1280,8 +1202,7 @@ void update_client::handle_file_handshake(const boost::system::error_code& error
 void update_client::handle_file_connect(const boost::system::error_code &error, const tcp::endpoint &ep, file_request<http::dynamic_body> *request_ctx)
 {
 	request_ctx->deadline.cancel();
-
-
+	
 	if (update_canceled)
 	{
 		handle_file_download_canceled(request_ctx);

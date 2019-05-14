@@ -26,33 +26,12 @@ find_package(Boost
 		date_time
 )
 
+file(GLOB_RECURSE SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cc ${PROJECT_SOURCE_DIR}/src/*/*.c ${PROJECT_SOURCE_DIR}/src/*/*.cpp)
+#file(GLOB_RECURSE SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cc ${PROJECT_SOURCE_DIR}/src/*.hpp ${PROJECT_SOURCE_DIR}/src/*/*.c ${PROJECT_SOURCE_DIR}/src/*/*.cpp ${PROJECT_SOURCE_DIR}/src/*/*.h)
+
 add_executable(slobs-updater
 	WIN32
-	src/main.cc
-	src/update-parameters.hpp
-	src/update-blockers.cc src/update-blockers.hpp 
-	src/cli-parser.cc src/cli-parser.hpp
-	src/uri-parser.cc src/uri-parser.hpp
-	src/update-client.cc src/update-client-internal.hpp src/update-client.hpp
-	src/crash-reporter.cc src/crash-reporter.hpp
-
-	# argtable
-	src/argtable/argtable3.c src/argtable/argtable3.h
-
-	# fmt
-	src/fmt/format.cc
-	src/fmt/posix.cc
-	src/fmt/fmt/format.h
-	src/fmt/fmt/core.h
-	src/fmt/fmt/format-inl.h
-
-	# boost iostreams
-	src/iostreams/gzip.cpp
-	src/iostreams/zlib.cpp
-	src/checksum-filters.hpp
-
-	# logger
-	src/logger/log.c src/logger/log.h
+	${SRC_FILES}
 )
 
 if (USE_STREAMLABS_RESOURCE)

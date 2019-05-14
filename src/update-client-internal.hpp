@@ -1,5 +1,5 @@
 #pragma once
-
+#include "update-http-request.hpp"
 
 /*##############################################
  *#
@@ -19,19 +19,16 @@ struct manifest_entry_t
 };
 
 struct update_client {
-	template <class Body, bool IncludeVersion>
-	struct http_request;
-
 	struct file;
 	struct pid;	
 
 	using manifest_body = http::basic_dynamic_body<beast::flat_buffer>;
 
 	template <class Body>
-	using manifest_request = http_request<Body, false>;
+	using manifest_request = update_http_request<Body, false>;
 
 	template <class Body>
-	using file_request = http_request<Body, true>;
+	using file_request = update_http_request<Body, true>;
 
 	template <class Type>
 	using executor_work_guard = asio::executor_work_guard<Type>;
@@ -144,46 +141,6 @@ private:
 
 	void create_work();
 	void reset_work();
-};
-
-template <class Body, bool IncludeVersion>
-struct update_client::http_request
-{
-	http_request(update_client *client_ctx, const std::string &target, const int id);
-	~http_request();
-
-	size_t download_accum{ 0 };
-	size_t content_length{ 0 };
-	int worker_id;
-	update_client *client_ctx;
-	std::string target;
-
-
-	/* We used to support http and then I realized
-	 * I was spending a lot of time supporting both.
-	 * Our use case doesn't use it and boost doesn't
-	 * allow any convenience to allow using them
-	 * interchangeably. Really, my suggestion is that
-	 * you should be using ssl regardless anyways. */
-	ssl::stream<tcp::socket> ssl_socket;
-
-	http::request<http::empty_body> request;
-
-	beast::multi_buffer response_buf;
-	http::response_parser<Body> response_parser;
-
-	/* We need way to detect stuck connection.
-	*  For that we use boost deadline timer what can limit
-	*  time for each step of file downloader connection.
-	*  Also it limits a recieve buffer so a timer limit a too slow fill of the buffer.
-	*/
-	boost::asio::deadline_timer deadline;
-	int deadline_default_timeout = 5;
-	bool deadline_reached = false;
-	int retries = 0;
-
-	void check_deadline_callback_err(const boost::system::error_code& error);
-	void set_deadline();
 };
 
 struct FileUpdater
