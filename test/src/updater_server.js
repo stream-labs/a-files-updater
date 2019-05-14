@@ -51,6 +51,15 @@ exports.start_https_update_server = function (testinfo) {
       do_block = false;
     }
 
+    if( testinfo.let_block_manifest && req.url == "//0.11.9-preview.1.sha256")
+    {
+      do_block = true;
+      if(!testinfo.let_block_one_file )
+      {
+        testinfo.let_block_manifest = false;
+      }
+    }
+
     if( do_block )
     {
       have_trouble = have_trouble + 1;
