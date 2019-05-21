@@ -15,6 +15,7 @@
 #include <boost/iostreams/device/file_descriptor.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/traits.hpp>
+#include <boost/exception/all.hpp>
 
 #include <fmt/format.h>
 #include <aclapi.h>
@@ -49,6 +50,7 @@ const std::string failed_connect_to_server_message = "Failed to connect to updat
 const std::string update_was_canceled_message = "Update was canceled.";
 const std::string blocked_file_message = "Failed to move files.\nSome files may be blocked by other program. Please restart your PC and try to update again.";
 const std::string locked_file_message = "Failed to move files.\nSome files could not be updated. Please download SLOBS installer from our site and run full installation.";
+const std::string failed_boost_file_operation_message = "Failed to move files.\nSome files could not be updated. Please download SLOBS installer from our site and run full installation.";
 const std::string restart_or_install_message = "Streamlabs OBS encountered an issue while downloading the update. \nPlease restart the application to finish updating. \nIf the issue persists, please download a new installer from www.streamlabs.com.";
 
 /*##############################################
@@ -91,8 +93,6 @@ FileUpdater::FileUpdater(update_client *client_ctx)
 	m_app_dir(client_ctx->params->app_dir)
 {
 	m_old_files_dir /= "old-files";
-
-	fs::create_directories(m_old_files_dir);
 }
 
 FileUpdater::~FileUpdater()
@@ -108,6 +108,8 @@ FileUpdater::~FileUpdater()
 
 void FileUpdater::update()
 {
+	fs::create_directories(m_old_files_dir);
+
 	update_client::manifest_map_t::iterator iter;
 	update_client::manifest_map_t &manifest = m_client_ctx->manifest;
 
@@ -271,7 +273,7 @@ void FileUpdater::revert()
 
 void update_client::start_file_update()
 {
-	log_debug("Files downloaded and ready to start update.");
+	log_info("Files downloaded and ready to start update.");
 
 	FileUpdater updater(this);
 	bool updated = false;
@@ -279,7 +281,7 @@ void update_client::start_file_update()
 	try {
 		updater.update();
 
-		log_debug("Finished updating files without errors.");
+		log_info("Finished updating files without errors.");
 		client_events->success();
 		updated = true;
 	}
@@ -290,7 +292,7 @@ void update_client::start_file_update()
 	if (!updated)
 	{
 		bool reverted = true;
-		log_debug("Got error while updating files. Have to revert.");
+		log_info("Got error while updating files. Have to revert.");
 		try {
 			updater.revert();
 			reverted = true;
@@ -308,6 +310,7 @@ void update_client::start_file_update()
 			client_events->error(failed_to_update_message.c_str());
 		}
 	}
+	reset_work();
 }
 
 struct update_client::pid
@@ -368,6 +371,8 @@ inline void update_client::handle_network_error(const boost::system::error_code 
 	snprintf(error_buf, sizeof(error_buf), "%s - %s\0", str, error.message().c_str());
 
 	log_error(error_buf);
+
+	reset_work();
 }
 
 void update_client::handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code & error, const char * str)
@@ -480,7 +485,7 @@ update_client::update_client(struct update_parameters *params)
 
 	const unsigned num_workers = std::thread::hardware_concurrency();
 
-	work = new work_guard_type(asio::make_work_guard(io_ctx));
+	create_work();
 
 	for (unsigned i = 0; i < num_workers; ++i)
 	{
@@ -529,8 +534,6 @@ void update_client::do_stuff()
 	client_events->initialize();
 
 	resolver.async_resolve( params->host.authority, params->host.scheme, cb );
-
-	reset_work();
 }
 
 /*##############################################
@@ -597,7 +600,18 @@ bool update_client::clean_manifest(blockers_map_t &blockers)
 		{
 			if (!manifest_iter->second.compared_to_local)
 			{
-				std::string checksum = calculate_checksum(entry);
+				std::string checksum = "";
+				try {
+					std::string checksum = calculate_checksum(entry);
+				}
+				catch (const boost::exception &e)
+				{
+					log_warn("Failed to calculate checksum of local file. Try to update it. Exception: %s", boost::diagnostic_information(e).c_str());
+				}
+				catch (const std::exception &e)
+				{
+					log_warn("Failed to calculate checksum of local file. Try to update it. std::exception: %s", e.what());
+				}
 
 				/* If the checksum is the same as in the manifest,
 				 * remove it from the manifest entirely, there's no need
@@ -709,6 +723,11 @@ void update_client::process_manifest_results()
 	catch (update_exception_failed& error)
 	{
 		client_events->error(locked_file_message.c_str());
+		return;
+	}
+	catch (...)
+	{
+		client_events->error(failed_boost_file_operation_message.c_str());
 		return;
 	}
 
