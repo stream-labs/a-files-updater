@@ -30,7 +30,7 @@ exports.gettestinfo = function (testname) {
     let_5sec : false,
     let_15sec : false,
     max_trouble : 20,
-
+    let_block_manifest: false,
     let_block_one_file : false,
     block_file_number : 10,
     

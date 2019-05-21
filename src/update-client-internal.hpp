@@ -1,5 +1,5 @@
 #pragma once
-
+#include "update-http-request.hpp"
 
 /*##############################################
  *#
@@ -18,20 +18,29 @@ struct manifest_entry_t
 	}
 };
 
-struct update_client {
-	template <class Body, bool IncludeVersion>
-	struct http_request;
+struct update_file_t {
+	fs::path file_path;
+	fs::ofstream file_stream;
+	bio::gzip_decompressor decompress_filter;
+	sha256_filter checksum_filter;
 
-	struct file;
+	bio::chain<bio::output> output_chain;
+
+	explicit update_file_t(const fs::path &path);
+};
+
+void handle_file_response_buffer(update_file_t *file_ctx, const asio::const_buffer &buffer);
+
+fs::path generate_file_path(const fs::path &base, const fs::path &target);
+
+struct update_client {
 	struct pid;	
 
-	using manifest_body = http::basic_dynamic_body<beast::flat_buffer>;
+	template <class Body>
+	using manifest_request = update_http_request<Body, false>;
 
 	template <class Body>
-	using manifest_request = http_request<Body, false>;
-
-	template <class Body>
-	using file_request = http_request<Body, true>;
+	using file_request = update_http_request<Body, true>;
 
 	template <class Type>
 	using executor_work_guard = asio::executor_work_guard<Type>;
@@ -95,43 +104,27 @@ struct update_client {
 	std::string				 cancel_message;
 	boost::system::error_code cancel_error;
 
-private:
+public:
 	inline void handle_network_error(const boost::system::error_code &error, const char* str);
 	void handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code &error, const char* str);
 	void handle_file_download_canceled(file_request<http::dynamic_body> *request_ctx);
 
-	void start_downloader();
+	void handle_manifest_download_error(manifest_request<manifest_body> *request_ctx, const boost::system::error_code & error, const char * str);
+	void handle_manifest_download_canceled(manifest_request<manifest_body>* request_ctx);
+
 	//manifest 
 	void handle_resolve(const boost::system::error_code &error, tcp::resolver::results_type results);
 
-	void handle_manifest_connect(const boost::system::error_code &error, const tcp::endpoint &ep, manifest_request<manifest_body> *request_ctx);
+	void handle_manifest_result(manifest_request<manifest_body> *request_ctx);
 
-	void handle_manifest_handshake(const boost::system::error_code &error, manifest_request<manifest_body> *request_ctx);
-
-	void handle_manifest_request(boost::system::error_code &error, size_t bytes, manifest_request<manifest_body> *request_ctx);
-
-	void handle_manifest_response(boost::system::error_code &ec, size_t bytes, manifest_request<manifest_body> *request_ctx);
-
-	void handle_manifest_results();
+	void process_manifest_results();
 
 	bool clean_manifest(blockers_map_t &blockers);
 
 	//files
 	void start_downloading_files();
 
-	void handle_manifest_entry(file_request<http::dynamic_body> *request_ctx);
-
-	void handle_file_connect(const boost::system::error_code &error, const tcp::endpoint &ep, file_request<http::dynamic_body> *request_ctx);
-
-	void handle_file_handshake(const boost::system::error_code& error, file_request<http::dynamic_body> *request_ctx);
-
-	void handle_file_request(boost::system::error_code &error, size_t bytes, file_request<http::dynamic_body> *request_ctx);
-
-	void handle_file_response_header(boost::system::error_code &error, size_t bytes, file_request<http::dynamic_body> *request_ctx);
-
-	void handle_file_response_body(boost::system::error_code &error, size_t bytes_read, file_request<http::dynamic_body> *request_ctx, update_client::file *file_ctx);
-
-	void handle_file_result(update_client::file *file_ctx, int index);
+	void handle_file_result(file_request<http::dynamic_body> *request_ctx, update_file_t *file_ctx, int index);
 
 	void next_manifest_entry(int index);
 
@@ -144,46 +137,6 @@ private:
 
 	void create_work();
 	void reset_work();
-};
-
-template <class Body, bool IncludeVersion>
-struct update_client::http_request
-{
-	http_request(update_client *client_ctx, const std::string &target, const int id);
-	~http_request();
-
-	size_t download_accum{ 0 };
-	size_t content_length{ 0 };
-	int worker_id;
-	update_client *client_ctx;
-	std::string target;
-
-
-	/* We used to support http and then I realized
-	 * I was spending a lot of time supporting both.
-	 * Our use case doesn't use it and boost doesn't
-	 * allow any convenience to allow using them
-	 * interchangeably. Really, my suggestion is that
-	 * you should be using ssl regardless anyways. */
-	ssl::stream<tcp::socket> ssl_socket;
-
-	http::request<http::empty_body> request;
-
-	beast::multi_buffer response_buf;
-	http::response_parser<Body> response_parser;
-
-	/* We need way to detect stuck connection.
-	*  For that we use boost deadline timer what can limit
-	*  time for each step of file downloader connection.
-	*  Also it limits a recieve buffer so a timer limit a too slow fill of the buffer.
-	*/
-	boost::asio::deadline_timer deadline;
-	int deadline_default_timeout = 5;
-	bool deadline_reached = false;
-	int retries = 0;
-
-	void check_deadline_callback_err(const boost::system::error_code& error);
-	void set_deadline();
 };
 
 struct FileUpdater
