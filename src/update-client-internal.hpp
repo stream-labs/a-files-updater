@@ -1,5 +1,6 @@
 #pragma once
 #include "update-http-request.hpp"
+#include <unordered_map>
 
 /*##############################################
  *#

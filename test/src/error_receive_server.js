@@ -73,5 +73,7 @@ exports.start_crash_report_server = function (testinfo) {
 }
 
 exports.stop_crash_report_server = function () {
+    proxy.close();
+    proxyServer.close();
     server.close()
 }
