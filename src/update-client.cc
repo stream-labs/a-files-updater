@@ -320,23 +320,26 @@ struct update_client::pid
 	asio::windows::object_handle wrapper;
 
 	pid(asio::io_context &ctx, HANDLE hProcess);
+	~pid();
 };
 
 update_client::pid::pid(asio::io_context &io_ctx, HANDLE hProcess) : wrapper(io_ctx, hProcess)
+{}
+
+update_client::pid::~pid()
 {
+	wrapper.cancel();
 }
 
-void update_client::handle_pid(const boost::system::error_code& error, update_client::pid* context)
+void update_client::handle_pid(const boost::system::error_code& error, int pid_id)
 {
-	pid_events->pid_wait_finished(context->id);
+	pid_events->pid_wait_finished(pid_id);
 
 	if (--active_pids == 0)
 	{
 		pid_events->pid_wait_complete();
 		process_manifest_results();
 	}
-
-	delete context;
 }
 
 void update_client::handle_pids()
@@ -347,17 +350,21 @@ void update_client::handle_pids()
 	{
 		process_manifest_results();
 	}
-
+	
 	for (auto iter = params->pids.begin(); iter != params->pids.end(); ++iter)
 	{
 		HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, (DWORD)*iter);
+		if(hProcess)
+		{
+			pid_events->pid_waiting_for(*iter);
 
-		pid_events->pid_waiting_for(*iter);
+			update_client::pid *pid_ctx = new update_client::pid(io_ctx, hProcess);
+			// todo have to save them to be able to cancel 
+			pid_ctx->id = *iter;
+			pid_ctx->wrapper.async_wait([this, pid_ctx](auto ec) { this->handle_pid(ec, pid_ctx->id); });
 
-		update_client::pid *pid_ctx = new update_client::pid(io_ctx, hProcess);
-		// todo have to save them to be able to cancel 
-		pid_ctx->id = *iter;
-		pid_ctx->wrapper.async_wait([this, pid_ctx](auto ec) { this->handle_pid(ec, pid_ctx); });
+			pids_waiters.push_back(pid_ctx);
+		}
 	}
 }
 
@@ -633,11 +640,24 @@ bool update_client::clean_manifest(blockers_map_t &blockers)
 	return true;
 }
 
+std::mutex manifest_result_mutex;
+
 void update_client::process_manifest_results()
 {
-	// todo need mutex to handle case where both timer and pid wait was activated 
+	std::unique_lock<std::mutex> lock(manifest_result_mutex, std::try_to_lock);
+	if (!lock.owns_lock())
+	{
+		return;
+	}
+
 	wait_for_blockers.cancel();
 	wait_for_blockers.expires_from_now(boost::posix_time::pos_infin);
+
+	for ( auto pid_context : pids_waiters)
+	{
+		delete pid_context;
+	}
+	pids_waiters.clear();
 
 	try
 	{
@@ -835,11 +855,8 @@ void update_client::handle_manifest_result(manifest_request<manifest_body> *requ
 	wait_for_blockers.expires_from_now(boost::posix_time::seconds(2));
 	wait_for_blockers.async_wait(boost::bind(&update_client::process_manifest_results, this));
 
-	if (0) //use simple timeout 
-	{
-		/*  make sure that SLOBS process not blocking files from updatating before start of download  */
-		handle_pids();
-	}
+	/* let time for SLOBS process to quit and make files available for update */
+	handle_pids();
 };
 
 /*
