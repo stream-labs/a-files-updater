@@ -1,7 +1,6 @@
 #include <chrono>
 
 #include <windows.h>
-#include <shellapi.h>
 #include <CommCtrl.h>
 #include <functional>
 #include <numeric>
@@ -12,14 +11,17 @@
 
 #include "cli-parser.hpp"
 #include "update-client.hpp"
-#include "logger/log.h"
+#include "logger/log.h" 
 #include "crash-reporter.hpp"
+#include "utils.hpp"
 
 namespace fs = boost::filesystem;
 namespace chrono = std::chrono;
 
 using chrono::high_resolution_clock;
 using chrono::duration_cast;
+
+struct update_parameters params;
 
 /* Some basic constants that are adjustable at compile time */
 const double average_bw_time_span = 250;
@@ -28,7 +30,6 @@ const int max_bandwidth_in_average = 8;
 const int ui_padding = 10;
 const int ui_basic_height = 40;
 
-struct update_parameters params;
 bool update_completed = false;
 
 void ShowError(LPCWSTR lpMsg)
@@ -47,206 +48,11 @@ void ShowInfo(LPCWSTR lpMsg)
 	}
 }
 
-/* Because Windows doesn't provide us a Unicode
- * command line by default and the command line
- * it does provide us is in UTF-16LE. */
-struct MultiByteCommandLine {
-	MultiByteCommandLine();
-	~MultiByteCommandLine();
-
-	MultiByteCommandLine(const MultiByteCommandLine&) = delete;
-	MultiByteCommandLine(MultiByteCommandLine&&) = delete;
-	MultiByteCommandLine &operator=(const MultiByteCommandLine&) = delete;
-	MultiByteCommandLine &operator=(MultiByteCommandLine&&) = delete;
-
-	LPSTR *argv() { return m_argv; };
-	int argc() { return m_argc; };
-
-private:
-	int m_argc{ 0 };
-	LPSTR *m_argv{ nullptr };
-};
-
-MultiByteCommandLine::MultiByteCommandLine()
-{
-	LPWSTR lpCommandLine = GetCommandLineW();
-	LPWSTR *wargv = CommandLineToArgvW(lpCommandLine, &m_argc);
-	m_argv = new LPSTR[m_argc];
-
-	/* The glory of using an unreliably sized byte
-	 * type to hold a 2-byte codepoint that practically
-	 * no one in the universe wants to actaully use.
-	 * If there's one thing I'd like Microsoft to
-	 * change, it's their shitty integration with
-	 * UTF-16LE (or UCS-2 as they call it).
-	 * Anyways... this converts each UTF-16LE string
-	 * to UTF-8 (or something it understands). */
-	for (int i = 0; i < m_argc; ++i)
-	{
-		DWORD size = WideCharToMultiByte(CP_UTF8, 0, wargv[i], -1, NULL, 0, NULL, NULL);
-
-		m_argv[i] = new CHAR[size];
-
-		size = WideCharToMultiByte(CP_UTF8, 0, wargv[i], -1, m_argv[i], size, NULL, NULL);
-	}
-
-	LocalFree(wargv);
-}
-
-MultiByteCommandLine::~MultiByteCommandLine()
-{
-	for (int i = 0; i < m_argc; ++i)
-	{
-		delete[] m_argv[i];
-	}
-
-	delete[] m_argv;
-}
-
-void LogLastError(LPCWSTR lpFunctionName)
-{
-	DWORD  dwError = GetLastError();
-	DWORD  szMsgBuf = 1024;
-	LPTSTR strMsgBuf = new wchar_t[szMsgBuf];
-
-	FormatMessageW( FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, dwError, 0, strMsgBuf, szMsgBuf, NULL );
-
-	wlog_debug(L"%s: %.*s", lpFunctionName, szMsgBuf, strMsgBuf);
-
-	delete[] strMsgBuf;
-}
-
-BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory)
-{
-	BOOL bSuccess;
-	DWORD dwShellProcId;
-	HANDLE hShellProc;
-	HANDLE hShellToken;
-	HANDLE hNewToken;
-	STARTUPINFO xStartupInfo = { 0 };
-	PROCESS_INFORMATION xProcInfo = { 0 };
-	HWND hwndShell = GetShellWindow();
-
-	if (hwndShell == NULL)
-		return FALSE;
-
-	GetWindowThreadProcessId(hwndShell, &dwShellProcId);
-
-	hShellProc = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, dwShellProcId);
-
-	if (hShellProc == NULL)
-	{
-		LogLastError(L"OpenProcess");
-		return FALSE;
-	}
-
-	bSuccess = OpenProcessToken(hShellProc, TOKEN_DUPLICATE, &hShellToken);
-
-	if (bSuccess == 0)
-	{
-		LogLastError(L"OpenProcessToken");
-		return FALSE;
-	}
-
-	bSuccess = DuplicateTokenEx(
-		hShellToken,
-		TOKEN_QUERY | TOKEN_ASSIGN_PRIMARY |
-		TOKEN_DUPLICATE | TOKEN_ADJUST_DEFAULT |
-		TOKEN_ADJUST_SESSIONID,
-		NULL,
-		SecurityImpersonation,
-		TokenPrimary,
-		&hNewToken
-	);
-
-	if (bSuccess == 0)
-	{
-		LogLastError(L"DuplicateTokenEx");
-		return FALSE;
-	}
-
-	bSuccess = CreateProcessWithTokenW(
-		hNewToken,
-		0, NULL,
-		lpCommandLine,
-		0, NULL,
-		lpWorkingDirectory,
-		&xStartupInfo,
-		&xProcInfo
-	);
-
-	if (bSuccess == 0)
-	{
-		LogLastError(L"CreateProcessWithTokenW");
-		return FALSE;
-	}
-
-	return TRUE;
-}
-
-static LPWSTR ConvertToUtf16(const char *from, int *from_size)
-{
-	int to_size = MultiByteToWideChar(CP_UTF8, 0, from, *from_size, NULL, 0);
-
-	auto to = new WCHAR[to_size];
-
-	int size = MultiByteToWideChar(CP_UTF8, 0, from, *from_size, to, to_size);
-
-	if (size == 0)
-	{
-		*from_size = 0;
-		LogLastError(L"MultiByteToWideChar");
-		return NULL;
-	}
-
-	*from_size = to_size;
-
-	return to;
-}
-
-BOOL StartApplication(const char *lpCommandLine, const char *lpWorkingDir)
-{
-	/* Convert UTF-8 command line back to UTF-16 */
-	int dwCLSize = -1;
-	LPWSTR lpWideCommandLine = ConvertToUtf16(lpCommandLine, &dwCLSize);
-	LPWSTR lpWideWorkingDir;
-	BOOL bSuccess = false;
-
-	dwCLSize = -1;
-
-	lpWideWorkingDir = ConvertToUtf16(lpWorkingDir, &dwCLSize);
-
-	bSuccess = StartApplication(lpWideCommandLine, lpWideWorkingDir);
-
-	delete lpWideCommandLine;
-	delete lpWideWorkingDir;
-
-	return bSuccess;
-}
-
 struct bandwidth_chunk {
 	high_resolution_clock::time_point time_point;
 	size_t chunk_size;
 };
 
-/* We cannot use the default WM_CLOSE since there
- * are various things outside of our control that
- * can send this event (such as right click and close).
- * However, we also cannot send a WM_DESTROY notification
- * either (it causes jank and unexpected behavior since
- * it's expected that DestroyWindow be called). So we
- * create a custom message type here and send it to be
- * executed in the main thread instead to properly call
- * DestroyWindow for us. */
-#define CUSTOM_CLOSE_MSG (WM_USER + 1)
-
- /* Same as above but this differentiates behavior.
-  * It allows us to assume there's an error and to
-  * handle that error before closing. */
-#define CUSTOM_ERROR_MSG (WM_USER + 2)
-
-#define CLS_PROGRESS_LABEL (1)
-#define CLS_BLOCKERS_LIST (2)
 
 static LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -541,7 +347,6 @@ void callbacks_impl::bandwidth_tick(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWOR
 	SetWindowTextW(ctx->progress_label, label.c_str());
 	SetTimer(hwnd, idEvent, average_bw_time_span, &bandwidth_tick);
 }
-
 
 void callbacks_impl::download_progress(int thread_index, size_t consumed, size_t accum)
 {

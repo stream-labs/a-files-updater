@@ -360,7 +360,7 @@ void update_client::handle_pids()
 	}
 }
 
-inline void update_client::handle_network_error(const boost::system::error_code & error, const char * str)
+void update_client::handle_network_error(const boost::system::error_code & error, const char * str)
 {
 	char error_buf[256];
 
@@ -961,12 +961,6 @@ void update_client::next_manifest_entry(int index)
 	request_ctx->start_connect();
 }
 
-void handle_file_response_buffer(update_file_t *file_ctx, const asio::const_buffer &buffer)
-{
-	file_ctx->output_chain.write((const char*)buffer.data(), buffer.size());
-}
-
-
 /*##############################################
  *#
  *# Template instances 
@@ -1034,7 +1028,7 @@ void update_http_request<http::dynamic_body, true>::start_reading()
 		this->handle_response_body(i, e, file_ctx);
 	};
 
-	set_deadline();
+	switch_deadline_on();
 
 	http::async_read_some(ssl_socket, response_buf, response_parser, read_handler);
 }
@@ -1046,7 +1040,7 @@ void update_http_request<manifest_body, false>::start_reading()
 		this->handle_response_body(i, e, nullptr);
 	};
 
-	set_deadline();
+	switch_deadline_on();
 
 	http::async_read(ssl_socket, response_buf, response_parser, read_handler);
 }
@@ -1054,22 +1048,9 @@ void update_http_request<manifest_body, false>::start_reading()
 template<>
 void update_http_request<http::dynamic_body, true>::handle_response_body(boost::system::error_code &error, size_t bytes_read, update_file_t *file_ctx)
 {
-	deadline.cancel();
-
-	if (client_ctx->update_canceled)
+	if (handle_callback_precheck(error, "get response body"))
 	{
 		delete file_ctx;
-
-		handle_download_canceled();
-		return;
-	}
-
-	if (error)
-	{
-		delete file_ctx;
-
-		std::string msg = fmt::format("Failed to get response body for: {}", target);
-		handle_download_error(error, msg.c_str());
 		return;
 	}
 
@@ -1077,7 +1058,7 @@ void update_http_request<http::dynamic_body, true>::handle_response_body(boost::
 
 	for (auto iter = asio::buffer_sequence_begin(body.data()); iter != asio::buffer_sequence_end(body.data()); ++iter)
 	{
-		handle_file_response_buffer(file_ctx, *iter);
+		file_ctx->output_chain.write((const char*)(*iter).data(), (*iter).size());
 	}
 
 	size_t consumed = asio::buffer_size(body.data());
@@ -1096,7 +1077,7 @@ void update_http_request<http::dynamic_body, true>::handle_response_body(boost::
 		this->handle_response_body(i, e, file_ctx);
 	};
 
-	set_deadline();
+	switch_deadline_on();
 
 	http::async_read_some(ssl_socket, response_buf, response_parser, read_handler);
 }
@@ -1104,18 +1085,8 @@ void update_http_request<http::dynamic_body, true>::handle_response_body(boost::
 template<>
 void update_http_request<manifest_body, false>::handle_response_body(boost::system::error_code &error, size_t bytes_read, update_file_t *file_ctx)
 {
-	deadline.cancel();
-
-	if (client_ctx->update_canceled)
+	if (handle_callback_precheck(error, "get response body"))
 	{
-		handle_download_canceled();
-		return;
-	}
-
-	if (error)
-	{
-		std::string msg = fmt::format("Failed to get response body for: {}", target);
-		handle_download_error(error, msg.c_str());
 		return;
 	}
 	
