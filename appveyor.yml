@@ -8,7 +8,7 @@ init:
 environment:
   ZLIB_DIST_NAME: zlib-1.2.11-static-mt
   OPENSSL_DIST_NAME: openssl-1.1.0h
-  BOOST_DIST_NAME: boost-vc141-1_68_0-bin
+  BOOST_DIST_NAME: boost-vc141-1_70_0-bin
   DEPS_DIST_URI: https://s3-us-west-2.amazonaws.com/streamlabs-obs-updater-deps/
   DEPS_LOCAL_PATH: C:\projects\slobs-updater-deps
   ZLIB_ROOT: $(DEPS_LOCAL_PATH)\$(ZLIB_DIST_NAME)
@@ -23,8 +23,6 @@ environment:
   matrix:
   - BUILD_TYPE: Release
   - BUILD_TYPE: Debug
-  - BUILD_TYPE: MinSizeRel
-  - BUILD_TYPE: RelWithDebInfo
 
 install:
   - nuget install secure-file -ExcludeVersion
