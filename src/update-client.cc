@@ -310,6 +310,7 @@ void update_client::start_file_update()
 			client_events->error(failed_to_update_message.c_str());
 		}
 	}
+
 	reset_work_threads_gurards();
 }
 
