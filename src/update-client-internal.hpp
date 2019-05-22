@@ -30,7 +30,7 @@ struct update_file_t {
 	explicit update_file_t(const fs::path &path);
 };
 
-fs::path generate_file_path(const fs::path &base, const fs::path &target);
+fs::path prepare_file_path(const fs::path &base, const fs::path &target);
 
 struct update_client {
 	struct pid;	
@@ -74,7 +74,7 @@ struct update_client {
 	io_context io_ctx;
 	update_parameters       *params;
 
-	work_guard_type         *work{ nullptr };
+	work_guard_type         *work_thread_guard{ nullptr };
 	fs::path                 new_files_dir;
 
 	client_callbacks        *client_events{ nullptr };
@@ -129,8 +129,8 @@ public:
 	//update 
 	void start_file_update();
 
-	void create_work();
-	void reset_work();
+	void create_work_threads_guards();
+	void reset_work_threads_gurards();
 };
 
 struct FileUpdater

@@ -286,13 +286,13 @@ void update_client::start_file_update()
 		updated = true;
 	}
 	catch (...) {
-		
+		log_info("Got error while updating files.");
 	}
 
 	if (!updated)
 	{
 		bool reverted = true;
-		log_info("Got error while updating files. Have to revert.");
+		log_info("Going to revert.");
 		try {
 			updater.revert();
 			reverted = true;
@@ -310,7 +310,7 @@ void update_client::start_file_update()
 			client_events->error(failed_to_update_message.c_str());
 		}
 	}
-	reset_work();
+	reset_work_threads_gurards();
 }
 
 struct update_client::pid
@@ -372,7 +372,7 @@ void update_client::handle_network_error(const boost::system::error_code & error
 
 	log_error(error_buf);
 
-	reset_work();
+	reset_work_threads_gurards();
 }
 
 void update_client::handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code & error, const char * str)
@@ -485,7 +485,7 @@ update_client::update_client(struct update_parameters *params)
 
 	const unsigned num_workers = std::thread::hardware_concurrency();
 
-	create_work();
+	create_work_threads_guards();
 
 	for (unsigned i = 0; i < num_workers; ++i)
 	{
@@ -498,22 +498,22 @@ update_client::update_client(struct update_parameters *params)
 
 update_client::~update_client()
 {
-	reset_work();
+	reset_work_threads_gurards();
 }
 
-void update_client::create_work()
+void update_client::create_work_threads_guards()
 {
-	work = new work_guard_type(asio::make_work_guard(io_ctx));
+	work_thread_guard = new work_guard_type(asio::make_work_guard(io_ctx));
 }
 
-void update_client::reset_work()
+void update_client::reset_work_threads_gurards()
 {
-	if (work == nullptr)
+	if (work_thread_guard == nullptr)
 		return;
 
-	work->reset();
-	delete work;
-	work = nullptr;
+	work_thread_guard->reset();
+	delete work_thread_guard;
+	work_thread_guard = nullptr;
 }
 
 void update_client::flush()
@@ -620,8 +620,7 @@ bool update_client::clean_manifest(blockers_map_t &blockers)
 				{
 					this->manifest.erase(manifest_iter);
 					continue;
-				}
-				else {
+				} else {
 					manifest_iter->second.compared_to_local = true;
 				}
 			}
@@ -871,15 +870,24 @@ update_file_t::update_file_t(const fs::path &file_path)
 	this->output_chain.push(boost::reference_wrapper< std::ofstream >(this->file_stream), file_buffer_size);
 }
 
-fs::path generate_file_path(const fs::path &base, const fs::path &target)
+fs::path prepare_file_path(const fs::path &base, const fs::path &target)
 {
 	fs::path file_path(base);
 	file_path /= target;
+	
+	file_path = fs::path(unfixup_uri(file_path.string()));
 
 	file_path.make_preferred();
 	file_path.replace_extension();
-
-	fs::create_directories(file_path.parent_path());
+	try 
+	{
+		fs::create_directories(file_path.parent_path());
+		
+		boost::filesystem::remove(file_path);
+	} catch (...)
+	{
+		file_path = "";
+	}
 
 	return file_path;
 }
@@ -908,7 +916,8 @@ void update_client::handle_file_result(file_request<http::dynamic_body> *request
 	/* We now have the file and the digest of both downloaded
 	 * file and the wanted file. Do a string comparison. If it
 	 * doesn't match, message and fail. */
-	 //calculate_checksum();
+
+	 //todo calculate_checksum();
 
 	delete file_ctx;
 	delete request_ctx;
@@ -1008,7 +1017,7 @@ void update_http_request<http::dynamic_body, true>::start_reading()
 {
 	client_ctx->downloader_events->download_file(worker_id, target, content_length);
 
-	fs::path file_path = generate_file_path(client_ctx->new_files_dir, fs::path(target));
+	fs::path file_path = prepare_file_path(client_ctx->new_files_dir, fs::path(target));
 
 	if (file_path.empty())
 	{
@@ -1017,12 +1026,7 @@ void update_http_request<http::dynamic_body, true>::start_reading()
 		return;
 	}
 
-	//check that we do not have file before writing in it 
-	auto file_boost_path = fs::path(unfixup_uri(file_path.string()));
-	boost::system::error_code ec;
-	boost::filesystem::remove(file_boost_path, ec);
-
-	auto file_ctx = new update_file_t(file_boost_path);
+	auto file_ctx = new update_file_t(file_path);
 
 	auto read_handler = [this, file_ctx](auto i, auto e) {
 		this->handle_response_body(i, e, file_ctx);
@@ -1053,17 +1057,28 @@ void update_http_request<http::dynamic_body, true>::handle_response_body(boost::
 		delete file_ctx;
 		return;
 	}
+	
+	size_t consumed = 0;
+	try {
+		auto &body = response_parser.get().body();
 
-	auto &body = response_parser.get().body();
+		for (auto iter = asio::buffer_sequence_begin(body.data()); iter != asio::buffer_sequence_end(body.data()); ++iter)
+		{
+			file_ctx->output_chain.write((const char*)(*iter).data(), (*iter).size());
+		}
 
-	for (auto iter = asio::buffer_sequence_begin(body.data()); iter != asio::buffer_sequence_end(body.data()); ++iter)
-	{
-		file_ctx->output_chain.write((const char*)(*iter).data(), (*iter).size());
+		consumed = asio::buffer_size(body.data());
+		body.consume(consumed);
+		download_accum += consumed;
+	} catch(...) {
+		delete file_ctx;
+
+		std::string msg = fmt::format("Failed to recieve file body correctly. for: {}", target);
+
+		handle_download_error(boost::asio::error::basic_errors::connection_aborted, msg.c_str());
+
+		return;
 	}
-
-	size_t consumed = asio::buffer_size(body.data());
-	body.consume(consumed);
-	download_accum += consumed;
 
 	client_ctx->downloader_events->download_progress(worker_id, consumed, download_accum);
 
