@@ -30,9 +30,7 @@ struct update_file_t {
 	explicit update_file_t(const fs::path &path);
 };
 
-void handle_file_response_buffer(update_file_t *file_ctx, const asio::const_buffer &buffer);
-
-fs::path generate_file_path(const fs::path &base, const fs::path &target);
+fs::path prepare_file_path(const fs::path &base, const fs::path &target);
 
 struct update_client {
 	struct pid;	
@@ -76,7 +74,7 @@ struct update_client {
 	io_context io_ctx;
 	update_parameters       *params;
 
-	work_guard_type         *work{ nullptr };
+	work_guard_type         *work_thread_guard{ nullptr };
 	fs::path                 new_files_dir;
 
 	client_callbacks        *client_events{ nullptr };
@@ -106,7 +104,7 @@ struct update_client {
 	boost::system::error_code cancel_error;
 
 public:
-	inline void handle_network_error(const boost::system::error_code &error, const char* str);
+	void handle_network_error(const boost::system::error_code &error, const char* str);
 	void handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code &error, const char* str);
 	void handle_file_download_canceled(file_request<http::dynamic_body> *request_ctx);
 
@@ -115,29 +113,24 @@ public:
 
 	//manifest 
 	void handle_resolve(const boost::system::error_code &error, tcp::resolver::results_type results);
-
 	void handle_manifest_result(manifest_request<manifest_body> *request_ctx);
-
 	void process_manifest_results();
-
 	bool clean_manifest(blockers_map_t &blockers);
 
 	//files
 	void start_downloading_files();
-
 	void handle_file_result(file_request<http::dynamic_body> *request_ctx, update_file_t *file_ctx, int index);
-
 	void next_manifest_entry(int index);
 
-	//update 
+	//wait for slobs close
 	void handle_pids();
-
 	void handle_pid(const boost::system::error_code& error, update_client::pid* contexts);
 
+	//update 
 	void start_file_update();
 
-	void create_work();
-	void reset_work();
+	void create_work_threads_guards();
+	void reset_work_threads_gurards();
 };
 
 struct FileUpdater

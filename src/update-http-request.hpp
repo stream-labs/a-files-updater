@@ -43,8 +43,9 @@ struct update_http_request
 	int retries = 0;
 
 	void check_deadline_callback_err(const boost::system::error_code& error);
-	void set_deadline();
+	void switch_deadline_on();
 
+	bool handle_callback_precheck(const boost::system::error_code& error, const std::string & message);
 	void handle_download_canceled();
 	void handle_download_error(const boost::system::error_code & error, const char * str);
 	void handle_result(update_file_t *file_ctx);
@@ -132,10 +133,32 @@ void update_http_request<Body, IncludeVersion>::check_deadline_callback_err(cons
 }
 
 template<class Body, bool IncludeVersion>
-void update_http_request<Body, IncludeVersion>::set_deadline()
+void update_http_request<Body, IncludeVersion>::switch_deadline_on()
 {
 	deadline.expires_from_now(boost::posix_time::seconds(deadline_default_timeout));
 	check_deadline_callback_err(make_error_code(boost::system::errc::success));
+}
+
+template<class Body, bool IncludeVersion>
+bool update_http_request<Body, IncludeVersion>::handle_callback_precheck(const boost::system::error_code& error, const std::string & message)
+{
+	deadline.cancel();
+
+	if (client_ctx->update_canceled)
+	{
+		handle_download_canceled();
+		return true;
+	}
+
+	if (error)
+	{
+		std::string msg = fmt::format("Failed to {}. for: {}", message, target);
+
+		handle_download_error(error, msg.c_str());
+		return true;
+	}
+
+	return false;
 }
 
 template<class Body, bool IncludeVersion>
@@ -145,7 +168,7 @@ void update_http_request<Body, IncludeVersion>::start_connect()
 		this->handle_connect(e, b);
 	};
 
-	set_deadline();
+	switch_deadline_on();
 
 	asio::async_connect(ssl_socket.lowest_layer(), client_ctx->endpoints, connect_handler);
 }
@@ -153,27 +176,16 @@ void update_http_request<Body, IncludeVersion>::start_connect()
 template<class Body, bool IncludeVersion>
 void update_http_request<Body, IncludeVersion>::handle_connect(const boost::system::error_code &error, const tcp::endpoint &ep)
 {
-	deadline.cancel();
-
-	if (client_ctx->update_canceled)
+	if(handle_callback_precheck(error, "connect to host"))
 	{
-		handle_download_canceled();
 		return;
-	}
-
-	if (error)
-	{
-		std::string msg = fmt::format("Failed to connect to host for: {}", target);
-
-		handle_download_error(error, msg.c_str());
-		return;
-	}
+	}	
 
 	auto handshake_handler = [this](auto e) {
 		this->handle_handshake(e);
 	};
 
-	set_deadline();
+	switch_deadline_on();
 
 	ssl_socket.async_handshake(ssl::stream_base::handshake_type::client, handshake_handler);
 }
@@ -181,19 +193,9 @@ void update_http_request<Body, IncludeVersion>::handle_connect(const boost::syst
 template<class Body, bool IncludeVersion>
 void update_http_request<Body, IncludeVersion>::handle_handshake(const boost::system::error_code& error)
 {
-	deadline.cancel();
 
-	if (client_ctx->update_canceled)
+	if (handle_callback_precheck(error, "make request handshake"))
 	{
-		handle_download_canceled();
-		return;
-	}
-
-	if (error)
-	{
-		std::string msg = fmt::format("Failed request handshake for: {}", target);
-
-		handle_download_error(error, msg.c_str());
 		return;
 	}
 
@@ -201,7 +203,7 @@ void update_http_request<Body, IncludeVersion>::handle_handshake(const boost::sy
 		this->handle_request(e, b);
 	};
 
-	set_deadline();
+	switch_deadline_on();
 
 	http::async_write(ssl_socket, request, request_handler);
 }
@@ -209,19 +211,8 @@ void update_http_request<Body, IncludeVersion>::handle_handshake(const boost::sy
 template<class Body, bool IncludeVersion>
 void update_http_request<Body, IncludeVersion>::handle_request(boost::system::error_code &error, size_t bytes )
 {
-	deadline.cancel();
-
-	if (client_ctx->update_canceled)
+	if (handle_callback_precheck(error, "make request"))
 	{
-		handle_download_canceled();
-		return;
-	}
-
-	if (error)
-	{
-		std::string msg = fmt::format("Failed on request for: {}", target);
-
-		handle_download_error(error, msg.c_str());
 		return;
 	}
 
@@ -229,7 +220,7 @@ void update_http_request<Body, IncludeVersion>::handle_request(boost::system::er
 		this->handle_response_header(i, e);
 	};
 
-	set_deadline();
+	switch_deadline_on();
 
 	http::async_read_header(ssl_socket, response_buf, response_parser, read_handler);
 }
@@ -237,19 +228,8 @@ void update_http_request<Body, IncludeVersion>::handle_request(boost::system::er
 template<class Body, bool IncludeVersion>
 void update_http_request<Body, IncludeVersion>::handle_response_header(boost::system::error_code &error, size_t bytes)
 {
-	deadline.cancel();
-
-	if (client_ctx->update_canceled)
+	if (handle_callback_precheck(error, "get response header"))
 	{
-		handle_download_canceled();
-		return;
-	}
-
-	if (error)
-	{
-		std::string msg = fmt::format("Failed response header for: {}", target);
-
-		handle_download_error(error, msg.c_str());
 		return;
 	}
 
@@ -283,4 +263,3 @@ void update_http_request<Body, IncludeVersion>::handle_response_header(boost::sy
 
 	start_reading();
 }
-
