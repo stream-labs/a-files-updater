@@ -610,7 +610,7 @@ bool update_client::clean_manifest(blockers_map_t &blockers)
 			{
 				std::string checksum = "";
 				try {
-					std::string checksum = calculate_checksum(entry);
+					checksum = calculate_checksum(entry);
 				}
 				catch (const boost::exception &e)
 				{

@@ -26,15 +26,15 @@ async function run_tests() {
         //testinfo.expectedResult = "filesnotchanged"
         //testinfo.manifestGenerated = false;
         testinfo = test_config.gettestinfo(" // test for manual use ");
-        //testinfo.let_5sec = true;
+        testinfo.let_5sec = true;
         //testinfo.runAsInteractive = 1;
-        //testinfo.morebigfiles = true;
+        testinfo.morebigfiles = true;
         //testinfo.selfBlockersCount = 5;
         //testinfo.selfBlockingFile = true;
-        testinfo.pidWaiting = true;
-        testinfo.selfBlockingFile = true;
-        testinfo.selfBlockersCount = 3;
-        testinfo.let_15sec = true;
+        //testinfo.pidWaiting = true;
+        //testinfo.selfBlockingFile = true;
+        //testinfo.selfBlockersCount = 3;
+        //testinfo.let_15sec = true;
         //testinfo.let_block_manifest = true;
         //testinfo.selfLockingFile = true;
 
