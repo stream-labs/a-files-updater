@@ -59,7 +59,7 @@ exports.gettestinfo = function (testname) {
   newinfo.resultDir = path.join(testfilesDir, "result")
   newinfo.reporterDir = path.join(testfilesDir, "crash_reports")
 
-  newinfo.updaterDir = path.join(__dirname, "..", "..", "build", "Debug")
+  newinfo.updaterDir = path.join(__dirname, "..", "..", "build_1_70", "Debug")
   
   
 

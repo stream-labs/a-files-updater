@@ -17,7 +17,7 @@ find_package(ZLIB REQUIRED)
 find_package(OpenSSL 1.1.0 EXACT REQUIRED)
 
 find_package(Boost
-	1.68.0 EXACT
+	1.70.0 EXACT
 	REQUIRED
 	COMPONENTS
 		filesystem
@@ -25,6 +25,10 @@ find_package(Boost
 		system
 		date_time
 )
+	
+include(cppcheck)
+
+cppcheck(EXCLUDE "")
 
 file(GLOB_RECURSE SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cc ${PROJECT_SOURCE_DIR}/src/*/*.c ${PROJECT_SOURCE_DIR}/src/*/*.cpp)
 
@@ -91,9 +95,11 @@ target_compile_definitions(slobs-updater
 
 find_program(WIN_MT "mt.exe")
 
+
 if (NOT WIN_MT)
 	message(FATAL_ERROR "Failed to find mt.exe to embed manifest")
 endif ()
+cppcheck_add_project(slobs-updater)
 
 add_custom_command(
 	TARGET slobs-updater
