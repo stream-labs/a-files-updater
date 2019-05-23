@@ -11,7 +11,7 @@ const filecontentlines = 100;
 const hugefileincrese = 20;
 
 const selfblockingfile_server = "file_self_blocker_v1.exe";
-const selfblockingfile_init = "file_self_blocker_v5.exe";
+const selfblockingfile_init = "file_self_blocker_v6.exe";
 const selfblockingfile_name = "file_self_blocker";
 
 
@@ -155,20 +155,28 @@ async function put_file_blocking(testinfo, use_blocking_program, update_subdirpa
     fse.copySync(pathInResources, pathInTest);
 
     let arg1 = "";
+    let arg2 = "-t 24";
 
     if (testinfo.selfLockingFile) {
       arg1 = "-l";
     }
 
+    if (testinfo.pidWaiting) {
+      arg2 = "-t 2";
+    }
+
     if (need_to_launch) {
       let new_blocking_process = require('child_process').spawn(pathInTest, [
-        arg1, 'arg2', 'arg3',
+        arg1, arg2
       ], {
           detached: true,
           shell: true
         });
       console.log("Blocker process pid = " + new_blocking_process.pid);
       self_blocking_process.push(new_blocking_process);
+      if (testinfo.pidWaiting) {
+        testinfo.pidWaitingList.push(new_blocking_process.pid);
+      }
     }
   }
 }

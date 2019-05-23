@@ -85,6 +85,8 @@ struct update_client {
 
 	int                      active_workers{ 0 };
 	std::atomic_size_t       active_pids{ 0 };
+	std::list<update_client::pid *> pids_waiters;
+
 	manifest_map_t           manifest;
 	std::mutex               manifest_mutex;
 	manifest_map_t::const_iterator manifest_iterator;
@@ -124,7 +126,7 @@ public:
 
 	//wait for slobs close
 	void handle_pids();
-	void handle_pid(const boost::system::error_code& error, update_client::pid* contexts);
+	void handle_pid(const boost::system::error_code& error, int pid_id);
 
 	//update 
 	void start_file_update();
