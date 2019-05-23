@@ -15,6 +15,13 @@ exports.start_updater = async function (testinfo) {
     '--app-dir', `"${updateDirE}"`,
     '--force-temp'
   ];
+  if(testinfo.pidWaiting)
+  {
+    testinfo.pidWaitingList.forEach((pid) => {
+      updaterArgs.push('-p');
+      updaterArgs.push(pid);
+  });
+  }
   console.log(`SPAWN: args :\n${updaterArgs}`);
 
   const app_spawned = cp.spawn(`${updaterPath}`, updaterArgs, {

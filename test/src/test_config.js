@@ -21,6 +21,9 @@ exports.gettestinfo = function (testname) {
     selfBlockingFile: false,
     selfLockingFile: false,
     selfBlockersCount: 1,
+    
+    pidWaiting: false,
+    pidWaitingList: [],
 
     morebigfiles: false,
     
