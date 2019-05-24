@@ -22,7 +22,9 @@ exports.start_updater = async function (testinfo) {
       updaterArgs.push(pid);
   });
   }
-  console.log(`SPAWN: args :\n${updaterArgs}`);
+  
+  if(testinfo.more_log_output)
+    console.log(`SPAWN: args :\n${updaterArgs}`);
 
   const app_spawned = cp.spawn(`${updaterPath}`, updaterArgs, {
     cwd: testinfo.updaterDir,
@@ -46,7 +48,8 @@ exports.start_updater = async function (testinfo) {
 
   var promise = await Promise.race([primiseError, primiseExit]);
 
-  console.log(`SPAWN: promise: ${promise}`);
+  if(testinfo.more_log_output)
+    console.log(`SPAWN: promise: ${promise}`);
 
   app_spawned.unref();
 

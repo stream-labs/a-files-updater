@@ -12,6 +12,8 @@ exports.gettestinfo = function (testname) {
     versionName: "0.11.9-preview.1",
     updaterName: "slobs-updater.exe",
 
+    files: [],
+
     //posible errors to test
     serverStarted: true,
     manifestGenerated: true,
@@ -49,7 +51,10 @@ exports.gettestinfo = function (testname) {
     expectedResult: "filesupdated", // "filesnotchanged", ""
     expectedCrashReport: false,
     
-    not_keep_files: false
+    register_unnecesary_request : false,
+
+    not_keep_files: false,
+    more_log_output: false
   }
   newinfo.number = test_counter;
   test_counter = test_counter + 1;
@@ -64,7 +69,20 @@ exports.gettestinfo = function (testname) {
 
   newinfo.updaterDir = path.join(__dirname, "..", "..", "build_1_70", "Debug")
   
-  
+  newinfo.files = [ 
+    { name: "filea.exe",  hugefile: false, testing: "deleted empty" }, 
+    { name: "file1.exe",  hugefile: false, testing: "deleted" }, 
+    { name: "file2.txt",  hugefile: false, testing: "deleted" }, 
+    { name: "file2.jpeg", hugefile: false, testing: "same" }, 
+    { name: "file 2.svn", hugefile: false, testing: "same empty" }, 
+    { name: "resources/app.asar",  hugefile: true, testing: "changed content" }, 
+    { name: "test2.txt",  hugefile: false, testing: "changed content" }, 
+    { name: "dir/file3.zip",  hugefile: false, testing: "deleted" }, 
+    { name: "file4.log.txt",   hugefile: false, testing: "created" }, 
+    { name: "file5.1",   hugefile: false, testing: "created" }, 
+    { name: "file 1.txt",  hugefile: false, testing: "creted" }, 
+    { name: "dir/file6.ept",   hugefile: false, testing: "created empty" }, 
+  ];  
 
   console.log("Test created: " + newinfo.testName );
   return newinfo;

@@ -60,6 +60,40 @@ exports.start_https_update_server = function (testinfo) {
       }
     }
 
+    //check if file requested is from files that not changed and not have to be downloaded 
+    let requested_file = req.url.substring("//0.11.9-preview.1/".length, req.url.length-3);
+    requested_file = decodeURI(requested_file)
+
+    for(const update_file of testinfo.files) {
+      if( update_file.name == requested_file) {
+        let file_ok_to_update = true;
+        if(update_file.testing == "same") {
+          file_ok_to_update = false;
+        } else if(update_file.testing == "same empty") {
+          file_ok_to_update = false;
+        } else if(update_file.testing == "changed content") {
+          
+        } else if(update_file.testing == "made empty") {
+          
+        } else if(update_file.testing == "from empty") {
+          
+        } else if(update_file.testing == "created") {
+    
+        } else if(update_file.testing == "created empty") {
+        } else if(update_file.testing == "deleted") {
+          file_ok_to_update = false;
+        } else if(update_file.testing == "deleted empty") {
+          file_ok_to_update = false;
+        } 
+    
+        if(!file_ok_to_update)
+        {
+          console.log("Warning: Found requested file in testinfo.files as not changed - " + req.url);
+          testinfo.register_unnecesary_request = true;
+        }
+      }
+    }
+
     if( do_block )
     {
       have_trouble = have_trouble + 1;
@@ -92,7 +126,8 @@ exports.start_https_update_server = function (testinfo) {
         console.log("Will make this request delayed for "+test_timeout + "ms, " + req.url);
       }
     } else {
-      console.log("Will make this request delayed for "+test_timeout + "ms, " + req.url);
+      if(testinfo.more_log_output)
+        console.log("Will make this request delayed for "+test_timeout + "ms, " + req.url);
     }
 
     files_served = files_served + 1;
@@ -114,7 +149,8 @@ exports.start_https_update_server = function (testinfo) {
 
   server.listen(8443);
   
-  console.log('Update server emulator listening at https://' + 'localhost' + ':' + '443');
+  if(testinfo.more_log_output) 
+    console.log('Update server emulator listening at https://' + 'localhost' + ':' + '443');
 }
 
 exports.stop_https_update_server = function () {

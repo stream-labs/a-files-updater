@@ -9,10 +9,14 @@ const reporter_server = require('./error_receive_server.js');
 const updater_launcher = require('./updater_launcher.js');
 
 exports.test_update = async function (testinfo) {
-  console.log("--- Test files will be generated.");
-  await generate_files.generate_test_files(testinfo)
+  if(testinfo.more_log_output)
+    console.log("--- Test files will be generated.");
 
-  console.log("--- Test server will be started.");
+  await generate_files.generate_test_files(testinfo)
+  
+  if(testinfo.more_log_output)
+    console.log("--- Test server will be started.");
+
   if (testinfo.serverStarted) {
     updater_server.start_https_update_server(testinfo);
 
@@ -23,17 +27,25 @@ exports.test_update = async function (testinfo) {
     return 0;
   }
   
-  console.log("--- Ready to start updater.");
+  if(testinfo.more_log_output)
+    console.log("--- Ready to start updater.");
   try {
     let launched = await updater_launcher.start_updater(testinfo)
     let ret = 0;
 
     if (!generate_files.check_results(testinfo)) {
       ret = 1;
-      console.log("=== Test result: after updater files not as expected");
+      console.log("=== Test "+testinfo.number+" result: after updater files not as expected");
     } else {
-      console.log("=== Test result: files as expected");
+      if( testinfo.register_unnecesary_request > 0)
+      {
+        ret = 1;
+        console.log("=== Test "+testinfo.number+" result: unchanged files requested from server");
+      } else {
+        console.log("=== Test "+testinfo.number+" result: files as expected");
+      }
     }
+
 
     updater_server.stop_https_update_server();
     reporter_server.stop_crash_report_server();

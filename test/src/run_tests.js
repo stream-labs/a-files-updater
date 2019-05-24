@@ -4,7 +4,7 @@ const test_config = require('./test_config.js');
 const fse = require('fs-extra')
 const path = require('path');
 
-const run_one_test = true;
+const run_one_test = false;
 
 async function run_tests() {
     let testinfo;
@@ -26,9 +26,9 @@ async function run_tests() {
         //testinfo.expectedResult = "filesnotchanged"
         //testinfo.manifestGenerated = false;
         testinfo = test_config.gettestinfo(" // test for manual use ");
-        testinfo.let_5sec = true;
+        //testinfo.let_5sec = true;
         //testinfo.runAsInteractive = 1;
-        testinfo.morebigfiles = true;
+        //testinfo.morebigfiles = true;
         //testinfo.selfBlockersCount = 5;
         //testinfo.selfBlockingFile = true;
         //testinfo.pidWaiting = true;
@@ -37,6 +37,7 @@ async function run_tests() {
         //testinfo.let_15sec = true;
         //testinfo.let_block_manifest = true;
         //testinfo.selfLockingFile = true;
+        //testinfo.more_log_output = true;
 
         test_result = await run_test.test_update(testinfo);
         if (test_result != 0) {

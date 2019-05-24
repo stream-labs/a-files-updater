@@ -172,7 +172,9 @@ async function put_file_blocking(testinfo, use_blocking_program, update_subdirpa
           detached: true,
           shell: true
         });
-      console.log("Blocker process pid = " + new_blocking_process.pid);
+      if(testinfo.more_log_output)
+        console.log("Blocker process pid = " + new_blocking_process.pid);
+
       self_blocking_process.push(new_blocking_process);
       if (testinfo.pidWaiting) {
         testinfo.pidWaitingList.push(new_blocking_process.pid);
@@ -183,13 +185,34 @@ async function put_file_blocking(testinfo, use_blocking_program, update_subdirpa
 
 async function generate_server_dir(testinfo) {
   const update_subdirpath = path.join(testinfo.serverDir, testinfo.versionName)
-  await generate_file(update_subdirpath, "test2.txt", "new change")
-  await generate_file(update_subdirpath, "file2.jpeg")
-  await generate_file(update_subdirpath, "file4.log.txt")
-  await generate_file(update_subdirpath, "file5.1")
-  await generate_file(update_subdirpath, "resources\\app.asar")  
-  await generate_file(update_subdirpath, "file 1.txt")
-  await generate_file(update_subdirpath, "dir\\file6.ept", "", true)
+
+  for(const file of testinfo.files) {
+    let filecontentextended = "";
+    let fileempty = false;
+
+    if(file.testing == "same") {
+
+    } else if(file.testing == "same empty") {
+      fileempty = true;
+    } else if(file.testing == "changed content") {
+      filecontentextended = "new content"
+    } else if(file.testing == "made empty") {
+      fileempty = true;
+    } else if(file.testing == "from empty") {
+      fileempty = false;
+    } else if(file.testing == "created") {
+
+    } else if(file.testing == "created empty") {
+      fileempty = true;
+    } else if(file.testing == "deleted") {
+      continue;
+    } else if(file.testing == "deleted empty") {
+      continue;
+    } 
+
+    await generate_file(update_subdirpath, file.name, filecontentextended, fileempty, file.hugefile);
+  }
+  
 
   if (testinfo.morebigfiles) {
     let file_index;
@@ -213,22 +236,42 @@ async function generate_server_dir(testinfo) {
   if (testinfo.manifestGenerated) {
     await generate_manifest(testinfo)
   }
-
-  console.log("Finish generate_server_dir");
+  
+  if(testinfo.more_log_output)
+    console.log("Finish generate_server_dir");
 }
 
 async function generate_initial_dir(testinfo, update_subdirpath = "") {
   if (update_subdirpath == "") {
     update_subdirpath = testinfo.initialDir
   }
+  
+  for(const file of testinfo.files) {
+    let filecontentextended = "";
+    let fileempty = false;
 
-  await generate_file(update_subdirpath, "filea.exe", "", true)
-  await generate_file(update_subdirpath, "file1.exe")
-  await generate_file(update_subdirpath, "file2.txt")
-  await generate_file(update_subdirpath, "file2.jpeg")
-  await generate_file(update_subdirpath, "resources\\app.asar", "old content", false, true )
-  await generate_file(update_subdirpath, "test2.txt", "old content", false)
-  await generate_file(update_subdirpath, "dir\\file3.zip")
+    if(file.testing == "same") {
+
+    } else if(file.testing == "same empty") {
+      fileempty = true;
+    } else if(file.testing == "changed content") {
+      filecontentextended = "old content"
+    } else if(file.testing == "made empty") {
+      fileempty = false;
+    } else if(file.testing == "from empty") {
+      fileempty = true;
+    } else if(file.testing == "created") {
+      continue;
+    } else if(file.testing == "created empty") {
+      continue;
+    } else if(file.testing == "deleted") {
+      
+    } else if(file.testing == "deleted empty") {
+      fileempty = true;
+    } 
+
+    await generate_file(update_subdirpath, file.name, filecontentextended, fileempty, file.hugefile);
+  }
 
   if (false) {
     let file_index;
@@ -242,23 +285,40 @@ async function generate_initial_dir(testinfo, update_subdirpath = "") {
   {
     await put_file_blocking(testinfo, selfblockingfile_init, update_subdirpath, update_subdirpath === testinfo.initialDir, i);
   }
-
-  console.log("Finish generate_initial_dir");
+  
+  if(testinfo.more_log_output)
+    console.log("Finish generate_initial_dir");
 }
 
 async function generate_result_dir(testinfo, update_subdirpath) {
-  await generate_file(update_subdirpath, "filea.exe", "", true)
-  await generate_file(update_subdirpath, "file1.exe")
-  await generate_file(update_subdirpath, "file2.txt")
-  await generate_file(update_subdirpath, "file2.jpeg")
-  await generate_file(update_subdirpath, "test2.txt", "new change")
-  await generate_file(update_subdirpath, "file4.log.txt")
-  await generate_file(update_subdirpath, "file5.1")
-  await generate_file(update_subdirpath, "file 1.txt")
-  await generate_file(update_subdirpath, "resources\\app.asar")
-  await generate_file(update_subdirpath, "dir\\file3.zip")
-  await generate_file(update_subdirpath, "dir\\file6.ept", "", true)
 
+  for(const file of testinfo.files) {
+    let filecontentextended = "";
+    let fileempty = false;
+
+    if(file.testing == "same") {
+
+    } else if(file.testing == "same empty") {
+      fileempty = true;
+    } else if(file.testing == "changed content") {
+      filecontentextended = "new content"
+    } else if(file.testing == "made empty") {
+      fileempty = true;
+    } else if(file.testing == "from empty") {
+      fileempty = false;
+    } else if(file.testing == "created") {
+
+    } else if(file.testing == "created empty") {
+      fileempty = true;
+    } else if(file.testing == "deleted") {
+  
+    } else if(file.testing == "deleted empty") {
+      fileempty = true;
+    } 
+
+    await generate_file(update_subdirpath, file.name, filecontentextended, fileempty, file.hugefile);
+  }
+  
   if (testinfo.morebigfiles) {
     let file_index;
     for (file_index = 0; file_index < morefilesmax; file_index++) {
@@ -277,8 +337,9 @@ async function generate_result_dir(testinfo, update_subdirpath) {
   {
     await put_file_blocking(testinfo, selfblockingfile_server, update_subdirpath, false, i);
   }
-
-  console.log("Finish generate_result_dir");
+  
+  if(testinfo.more_log_output)
+    console.log("Finish generate_result_dir");
 }
 
 clean_test_dir = function (dirpath) {
@@ -289,8 +350,7 @@ clean_test_dir = function (dirpath) {
     console.log("Failed to clean_dir for " + dirpath+ " , error: "+error);  
     return;
   }
-
-  console.log("Finish clean_dir for " + dirpath);
+  
 }
 
 exports.clean_after_test = function (testinfo, force) {
@@ -307,6 +367,8 @@ exports.clean_after_test = function (testinfo, force) {
     clean_test_dir(testinfo.initialDir);
     clean_test_dir(testinfo.resultDir);
     clean_test_dir(testinfo.reporterDir);
+    if(testinfo.more_log_output)
+      console.log("Finish all clean_dir runs");
   }
 }
 
@@ -336,8 +398,9 @@ exports.check_results = function (testinfo) {
   var res = dircompare.compareSync(path1, path2, options);
   let ret = res.distinct != 0 && res.left != 0 || res.right != 0 || res.differences != 0
 
-  console.log(format('Compare dirs: equal=%s, distinct=%s, left=%s, right=%s, differences=%s, same=%s',
-    res.equal, res.distinct, res.left, res.right, res.differences, res.same));
+  if(testinfo.more_log_output)
+    console.log(format('Compare dirs: equal=%s, distinct=%s, left=%s, right=%s, differences=%s, same=%s',
+      res.equal, res.distinct, res.left, res.right, res.differences, res.same));
 
   res.diffSet.forEach(function (entry) {
     var state = states[entry.state];

@@ -68,8 +68,9 @@ exports.start_crash_report_server = function (testinfo) {
     });
 
     server.listen(9443, testinfo.reporterHost);
-
-    console.log('Sentry emulator listening at http://' + testinfo.reporterHost + ':' + 1443);
+    
+    if(testinfo.more_log_output)
+      console.log('Sentry emulator listening at http://' + testinfo.reporterHost + ':' + 1443);
 }
 
 exports.stop_crash_report_server = function () {
