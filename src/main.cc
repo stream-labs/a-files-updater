@@ -577,22 +577,15 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 	if (!cb_impl.should_start)
 	{
 		return 1;
+	}  else {
+		update_completed = StartApplication( params.exec.c_str(), params.exec_cwd.c_str() );
+
+		if (!update_completed)
+		{
+			ShowInfo(L"The application has finished updating.\n"
+				"Please manually start Streamlabs OBS.");
+		}
 	}
-
-#define THERE_OR_NOT(x) \
-	((x).empty() ? NULL : (x).c_str())
-
-	update_completed = StartApplication(
-		THERE_OR_NOT(params.exec),
-		THERE_OR_NOT(params.exec_cwd)
-	);
-
-	if (!update_completed)
-	{
-		ShowInfo(L"The application has finished updating.\n"
-			"Please manually start Streamlabs OBS.");
-	}
-#undef THERE_OR_NOT
 
 	return 0;
 }

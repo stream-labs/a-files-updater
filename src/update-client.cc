@@ -470,7 +470,7 @@ void update_client::handle_resolve(const boost::system::error_code &error, tcp::
 	endpoints = results;
 
 	/* TODO I should make hash type configurable. */
-	std::string manifest_target{ fmt::format("{}.sha256", params->version) };
+	std::string manifest_target{ params->version+".sha256" };
 
 	auto *request_ctx = new manifest_request<manifest_body>(this, manifest_target, 0);
 	
@@ -784,8 +784,7 @@ void update_client::start_downloading_files()
 
 		auto request_ctx = new file_request<http::dynamic_body>{
 			this,
-			/* FIXME Hardcoding gz here isn't very flexible */
-			fmt::format("{}.gz", fixup_uri((*this->manifest_iterator).first)),
+			fixup_uri((*this->manifest_iterator).first)+".gz",
 			i
 		};
 
@@ -980,8 +979,7 @@ void update_client::next_manifest_entry(int index)
 
 	auto request_ctx = new file_request<http::dynamic_body>{
 		this,
-		/* FIXME Hardcoding gz here isn't very flexible */
-		fmt::format("{}.gz", fixup_uri(entry.first)),
+		fixup_uri(entry.first)+".gz",
 		index
 	};
 
@@ -1039,7 +1037,7 @@ void update_http_request<http::dynamic_body, true>::start_reading()
 
 	if (file_path.empty())
 	{
-		std::string msg = fmt::format("Failed to create file path ({})", target);
+		std::string msg = std::string("Failed to create file path for: ") + target;
 		handle_download_error({}, msg.c_str());
 		return;
 	}
@@ -1091,7 +1089,7 @@ void update_http_request<http::dynamic_body, true>::handle_response_body(boost::
 	} catch(...) {
 		delete file_ctx;
 
-		std::string msg = fmt::format("Failed to recieve file body correctly. for: {}", target);
+		std::string msg = std::string("Failed to recieve file body correctly. for : ") + target;
 
 		handle_download_error(boost::asio::error::basic_errors::connection_aborted, msg.c_str());
 
