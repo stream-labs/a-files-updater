@@ -61,9 +61,9 @@ exports.gettestinfo = function (testname) {
 
   newinfo.testName = newinfo.number + testname;
 
-  const testfilesDir = path.join(__dirname, "..", "testfiles", "фт"+newinfo.number);
+  const testfilesDir = path.join(__dirname, "..", "testfiles", ""+newinfo.number);
   newinfo.serverDir = path.join(testfilesDir, "server")
-  newinfo.initialDir = path.join(testfilesDir, "initial")
+  newinfo.initialDir = path.join(testfilesDir, "i件Яnitial")
   newinfo.resultDir = path.join(testfilesDir, "result")
   newinfo.reporterDir = path.join(testfilesDir, "crash_reports")
 
@@ -77,8 +77,8 @@ exports.gettestinfo = function (testname) {
     { name: "file3.jpeg", hugefile: false, testing: "same" }, 
     { name: "руский файл.jpeg", hugefile: false, testing: "same" }, 
     { name: "文件名.jpeg", hugefile: false, testing: "same" }, 
-    //{ name: "рузский файл.jpeg", hugefile: false, testing: "changed content" }, 
-    // { name: "文件名-2.jpeg", hugefile: false, testing: "changed content" }, 
+    { name: "рузский файл.jpeg", hugefile: false, testing: "changed content" }, 
+    { name: "文件名-2.jpeg", hugefile: false, testing: "changed content" }, 
     { name: "file 2.svn", hugefile: false, testing: "same empty" }, 
     { name: "resources/app.asar",  hugefile: true, testing: "changed content" }, 
     { name: "test2.txt",  hugefile: false, testing: "changed content" }, 

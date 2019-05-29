@@ -65,7 +65,7 @@ const std::string restart_or_install_message = "Streamlabs OBS encountered an is
 namespace {
 	std::string encimpl(std::string::value_type v)
 	{
-		if (isalnum(v))
+		if ( isascii(v) )
 			return std::string() + v;
 
 		std::ostringstream enc;
@@ -193,15 +193,15 @@ bool FileUpdater::update_entry_with_retries(update_client::manifest_map_t::itera
 bool FileUpdater::update_entry(update_client::manifest_map_t::iterator &iter, fs::path &new_files_dir)
 {
 	std::error_code ec;
-
+	fs::path file_name_part = fs::u8path(iter->first.c_str());
 	fs::path to_path(m_app_dir);
-	to_path /= iter->first;
+	to_path /= file_name_part;
 
 	fs::path old_file_path(m_old_files_dir);
-	old_file_path /= iter->first;
+	old_file_path /= file_name_part;
 
 	fs::path from_path(new_files_dir);
-	from_path /= iter->first;
+	from_path /= file_name_part;
 	
 	try
 	{
@@ -255,7 +255,8 @@ bool FileUpdater::reset_rights(const fs::path& path)
 	ACL empty_acl;
 	if (InitializeAcl(&empty_acl, sizeof(empty_acl), ACL_REVISION))
 	{
-		DWORD result = SetNamedSecurityInfo((LPWSTR)path.c_str(), SE_FILE_OBJECT,
+		const std::wstring path_str = path.generic_wstring();
+		DWORD result = SetNamedSecurityInfo((LPWSTR)path_str.c_str(), SE_FILE_OBJECT,
 			DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION,
 			0, 0, &empty_acl, 0);
 		if (result == ERROR_SUCCESS)
@@ -944,10 +945,11 @@ fs::path prepare_file_path(const fs::path &base, const fs::path &target)
 	fs::path file_path(base);
 	file_path /= target;
 	
-	file_path = fs::path(unfixup_uri(file_path.string()));
+	file_path = fs::u8path( unfixup_uri(file_path.string()).c_str() );
 
 	file_path.make_preferred();
 	file_path.replace_extension();
+
 	try 
 	{
 		fs::create_directories(file_path.parent_path());
@@ -1085,7 +1087,7 @@ void update_http_request<http::dynamic_body, true>::start_reading()
 {
 	client_ctx->downloader_events->download_file(worker_id, target, content_length);
 
-	fs::path file_path = prepare_file_path(client_ctx->new_files_dir, fs::path(target));
+	fs::path file_path = prepare_file_path(client_ctx->new_files_dir, target);
 
 	if (file_path.empty())
 	{

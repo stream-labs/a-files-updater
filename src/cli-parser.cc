@@ -119,7 +119,7 @@ static fs::path fetch_path(const char *str, size_t length)
 	/* We use the utf8_facet here one more time to print-out UTF-8.
 	 * Otherwise, it will print-out the system native which on Windows
 	 * is wchar_t (encoded in UTF-16LE) */
-	log_debug("Result of fetch path: %ls", result.wstring().c_str());
+	log_debug("Result of fetch path: %s", result.u8string().c_str());
 
 	return result;
 }

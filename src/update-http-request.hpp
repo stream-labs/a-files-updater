@@ -78,11 +78,9 @@ update_http_request<Body, IncludeVersion>::update_http_request(update_client *cl
 
 	if (IncludeVersion)
 	{
-		//full_target = urlencode( client_ctx->params->host.path + "/"+ client_ctx->params->version +"/"+ target );
-		full_target = client_ctx->params->host.path + "/" + client_ctx->params->version + "/" + target;
+		full_target =  client_ctx->params->host.path + "/"+ client_ctx->params->version +"/"+ urlencode(target );
 	}
 	else {
-		//full_target = urlencode( client_ctx->params->host.path+"/"+ target );
 		full_target = client_ctx->params->host.path + "/" + target;
 	}
 	

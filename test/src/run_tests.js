@@ -4,7 +4,7 @@ const test_config = require('./test_config.js');
 const fse = require('fs-extra')
 const path = require('path');
 
-const run_one_test = true;
+const run_one_test = false;
 
 async function run_tests() {
     let testinfo;
@@ -18,6 +18,8 @@ async function run_tests() {
         console.log("--- Tests launched in manual set of tests mode! ");
         testinfo = test_config.gettestinfo(" // test for manual use ");
         testinfo.more_log_output = true;
+        testinfo.selfLockingFile = true;
+        testinfo.selfBlockersCount = 2;
         //testinfo.let_15sec = true;
         //testinfo.let_block_one_file = true;
         //testinfo.morebigfiles = true;
