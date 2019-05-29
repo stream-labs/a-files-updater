@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <string>
 
@@ -78,12 +78,14 @@ update_http_request<Body, IncludeVersion>::update_http_request(update_client *cl
 
 	if (IncludeVersion)
 	{
-		full_target = client_ctx->params->host.path + "/"+ client_ctx->params->version +"/"+ target;
+		//full_target = urlencode( client_ctx->params->host.path + "/"+ client_ctx->params->version +"/"+ target );
+		full_target = client_ctx->params->host.path + "/" + client_ctx->params->version + "/" + target;
 	}
 	else {
-		full_target = client_ctx->params->host.path+"/"+ target;
+		//full_target = urlencode( client_ctx->params->host.path+"/"+ target );
+		full_target = client_ctx->params->host.path + "/" + target;
 	}
-
+	
 	request = { http::verb::get, full_target, 11 };
 
 	request.set(http::field::host, client_ctx->params->host.authority);

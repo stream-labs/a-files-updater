@@ -6,7 +6,7 @@
 #include <numeric>
 
 
-#include <boost/filesystem.hpp>
+//#include <boost/filesystem.hpp>
 #include <fmt/format.h>
 
 #include "cli-parser.hpp"
@@ -15,7 +15,7 @@
 #include "crash-reporter.hpp"
 #include "utils.hpp"
 
-namespace fs = boost::filesystem;
+namespace fs = std::filesystem;
 namespace chrono = std::chrono;
 
 using chrono::high_resolution_clock;

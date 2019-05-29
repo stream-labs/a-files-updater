@@ -1,7 +1,7 @@
 #pragma once
 #include "update-http-request.hpp"
 #include <unordered_map>
-
+#include <fstream>
 /*##############################################
  *#
  *# Data definitions
@@ -21,7 +21,7 @@ struct manifest_entry_t
 
 struct update_file_t {
 	fs::path file_path;
-	fs::ofstream file_stream;
+	std::ofstream file_stream;
 	bio::gzip_decompressor decompress_filter;
 	sha256_filter checksum_filter;
 
@@ -147,8 +147,8 @@ struct FileUpdater
 	~FileUpdater();
 
 	void update();
-	bool update_entry(update_client::manifest_map_t::iterator  &iter, boost::filesystem::path & new_files_dir);
-	bool update_entry_with_retries(update_client::manifest_map_t::iterator  &iter, boost::filesystem::path & new_files_dir);
+	bool update_entry(update_client::manifest_map_t::iterator  &iter, fs::path & new_files_dir);
+	bool update_entry_with_retries(update_client::manifest_map_t::iterator  &iter, fs::path & new_files_dir);
 	void revert();
 	bool reset_rights(const fs::path& path);
 

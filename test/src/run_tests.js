@@ -17,8 +17,9 @@ async function run_tests() {
     if (run_one_test) {
         console.log("--- Tests launched in manual set of tests mode! ");
         testinfo = test_config.gettestinfo(" // test for manual use ");
+        testinfo.more_log_output = true;
         //testinfo.let_15sec = true;
-        testinfo.let_block_one_file = true;
+        //testinfo.let_block_one_file = true;
         //testinfo.morebigfiles = true;
         //testinfo.expectedResult = "filesnotchanged"
         //testinfo.selfBlockingFile = true;

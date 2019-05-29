@@ -7,7 +7,7 @@
 #include <boost/asio/ssl/error.hpp>
 #include <boost/asio/ssl/stream.hpp>
 #include <boost/asio/ssl.hpp>
-#include <boost/filesystem.hpp>
+//#include <boost/filesystem.hpp>
 
 #include <memory>
 
