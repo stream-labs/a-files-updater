@@ -10,7 +10,6 @@
 #include <boost/asio/ssl/stream.hpp>
 #include <boost/beast.hpp>
 #include <boost/bind.hpp>
-//#include <boost/filesystem.hpp>
 #include <boost/iostreams/chain.hpp>
 #include <boost/iostreams/device/file_descriptor.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
