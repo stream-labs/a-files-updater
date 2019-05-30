@@ -46,7 +46,7 @@ bool get_blockers_list(fs::path & check_path, blockers_map_t &blockers)
 
 			if (dwError == ERROR_SUCCESS)
 			{
-				for (int i = 0; i < nProcInfo; i++)
+				for (unsigned int i = 0; i < nProcInfo; i++)
 				{
 					if (0)
 					{

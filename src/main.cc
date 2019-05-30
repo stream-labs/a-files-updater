@@ -297,7 +297,7 @@ void callbacks_impl::downloader_start(int num_threads, size_t num_files_)
 	this->num_files = num_files_;
 	start_time = high_resolution_clock::now();
 
-	SetTimer(frame, 1, average_bw_time_span, &bandwidth_tick);
+	SetTimer(frame, 1, static_cast<unsigned int>(average_bw_time_span), &bandwidth_tick);
 }
 
 void callbacks_impl::download_file(int thread_index, std::string &relative_path, size_t size)
@@ -344,7 +344,7 @@ void callbacks_impl::bandwidth_tick(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWOR
 	std::wstring label(fmt::format(ctx->label_format, ctx->files_done, ctx->num_files, ctx->last_calculated_bandwidth));
 
 	SetWindowTextW(ctx->progress_label, label.c_str());
-	SetTimer(hwnd, idEvent, average_bw_time_span, &bandwidth_tick);
+	SetTimer(hwnd, idEvent, static_cast<unsigned int>(average_bw_time_span), &bandwidth_tick);
 }
 
 void callbacks_impl::download_progress(int thread_index, size_t consumed, size_t accum)

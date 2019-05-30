@@ -93,6 +93,7 @@ target_compile_definitions(slobs-updater
 
 		#This can be removed with Boost 1.68.0 I believe
 		-D_SILENCE_FPOS_SEEKPOS_DEPRECATION_WARNING
+		-D_SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING 
 )
 
 find_program(WIN_MT "mt.exe")

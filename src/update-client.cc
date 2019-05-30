@@ -584,7 +584,7 @@ void update_client::do_stuff()
 
 static std::string calculate_checksum(fs::path &path)
 {
-	std::string hex_digest = "";
+	std::ostringstream hex_digest;
 	unsigned char hash[SHA256_DIGEST_LENGTH] = {0};
 
 	std::ifstream file(path, std::ios::in | std::ios::binary );
@@ -611,18 +611,16 @@ static std::string calculate_checksum(fs::path &path)
 		SHA256_Final(hash, &sha256);
 
 		file.close();
+		
+		hex_digest << std::nouppercase << std::setfill('0') << std::hex;
 
-		hex_digest.reserve(SHA256_DIGEST_LENGTH * 2);
-
-		/* TODO 32 is hardcoded here for the size of an SHA-256 digest buffer */
-		for (int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
+		for (int i = 0; i < SHA256_DIGEST_LENGTH ; ++i)
 		{
-			fmt::format_to(std::back_inserter(hex_digest), "{:02x}", hash[i]);
+			hex_digest << std::setw(2) << static_cast<unsigned int>(hash[i]);
 		}
 	}
 
-
-	return hex_digest;
+	return hex_digest.str();
 }
 
 /* TODO Read a book on how to properly name things.
@@ -782,17 +780,17 @@ void update_client::process_manifest_results()
 		}
 
 	}
-	catch (update_exception_blocked& error)
+	catch (update_exception_blocked& )
 	{
 		client_events->error(blocked_file_message.c_str());
 		return;
 	}
-	catch (update_exception_failed& error)
+	catch (update_exception_failed& )
 	{
 		client_events->error(locked_file_message.c_str());
 		return;
 	}
-	catch (std::exception & error)
+	catch (std::exception & )
 	{
 		client_events->error(failed_boost_file_operation_message.c_str());
 		return;
@@ -969,25 +967,19 @@ void update_client::handle_file_result(file_request<http::dynamic_body> *request
 	try {
 		file_ctx->output_chain.reset();
 
-		std::string hex_digest;
-		hex_digest.reserve(64);
+		std::ostringstream hex_digest;
 
-		/* FIXME TODO 32 is hardcoded here for the size of
-		 * an SHA-256 digest buffer */
-		for (int i = 0; i < 32; ++i)
+		hex_digest << std::nouppercase << std::setfill('0') << std::hex;
+
+		for (int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
 		{
-			fmt::format_to(std::back_inserter(hex_digest), "{:02x}", filter.digest[i]);
+			hex_digest << std::setw(2) << static_cast<unsigned int>(filter.digest[i]);
 		}
 	}
 	catch (...)
 	{
 
 	}
-	/* We now have the file and the digest of both downloaded
-	 * file and the wanted file. Do a string comparison. If it
-	 * doesn't match, message and fail. */
-
-	 //todo calculate_checksum();
 
 	delete file_ctx;
 	delete request_ctx;
