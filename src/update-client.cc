@@ -402,6 +402,10 @@ void update_client::handle_pids()
 
 void update_client::handle_network_error(const boost::system::error_code & error, const std::string & str)
 {
+	std::lock_guard<std::mutex> lock(handle_error_mutex);
+	
+	update_canceled = true;
+
 	char error_buf[256]{0};
 
 	snprintf(error_buf, sizeof(error_buf), "%s\0", restart_or_install_message.c_str());
@@ -574,14 +578,13 @@ void update_client::do_stuff()
 	client_events->initialize();
 
 	deadline.expires_from_now(boost::posix_time::seconds(10));
-	deadline.async_wait(bind(&update_client::check_deadline_callback_err, this, std::placeholders::_1));
+	check_deadline_callback_err({});
 
 	resolver.async_resolve( params->host.authority, params->host.scheme, cb );
 }
 
 void update_client::check_deadline_callback_err(const boost::system::error_code& error)
 {
-	log_info("Timeout for cdn resolve.");
 	if (error)
 	{
 		if (error == boost::asio::error::operation_aborted)
@@ -599,7 +602,9 @@ void update_client::check_deadline_callback_err(const boost::system::error_code&
 		resolver.cancel();
 		log_info("Timeout for cdn resolve triggered.");
 		handle_network_error(error, failed_connect_to_server_message);
-	} 
+	} else {
+		deadline.async_wait(bind(&update_client::check_deadline_callback_err, this, std::placeholders::_1));
+	}
 }
 
 /*##############################################

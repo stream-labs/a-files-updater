@@ -4,7 +4,7 @@ const test_config = require('./test_config.js');
 const fse = require('fs-extra')
 const path = require('path');
 
-const run_one_test = true;
+const run_one_test = false;
 
 async function run_tests() {
     let testinfo;
@@ -84,6 +84,14 @@ async function run_tests() {
 
         testinfo = test_config.gettestinfo(" //test server slow to responce connection ");
         testinfo.let_5sec = true;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //test wrong server failed connection ");
+        testinfo.serverUrl = "https://outlook.live.com";
+        testinfo.expectedResult = "filesnotchanged"
         test_result = await run_test.test_update(testinfo);
         if (test_result != 0) {
             failed_test_names.push(testinfo.testName);

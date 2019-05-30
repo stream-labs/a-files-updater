@@ -107,6 +107,7 @@ struct update_client {
 	
 	boost::asio::deadline_timer deadline;
 	void check_deadline_callback_err(const boost::system::error_code& error);
+	std::mutex               handle_error_mutex;
 
 public:
 	void handle_network_error(const boost::system::error_code &error, const std::string& str);
