@@ -61,8 +61,8 @@ exports.start_https_update_server = function (testinfo) {
     }
 
     //check if file requested is from files that not changed and not have to be downloaded 
-    let requested_file = req.url.substring("//0.11.9-preview.1/".length, req.url.length-3);
-    requested_file = decodeURI(requested_file)
+    let decoded_url = decodeURI(req.url);
+    let requested_file = decoded_url.substring("//0.11.9-preview.1/".length, req.url.length-3);
 
     for(const update_file of testinfo.files) {
       if( update_file.name == requested_file) {

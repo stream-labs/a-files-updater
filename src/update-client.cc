@@ -400,22 +400,20 @@ void update_client::handle_pids()
 	}
 }
 
-void update_client::handle_network_error(const boost::system::error_code & error, const char * str)
+void update_client::handle_network_error(const boost::system::error_code & error, const std::string & str)
 {
-	char error_buf[256];
+	char error_buf[256]{0};
 
 	snprintf(error_buf, sizeof(error_buf), "%s\0", restart_or_install_message.c_str());
-
 	client_events->error(error_buf);
 
-	snprintf(error_buf, sizeof(error_buf), "%s - %s\0", str, error.message().c_str());
-
+	snprintf(error_buf, sizeof(error_buf), "%s - %s\0", str.c_str(), error.message().c_str());
 	log_error(error_buf);
 
 	reset_work_threads_gurards();
 }
 
-void update_client::handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code & error, const char * str)
+void update_client::handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code & error, const std::string & str)
 {
 	if (request_ctx->retries > 5)
 	{
@@ -453,7 +451,7 @@ void update_client::handle_file_download_canceled(file_request<http::dynamic_bod
 	next_manifest_entry(index);
 }
 
-void update_client::handle_manifest_download_error(manifest_request<manifest_body> *request_ctx, const boost::system::error_code & error, const char * str)
+void update_client::handle_manifest_download_error(manifest_request<manifest_body> *request_ctx, const boost::system::error_code & error, const std::string & str)
 {
 	if (request_ctx->retries > 5)
 	{
@@ -488,20 +486,21 @@ void update_client::handle_manifest_download_canceled(manifest_request<manifest_
 	auto index = request_ctx->worker_id;
 	delete request_ctx;
 
-	handle_network_error(cancel_error, cancel_message.c_str());
+	handle_network_error(cancel_error, cancel_message);
 }
 
 void update_client::handle_resolve(const boost::system::error_code &error, tcp::resolver::results_type results) 
 {
+	deadline.cancel();
+
 	if (error) 
 	{
-		handle_network_error(error, failed_connect_to_server_message.c_str());
+		handle_network_error(error, failed_connect_to_server_message);
 		return;
 	}
 
 	endpoints = results;
 
-	/* TODO I should make hash type configurable. */
 	std::string manifest_target{ params->version+".sha256" };
 
 	auto *request_ctx = new manifest_request<manifest_body>(this, manifest_target, 0);
@@ -514,7 +513,8 @@ update_client::update_client(struct update_parameters *params)
 	wait_for_blockers(io_ctx),
 	show_user_blockers_list( true),
 	active_workers(0),
-	resolver(io_ctx)
+	resolver(io_ctx),
+	deadline(io_ctx)
 {
 	new_files_dir = params->temp_dir;
 	new_files_dir /= "new-files";
@@ -573,7 +573,33 @@ void update_client::do_stuff()
 
 	client_events->initialize();
 
+	deadline.expires_from_now(boost::posix_time::seconds(10));
+	deadline.async_wait(bind(&update_client::check_deadline_callback_err, this, std::placeholders::_1));
+
 	resolver.async_resolve( params->host.authority, params->host.scheme, cb );
+}
+
+void update_client::check_deadline_callback_err(const boost::system::error_code& error)
+{
+	log_info("Timeout for cdn resolve.");
+	if (error)
+	{
+		if (error == boost::asio::error::operation_aborted)
+		{
+			log_info("Timeout for cdn resolve error abort .");
+			return;
+		} else {
+			log_info("Timeout for cdn resolve error other.");
+			return;
+		}
+	}
+
+	if (deadline.expires_at() <= boost::asio::deadline_timer::traits_type::now())
+	{
+		resolver.cancel();
+		log_info("Timeout for cdn resolve triggered.");
+		handle_network_error(error, failed_connect_to_server_message);
+	} 
 }
 
 /*##############################################
@@ -1002,7 +1028,7 @@ void update_client::next_manifest_entry(int index)
 			this->downloader_events->downloader_complete();
 			if (update_canceled)
 			{
-				handle_network_error(cancel_error, cancel_message.c_str());
+				handle_network_error(cancel_error, cancel_message);
 			}
 			else {
 				this->start_file_update();
@@ -1050,13 +1076,13 @@ void update_http_request<http::dynamic_body, true>::handle_download_canceled()
 }
 
 template<>
-void update_http_request<manifest_body, false>::handle_download_error(const boost::system::error_code & error, const char * str)
+void update_http_request<manifest_body, false>::handle_download_error(const boost::system::error_code & error, const std::string & str)
 {
 	client_ctx->io_ctx.post(boost::bind(&update_client::handle_manifest_download_error, client_ctx, this, error, str));
 }
 
 template<>
-void update_http_request<http::dynamic_body, true>::handle_download_error(const boost::system::error_code & error, const char * str)
+void update_http_request<http::dynamic_body, true>::handle_download_error(const boost::system::error_code & error, const std::string & str)
 {
 	client_ctx->io_ctx.post(boost::bind(&update_client::handle_file_download_error, client_ctx, this, error, str));
 }
@@ -1083,7 +1109,7 @@ void update_http_request<http::dynamic_body, true>::start_reading()
 	if (file_path.empty())
 	{
 		std::string msg = std::string("Failed to create file path for: ") + target;
-		handle_download_error({}, msg.c_str());
+		handle_download_error({}, msg);
 		return;
 	}
 
@@ -1136,7 +1162,7 @@ void update_http_request<http::dynamic_body, true>::handle_response_body(boost::
 
 		std::string msg = std::string("Failed to recieve file body correctly. for : ") + target;
 
-		handle_download_error(boost::asio::error::basic_errors::connection_aborted, msg.c_str());
+		handle_download_error(boost::asio::error::basic_errors::connection_aborted, msg);
 
 		return;
 	}

@@ -104,13 +104,16 @@ struct update_client {
 	bool					 update_canceled = false;
 	std::string				 cancel_message;
 	boost::system::error_code cancel_error;
+	
+	boost::asio::deadline_timer deadline;
+	void check_deadline_callback_err(const boost::system::error_code& error);
 
 public:
-	void handle_network_error(const boost::system::error_code &error, const char* str);
-	void handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code &error, const char* str);
+	void handle_network_error(const boost::system::error_code &error, const std::string& str);
+	void handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code &error, const std::string & str);
 	void handle_file_download_canceled(file_request<http::dynamic_body> *request_ctx);
 
-	void handle_manifest_download_error(manifest_request<manifest_body> *request_ctx, const boost::system::error_code & error, const char * str);
+	void handle_manifest_download_error(manifest_request<manifest_body> *request_ctx, const boost::system::error_code & error, const std::string& str);
 	void handle_manifest_download_canceled(manifest_request<manifest_body>* request_ctx);
 
 	//manifest 

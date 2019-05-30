@@ -12,6 +12,8 @@ exports.gettestinfo = function (testname) {
     versionName: "0.11.9-preview.1",
     updaterName: "slobs-updater.exe",
 
+    serverUrl: "https://localhost/",
+
     files: [],
 
     //posible errors to test
