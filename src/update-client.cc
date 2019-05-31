@@ -10,7 +10,6 @@
 #include <boost/asio/ssl/stream.hpp>
 #include <boost/beast.hpp>
 #include <boost/bind.hpp>
-#include <boost/filesystem.hpp>
 #include <boost/iostreams/chain.hpp>
 #include <boost/iostreams/device/file_descriptor.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
@@ -20,12 +19,16 @@
 #include <fmt/format.h>
 #include <aclapi.h>
 
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+
 namespace asio = boost::asio;
 using tcp = asio::ip::tcp;
 namespace beast = boost::beast;
 namespace http = boost::beast::http;
 namespace ssl = boost::asio::ssl;
-namespace fs = boost::filesystem;
+namespace fs = std::filesystem;
 namespace bio = boost::iostreams;
 
 using std::regex;
@@ -59,6 +62,35 @@ const std::string restart_or_install_message = "Streamlabs OBS encountered an is
  *#
  *############################################*/
 namespace {
+	std::string encimpl(std::string::value_type v)
+	{
+		if ( isascii(v) )
+			return std::string() + v;
+
+		std::ostringstream enc;
+		enc << '%' << std::setw(2) << std::setfill('0') << std::hex << std::uppercase << int(static_cast<unsigned char>(v));
+		return enc.str();
+	}
+
+	std::string urlencode(const std::string& url)
+	{
+		const std::string::const_iterator start = url.begin();
+
+		std::vector<std::string> qstrs;
+
+		std::transform(start, url.end(),
+			std::back_inserter(qstrs),
+			encimpl);
+
+		std::ostringstream ostream;
+		
+		for (auto const& i : qstrs)
+		{
+			ostream << i;
+		}
+
+		return ostream.str();
+	}
 
 	std::string fixup_uri(const std::string &source)
 	{
@@ -78,7 +110,6 @@ namespace {
 
 		return result;
 	}
-
 }
 
 /*##############################################
@@ -97,7 +128,7 @@ FileUpdater::FileUpdater(update_client *client_ctx)
 
 FileUpdater::~FileUpdater()
 {
-	boost::system::error_code ec;
+	std::error_code ec;
 
 	fs::remove_all(m_old_files_dir, ec);
 	if (ec)
@@ -131,7 +162,7 @@ void FileUpdater::update()
 	}
 }
 
-bool FileUpdater::update_entry_with_retries(update_client::manifest_map_t::iterator &iter, boost::filesystem::path &new_files_dir)
+bool FileUpdater::update_entry_with_retries(update_client::manifest_map_t::iterator &iter, fs::path &new_files_dir)
 {
 	int retries = 0;
 	const int max_retries = 5;
@@ -158,18 +189,18 @@ bool FileUpdater::update_entry_with_retries(update_client::manifest_map_t::itera
 	return ret;
 }
 
-bool FileUpdater::update_entry(update_client::manifest_map_t::iterator &iter, boost::filesystem::path &new_files_dir)
+bool FileUpdater::update_entry(update_client::manifest_map_t::iterator &iter, fs::path &new_files_dir)
 {
-	boost::system::error_code ec;
-
+	std::error_code ec;
+	fs::path file_name_part = fs::u8path(iter->first.c_str());
 	fs::path to_path(m_app_dir);
-	to_path /= iter->first;
+	to_path /= file_name_part;
 
 	fs::path old_file_path(m_old_files_dir);
-	old_file_path /= iter->first;
+	old_file_path /= file_name_part;
 
 	fs::path from_path(new_files_dir);
-	from_path /= iter->first;
+	from_path /= file_name_part;
 	
 	try
 	{
@@ -223,7 +254,8 @@ bool FileUpdater::reset_rights(const fs::path& path)
 	ACL empty_acl;
 	if (InitializeAcl(&empty_acl, sizeof(empty_acl), ACL_REVISION))
 	{
-		DWORD result = SetNamedSecurityInfo((LPWSTR)path.c_str(), SE_FILE_OBJECT,
+		const std::wstring path_str = path.generic_wstring();
+		DWORD result = SetNamedSecurityInfo((LPWSTR)path_str.c_str(), SE_FILE_OBJECT,
 			DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION,
 			0, 0, &empty_acl, 0);
 		if (result == ERROR_SUCCESS)
@@ -239,7 +271,7 @@ void FileUpdater::revert()
 	/* Generate the manifest for the current application directory */
 	fs::recursive_directory_iterator iter(m_old_files_dir);
 	fs::recursive_directory_iterator end_iter{};
-	boost::system::error_code ec;
+	std::error_code ec;
 	int error_count = 0;
 
 	for (; iter != end_iter; ++iter)
@@ -470,7 +502,7 @@ void update_client::handle_resolve(const boost::system::error_code &error, tcp::
 	endpoints = results;
 
 	/* TODO I should make hash type configurable. */
-	std::string manifest_target{ fmt::format("{}.sha256", params->version) };
+	std::string manifest_target{ params->version+".sha256" };
 
 	auto *request_ctx = new manifest_request<manifest_body>(this, manifest_target, 0);
 	
@@ -552,31 +584,43 @@ void update_client::do_stuff()
 
 static std::string calculate_checksum(fs::path &path)
 {
-	bio::chain<bio::input> checksum_chain;
-	sha256_filter checksum_filter;
+	std::ostringstream hex_digest;
+	unsigned char hash[SHA256_DIGEST_LENGTH] = {0};
 
-	char useless_buffer[file_buffer_size];
-
-	checksum_chain.push(boost::reference_wrapper<sha256_filter>(checksum_filter), file_buffer_size);
-
-	checksum_chain.push(bio::file_descriptor_source(path), file_buffer_size);
-
-	/* Drain our source */
-	while (checksum_chain.read(&useless_buffer[0], file_buffer_size) != -1);
-
-	/* Close it */
-	checksum_chain.reset();
-
-	std::string hex_digest;
-	hex_digest.reserve(64);
-
-	/* TODO 32 is hardcoded here for the size of an SHA-256 digest buffer */
-	for (int i = 0; i < 32; ++i)
+	std::ifstream file(path, std::ios::in | std::ios::binary );
+	if (file.is_open())
 	{
-		fmt::format_to(std::back_inserter(hex_digest), "{:02x}", checksum_filter.digest[i]);
+		SHA256_CTX sha256;
+		SHA256_Init(&sha256);
+
+		unsigned char buffer[4096];
+		while (true)
+		{
+			file.read((char *)buffer, 4096);
+			std::streamsize read_byte = file.gcount();
+			if(read_byte!=0)
+			{
+				SHA256_Update(&sha256, buffer, read_byte);
+			}
+			if ( !file.good())
+			{
+				break;
+			}
+		}
+
+		SHA256_Final(hash, &sha256);
+
+		file.close();
+		
+		hex_digest << std::nouppercase << std::setfill('0') << std::hex;
+
+		for (int i = 0; i < SHA256_DIGEST_LENGTH ; ++i)
+		{
+			hex_digest << std::setw(2) << static_cast<unsigned int>(hash[i]);
+		}
 	}
 
-	return hex_digest;
+	return hex_digest.str();
 }
 
 /* TODO Read a book on how to properly name things.
@@ -594,7 +638,8 @@ bool update_client::clean_manifest(blockers_map_t &blockers)
 
 		fs::path key_path(fs::relative(entry, this->params->app_dir));
 
-		std::string key = key_path.make_preferred().string();
+		fs::path cleaned_file_name = key_path.make_preferred();
+		std::string key = cleaned_file_name.u8string();
 
 		auto manifest_iter = this->manifest.find(key);
 
@@ -735,14 +780,19 @@ void update_client::process_manifest_results()
 		}
 
 	}
-	catch (update_exception_blocked& error)
+	catch (update_exception_blocked& )
 	{
 		client_events->error(blocked_file_message.c_str());
 		return;
 	}
-	catch (update_exception_failed& error)
+	catch (update_exception_failed& )
 	{
 		client_events->error(locked_file_message.c_str());
+		return;
+	}
+	catch (std::exception & )
+	{
+		client_events->error(failed_boost_file_operation_message.c_str());
 		return;
 	}
 	catch (...)
@@ -784,8 +834,7 @@ void update_client::start_downloading_files()
 
 		auto request_ctx = new file_request<http::dynamic_body>{
 			this,
-			/* FIXME Hardcoding gz here isn't very flexible */
-			fmt::format("{}.gz", fixup_uri((*this->manifest_iterator).first)),
+			fixup_uri((*this->manifest_iterator).first)+".gz",
 			i
 		};
 
@@ -893,15 +942,16 @@ fs::path prepare_file_path(const fs::path &base, const fs::path &target)
 	fs::path file_path(base);
 	file_path /= target;
 	
-	file_path = fs::path(unfixup_uri(file_path.string()));
+	file_path = fs::u8path( unfixup_uri(file_path.string()).c_str() );
 
 	file_path.make_preferred();
 	file_path.replace_extension();
+
 	try 
 	{
 		fs::create_directories(file_path.parent_path());
 		
-		boost::filesystem::remove(file_path);
+		fs::remove(file_path);
 	} catch (...)
 	{
 		file_path = "";
@@ -917,25 +967,19 @@ void update_client::handle_file_result(file_request<http::dynamic_body> *request
 	try {
 		file_ctx->output_chain.reset();
 
-		std::string hex_digest;
-		hex_digest.reserve(64);
+		std::ostringstream hex_digest;
 
-		/* FIXME TODO 32 is hardcoded here for the size of
-		 * an SHA-256 digest buffer */
-		for (int i = 0; i < 32; ++i)
+		hex_digest << std::nouppercase << std::setfill('0') << std::hex;
+
+		for (int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
 		{
-			fmt::format_to(std::back_inserter(hex_digest), "{:02x}", filter.digest[i]);
+			hex_digest << std::setw(2) << static_cast<unsigned int>(filter.digest[i]);
 		}
 	}
 	catch (...)
 	{
 
 	}
-	/* We now have the file and the digest of both downloaded
-	 * file and the wanted file. Do a string comparison. If it
-	 * doesn't match, message and fail. */
-
-	 //todo calculate_checksum();
 
 	delete file_ctx;
 	delete request_ctx;
@@ -980,8 +1024,7 @@ void update_client::next_manifest_entry(int index)
 
 	auto request_ctx = new file_request<http::dynamic_body>{
 		this,
-		/* FIXME Hardcoding gz here isn't very flexible */
-		fmt::format("{}.gz", fixup_uri(entry.first)),
+		fixup_uri(entry.first)+".gz",
 		index
 	};
 
@@ -1035,11 +1078,11 @@ void update_http_request<http::dynamic_body, true>::start_reading()
 {
 	client_ctx->downloader_events->download_file(worker_id, target, content_length);
 
-	fs::path file_path = prepare_file_path(client_ctx->new_files_dir, fs::path(target));
+	fs::path file_path = prepare_file_path(client_ctx->new_files_dir, target);
 
 	if (file_path.empty())
 	{
-		std::string msg = fmt::format("Failed to create file path ({})", target);
+		std::string msg = std::string("Failed to create file path for: ") + target;
 		handle_download_error({}, msg.c_str());
 		return;
 	}
@@ -1091,7 +1134,7 @@ void update_http_request<http::dynamic_body, true>::handle_response_body(boost::
 	} catch(...) {
 		delete file_ctx;
 
-		std::string msg = fmt::format("Failed to recieve file body correctly. for: {}", target);
+		std::string msg = std::string("Failed to recieve file body correctly. for : ") + target;
 
 		handle_download_error(boost::asio::error::basic_errors::connection_aborted, msg.c_str());
 

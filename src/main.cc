@@ -6,7 +6,6 @@
 #include <numeric>
 
 
-#include <boost/filesystem.hpp>
 #include <fmt/format.h>
 
 #include "cli-parser.hpp"
@@ -15,7 +14,7 @@
 #include "crash-reporter.hpp"
 #include "utils.hpp"
 
-namespace fs = boost::filesystem;
+namespace fs = std::filesystem;
 namespace chrono = std::chrono;
 
 using chrono::high_resolution_clock;
@@ -298,7 +297,7 @@ void callbacks_impl::downloader_start(int num_threads, size_t num_files_)
 	this->num_files = num_files_;
 	start_time = high_resolution_clock::now();
 
-	SetTimer(frame, 1, average_bw_time_span, &bandwidth_tick);
+	SetTimer(frame, 1, static_cast<unsigned int>(average_bw_time_span), &bandwidth_tick);
 }
 
 void callbacks_impl::download_file(int thread_index, std::string &relative_path, size_t size)
@@ -345,7 +344,7 @@ void callbacks_impl::bandwidth_tick(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWOR
 	std::wstring label(fmt::format(ctx->label_format, ctx->files_done, ctx->num_files, ctx->last_calculated_bandwidth));
 
 	SetWindowTextW(ctx->progress_label, label.c_str());
-	SetTimer(hwnd, idEvent, average_bw_time_span, &bandwidth_tick);
+	SetTimer(hwnd, idEvent, static_cast<unsigned int>(average_bw_time_span), &bandwidth_tick);
 }
 
 void callbacks_impl::download_progress(int thread_index, size_t consumed, size_t accum)
@@ -577,22 +576,15 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 	if (!cb_impl.should_start)
 	{
 		return 1;
+	}  else {
+		update_completed = StartApplication( params.exec.c_str(), params.exec_cwd.c_str() );
+
+		if (!update_completed)
+		{
+			ShowInfo(L"The application has finished updating.\n"
+				"Please manually start Streamlabs OBS.");
+		}
 	}
-
-#define THERE_OR_NOT(x) \
-	((x).empty() ? NULL : (x).c_str())
-
-	update_completed = StartApplication(
-		THERE_OR_NOT(params.exec),
-		THERE_OR_NOT(params.exec_cwd)
-	);
-
-	if (!update_completed)
-	{
-		ShowInfo(L"The application has finished updating.\n"
-			"Please manually start Streamlabs OBS.");
-	}
-#undef THERE_OR_NOT
 
 	return 0;
 }

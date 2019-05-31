@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <string>
 
@@ -78,12 +78,12 @@ update_http_request<Body, IncludeVersion>::update_http_request(update_client *cl
 
 	if (IncludeVersion)
 	{
-		full_target = fmt::format("{}/{}/{}", client_ctx->params->host.path, client_ctx->params->version, target);
+		full_target =  client_ctx->params->host.path + "/"+ client_ctx->params->version +"/"+ urlencode(target );
 	}
 	else {
-		full_target = fmt::format("{}/{}", client_ctx->params->host.path, target);
+		full_target = client_ctx->params->host.path + "/" + target;
 	}
-
+	
 	request = { http::verb::get, full_target, 11 };
 
 	request.set(http::field::host, client_ctx->params->host.authority);
@@ -152,7 +152,7 @@ bool update_http_request<Body, IncludeVersion>::handle_callback_precheck(const b
 
 	if (error)
 	{
-		std::string msg = fmt::format("Failed to {}. for: {}", message, target);
+		std::string msg = std::string( "Failed to ") + message + ", for : " + target;
 
 		handle_download_error(error, msg.c_str());
 		return true;
@@ -238,7 +238,7 @@ void update_http_request<Body, IncludeVersion>::handle_response_header(boost::sy
 	{
 		auto target_info = request.target();
 
-		std::string output_str = fmt::format("Server send status Code: {} for: {}", status_code, fmt::string_view(target_info.data(), target_info.size()));
+		std::string output_str = std::string("Server send status Code: ") + std::to_string(status_code) + " for: "+ std::string(target_info.data(), target_info.size()) ;
 
 		handle_download_error(boost::asio::error::basic_errors::connection_aborted, output_str.c_str());
 		return;
@@ -255,7 +255,7 @@ void update_http_request<Body, IncludeVersion>::handle_response_header(boost::sy
 	{
 		auto target_info = request.target();
 
-		std::string output_str = fmt::format("Receive empty header for: {}", fmt::string_view(target_info.data(), target_info.size()));
+		std::string output_str = std::string("Receive empty header for: ") + std::string(target_info.data(), target_info.size());
 
 		handle_download_error(boost::asio::error::basic_errors::connection_aborted, output_str.c_str());
 		return;

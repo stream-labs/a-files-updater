@@ -7,7 +7,6 @@
 #include <boost/asio/ssl/error.hpp>
 #include <boost/asio/ssl/stream.hpp>
 #include <boost/asio/ssl.hpp>
-#include <boost/filesystem.hpp>
 
 #include <memory>
 
@@ -397,7 +396,6 @@ void print_stacktrace_sym(CONTEXT* ctx, std::ostringstream & report_stream) noex
 	const int		MaxNameLen = 256;
 
 	char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
-	char name[MaxNameLen];
 	char module[MaxNameLen];
 	PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)buffer;
 
@@ -597,7 +595,7 @@ std::string get_timestamp() noexcept
 std::string get_uuid() noexcept
 {
 	char result[33] = { '\0' }; //"fc6d8c0c43fc4630ad850ee518f1b9d0";
-	std::srand(std::time(nullptr));
+	std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
 	for (std::size_t i = 0; i < sizeof(result) - 1; ++i)
 	{

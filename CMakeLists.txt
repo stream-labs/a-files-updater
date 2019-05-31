@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.10)
 
 project(slobs-updater)
 
@@ -53,6 +53,8 @@ target_link_options(slobs-updater
 		 /DEBUG 
 )
 
+set_property(TARGET slobs-updater PROPERTY CXX_STANDARD 17)
+set_property(TARGET slobs-updater PROPERTY CXX_STANDARD_REQUIRED ON)
 
 target_include_directories(slobs-updater
 	PRIVATE src/argtable
@@ -91,6 +93,7 @@ target_compile_definitions(slobs-updater
 
 		#This can be removed with Boost 1.68.0 I believe
 		-D_SILENCE_FPOS_SEEKPOS_DEPRECATION_WARNING
+		-D_SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING 
 )
 
 find_program(WIN_MT "mt.exe")

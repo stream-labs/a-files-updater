@@ -16,7 +16,11 @@ async function run_tests() {
 
     if (run_one_test) {
         console.log("--- Tests launched in manual set of tests mode! ");
-        //testinfo.let_404 = true;
+        testinfo = test_config.gettestinfo(" // test for manual use ");
+        testinfo.more_log_output = true;
+        testinfo.selfLockingFile = true;
+        testinfo.selfBlockersCount = 2;
+        //testinfo.let_15sec = true;
         //testinfo.let_block_one_file = true;
         //testinfo.morebigfiles = true;
         //testinfo.expectedResult = "filesnotchanged"
@@ -25,7 +29,6 @@ async function run_tests() {
         //testinfo.runAsInteractive = 1;
         //testinfo.expectedResult = "filesnotchanged"
         //testinfo.manifestGenerated = false;
-        testinfo = test_config.gettestinfo(" // test for manual use ");
         //testinfo.let_5sec = true;
         //testinfo.runAsInteractive = 1;
         //testinfo.morebigfiles = true;
@@ -34,7 +37,7 @@ async function run_tests() {
         //testinfo.pidWaiting = true;
         //testinfo.selfBlockingFile = true;
         //testinfo.selfBlockersCount = 3;
-        //testinfo.let_15sec = true;
+        //testinfo.let_404 = true;
         //testinfo.let_block_manifest = true;
         //testinfo.selfLockingFile = true;
         //testinfo.more_log_output = true;

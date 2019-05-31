@@ -26,11 +26,14 @@ async function generate_file(filedir, filename, filecontentextended = "", emptyf
     if (!emptyfile) {
       var i;
       var lines = filecontentlines;
+      filecontentextended = filecontentextended + filename;
       if (hugefile) {
         filecontentextended = hugefilecontent;
         lines = filecontentlines * hugefileincrese;
       }
       stream.write(filename + `\n`);
+      stream.write(filecontentextended + `\n`);
+      stream.write(`\n`);
 
       var cipher = crypto.createCipheriv('aes-256-ctr', 'b2df428b9929d3ace7c598bbf4e496b2', 'dkfirosnfkdyrifj')
 
@@ -55,11 +58,14 @@ function generate_file_sync(filedir, filename, filecontentextended = "", emptyfi
   if (!emptyfile) {
     var i;
     var lines = filecontentlines;
+    filecontentextended = filecontentextended + filename;
     if (hugefile) {
       filecontentextended = hugefilecontent;
       lines = filecontentlines * hugefileincrese;
     }
-    stream.writeSync(filename + `\n`);
+    stream.write(filename + `\n`);
+    stream.write(filecontentextended + `\n`);
+    stream.write(`\n`);
 
     var cipher = crypto.createCipheriv('aes-256-ctr', 'b2df428b9929d3ace7c598bbf4e496b2', 'dkfirosnfkdyrifj')
 
@@ -187,7 +193,7 @@ async function generate_server_dir(testinfo) {
   const update_subdirpath = path.join(testinfo.serverDir, testinfo.versionName)
 
   for(const file of testinfo.files) {
-    let filecontentextended = "";
+    let filecontentextended = "some file content";
     let fileempty = false;
 
     if(file.testing == "same") {
@@ -247,7 +253,7 @@ async function generate_initial_dir(testinfo, update_subdirpath = "") {
   }
   
   for(const file of testinfo.files) {
-    let filecontentextended = "";
+    let filecontentextended = "some file content";
     let fileempty = false;
 
     if(file.testing == "same") {
@@ -293,7 +299,7 @@ async function generate_initial_dir(testinfo, update_subdirpath = "") {
 async function generate_result_dir(testinfo, update_subdirpath) {
 
   for(const file of testinfo.files) {
-    let filecontentextended = "";
+    let filecontentextended = "some file content";
     let fileempty = false;
 
     if(file.testing == "same") {
@@ -389,7 +395,7 @@ exports.check_results = function (testinfo) {
   var dircompare = require('dir-compare');
   var format = require('util').format;
 
-  var options = { compareSize: true };
+  var options = { compareSize: true, compareContent: true };
   var path1 = testinfo.initialDir;
   var path2 = testinfo.resultDir;
 
