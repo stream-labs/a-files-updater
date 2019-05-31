@@ -6,6 +6,7 @@
 #include <sstream>
 
 #include "logger/log.h" 
+#include "checksum-filters.hpp"
 #include <boost/algorithm/string/replace.hpp>
 
 MultiByteCommandLine::MultiByteCommandLine()
@@ -238,4 +239,45 @@ std::string unfixup_uri(const std::string &source)
 	boost::algorithm::replace_all(result, "%20", " ");
 
 	return result;
+}
+
+std::string calculate_files_checksum(fs::path &path)
+{
+	std::ostringstream hex_digest;
+	unsigned char hash[SHA256_DIGEST_LENGTH] = { 0 };
+
+	std::ifstream file(path, std::ios::in | std::ios::binary);
+	if (file.is_open())
+	{
+		SHA256_CTX sha256;
+		SHA256_Init(&sha256);
+
+		unsigned char buffer[4096];
+		while (true)
+		{
+			file.read((char *)buffer, 4096);
+			std::streamsize read_byte = file.gcount();
+			if (read_byte != 0)
+			{
+				SHA256_Update(&sha256, buffer, read_byte);
+			}
+			if (!file.good())
+			{
+				break;
+			}
+		}
+
+		SHA256_Final(hash, &sha256);
+
+		file.close();
+
+		hex_digest << std::nouppercase << std::setfill('0') << std::hex;
+
+		for (int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
+		{
+			hex_digest << std::setw(2) << static_cast<unsigned int>(hash[i]);
+		}
+	}
+
+	return hex_digest.str();
 }

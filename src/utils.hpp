@@ -2,6 +2,7 @@
 
 #include <windows.h>
 #include <filesystem>
+#include <unordered_map>
 
 namespace fs = std::filesystem;
 
@@ -37,6 +38,8 @@ std::string fixup_uri(const std::string &source);
 std::string encimpl(std::string::value_type v);
 std::string urlencode(const std::string& url);
 
+std::string calculate_files_checksum(fs::path &path);
+
 /* Because Windows doesn't provide us a Unicode
  * command line by default and the command line
  * it does provide us is in UTF-16LE. */
@@ -57,3 +60,13 @@ private:
 	int m_argc{ 0 };
 	LPSTR *m_argv{ nullptr };
 };
+
+struct manifest_entry_t
+{
+	std::string hash_sum;
+	bool compared_to_local;
+
+	manifest_entry_t(std::string &file_hash_sum): hash_sum(file_hash_sum), compared_to_local(false){}
+};
+
+using manifest_map_t = std::unordered_map<std::string, manifest_entry_t>;

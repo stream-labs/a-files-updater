@@ -43,8 +43,8 @@ const size_t file_buffer_size = 4096;
 
 #include "update-client-internal.hpp"
 #include "update-http-request.hpp"
-
 #include "utils.hpp"
+#include "file-updater.h"
 
 const std::string failed_to_revert_message = "Failed to move files.\nPlease make sure the application files are not in use and try again.";
 const std::string failed_to_update_message = "Failed to move files.\nPlease make sure the application files are not in use and try again.";
@@ -61,198 +61,13 @@ const std::string restart_or_install_message = "Streamlabs OBS encountered an is
  *#
  *############################################*/
 
-FileUpdater::FileUpdater(update_client *client_ctx)
-	: m_client_ctx(client_ctx),
-	m_old_files_dir(client_ctx->params->temp_dir),
-	m_app_dir(client_ctx->params->app_dir)
-{
-	m_old_files_dir /= "old-files";
-}
-
-FileUpdater::~FileUpdater()
-{
-	std::error_code ec;
-
-	fs::remove_all(m_old_files_dir, ec);
-	if (ec)
-	{
-		wlog_warn(L"Failed to clean temp folder.");
-	}
-}
-
-void FileUpdater::update()
-{
-	fs::create_directories(m_old_files_dir);
-
-	update_client::manifest_map_t::iterator iter;
-	update_client::manifest_map_t &manifest = m_client_ctx->manifest;
-
-	fs::path &new_files_dir = m_client_ctx->new_files_dir;
-	std::string version_file_key = "resources\app.asar";
-
-	for (iter = manifest.begin(); iter != manifest.end(); ++iter)
-	{
-		if (version_file_key.compare(iter->first) != 0)
-		{
-			update_entry_with_retries(iter, new_files_dir);
-		}
-	}
-
-	auto version_file = manifest.find(version_file_key);
-	if (version_file != manifest.end())
-	{
-		update_entry_with_retries(version_file, new_files_dir);
-	}
-}
-
-bool FileUpdater::update_entry_with_retries(update_client::manifest_map_t::iterator &iter, fs::path &new_files_dir)
-{
-	int retries = 0;
-	const int max_retries = 5;
-	bool ret = false;
-
-	while (retries < max_retries && !ret)
-	{
-		retries++;
-		ret = update_entry(iter, new_files_dir);
-		if (!ret)
-		{
-			std::wstring wmsg(iter->first.begin(), iter->first.end());
-			wlog_warn(L"Have failed to update file: %s, will retry", wmsg.c_str());
-			Sleep(100*retries);
-		}
-	}
-
-	if (!ret)
-	{
-		std::wstring wmsg(iter->first.begin(), iter->first.end());
-		wlog_warn(L"Have failed to update file: %s", wmsg.c_str());
-		throw std::runtime_error("Error: failed to update file");
-	}
-	return ret;
-}
-
-bool FileUpdater::update_entry(update_client::manifest_map_t::iterator &iter, fs::path &new_files_dir)
-{
-	std::error_code ec;
-	fs::path file_name_part = fs::u8path(iter->first.c_str());
-	fs::path to_path(m_app_dir);
-	to_path /= file_name_part;
-
-	fs::path old_file_path(m_old_files_dir);
-	old_file_path /= file_name_part;
-
-	fs::path from_path(new_files_dir);
-	from_path /= file_name_part;
-	
-	try
-	{
-		fs::create_directories(old_file_path.parent_path());
-		fs::create_directories(to_path.parent_path());
-   
- 		if (fs::exists(to_path))
-		{
-			fs::rename(to_path, old_file_path, ec);
-			if (ec)
-			{
-				std::string msg = ec.message();
-				std::wstring wmsg(msg.begin(), msg.end());
-
-				wlog_debug(L"Failed to move file %s %s, error %s", to_path.c_str(), old_file_path.c_str(), wmsg.c_str());
-				return false;
-			}
-		}
-
-		fs::rename(from_path, to_path, ec);
-		if (ec)
-		{
-			std::string msg = ec.message();
-			std::wstring wmsg(msg.begin(), msg.end());
-
-			wlog_debug(L"Failed to move file %s %s, error %s", from_path.c_str(), to_path.c_str(), wmsg.c_str());
-			return false;
-		}
-
-		try
-		{
-			reset_rights(to_path);
-		}
-		catch (...)
-		{
-			wlog_warn(L"Have failed to update file rights: %s", to_path.c_str());
-		}
-
-		return true;
-	}
-	catch (...)
-	{
-		wlog_warn(L"Have failed to update file in function: %s", to_path.c_str());
-	}
-
-	return false;
-}
-
-bool FileUpdater::reset_rights(const fs::path& path)
-{
-	ACL empty_acl;
-	if (InitializeAcl(&empty_acl, sizeof(empty_acl), ACL_REVISION))
-	{
-		const std::wstring path_str = path.generic_wstring();
-		DWORD result = SetNamedSecurityInfo((LPWSTR)path_str.c_str(), SE_FILE_OBJECT,
-			DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION,
-			0, 0, &empty_acl, 0);
-		if (result == ERROR_SUCCESS)
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-void FileUpdater::revert()
-{
-	/* Generate the manifest for the current application directory */
-	fs::recursive_directory_iterator iter(m_old_files_dir);
-	fs::recursive_directory_iterator end_iter{};
-	std::error_code ec;
-	int error_count = 0;
-
-	for (; iter != end_iter; ++iter)
-	{
-		/* Fetch relative paths */
-		fs::path rel_path(fs::relative(iter->path(), m_old_files_dir));
-
-		fs::path to_path(m_app_dir);
-		to_path /= rel_path;
-
-		fs::remove(to_path, ec);
-		if (ec)
-		{
-			wlog_warn(L"Revert have failed to correctly remove changed file: %s ", to_path.c_str());
-			error_count++;
-		}
-
-		fs::rename(iter->path(), to_path, ec);
-		if (ec)
-		{
-			wlog_warn(L"Revert have failed to correctly move file back: %s ", to_path.c_str());
-			error_count++;
-		}
-	}
-
-	if (error_count > 0)
-	{
-		wlog_warn(L"Revert have failed to correctly revert some files. Fails: %i", error_count);
-	}
-}
-
 void update_client::start_file_update()
 {
 	log_info("Files downloaded and ready to start update.");
 
 	reset_work_threads_gurards();
 
-	FileUpdater updater(this);
+	FileUpdater updater(params->temp_dir, params->app_dir, new_files_dir, manifest);
 	bool updated = false;
 
 	try {
@@ -413,14 +228,16 @@ void update_client::handle_manifest_download_error(manifest_request<manifest_bod
 		{
 			ec = boost::asio::error::basic_errors::timed_out;
 		}
-
-		std::lock_guard<std::mutex> lock(handle_error_mutex);
-		if (!update_download_aborted)
+		
 		{
-			update_download_aborted = true;
+			std::lock_guard<std::mutex> lock(handle_error_mutex);
+			if (!update_download_aborted)
+			{
+				update_download_aborted = true;
 
-			download_abort_message = str;
-			download_abort_error = error;
+				download_abort_message = str;
+				download_abort_error = error;
+			}
 		}
 
 		handle_manifest_download_canceled(request_ctx);
@@ -565,71 +382,27 @@ void update_client::check_resolve_timeout_callback_err(const boost::system::erro
  *#
  *############################################*/
 
-static std::string calculate_checksum(fs::path &path)
-{
-	std::ostringstream hex_digest;
-	unsigned char hash[SHA256_DIGEST_LENGTH] = {0};
-
-	std::ifstream file(path, std::ios::in | std::ios::binary );
-	if (file.is_open())
-	{
-		SHA256_CTX sha256;
-		SHA256_Init(&sha256);
-
-		unsigned char buffer[4096];
-		while (true)
-		{
-			file.read((char *)buffer, 4096);
-			std::streamsize read_byte = file.gcount();
-			if(read_byte!=0)
-			{
-				SHA256_Update(&sha256, buffer, read_byte);
-			}
-			if ( !file.good())
-			{
-				break;
-			}
-		}
-
-		SHA256_Final(hash, &sha256);
-
-		file.close();
-		
-		hex_digest << std::nouppercase << std::setfill('0') << std::hex;
-
-		for (int i = 0; i < SHA256_DIGEST_LENGTH ; ++i)
-		{
-			hex_digest << std::setw(2) << static_cast<unsigned int>(hash[i]);
-		}
-	}
-
-	return hex_digest.str();
-}
-
-/* TODO Read a book on how to properly name things.
- * This removes unneeded entries in the manifest */
-bool update_client::clean_manifest(blockers_map_t &blockers)
+bool update_client::checkup_manifest(blockers_map_t &blockers)
 {
 	/* Generate the manifest for the current application directory */
-	fs::recursive_directory_iterator app_dir_iter(this->params->app_dir);
-
+	fs::recursive_directory_iterator app_dir_iter(params->app_dir);
 	fs::recursive_directory_iterator end_iter{};
 
 	for (; app_dir_iter != end_iter; ++app_dir_iter)
 	{
 		fs::path entry = app_dir_iter->path();
 
-		fs::path key_path(fs::relative(entry, this->params->app_dir));
+		fs::path key_path(fs::relative(entry, params->app_dir));
 
 		fs::path cleaned_file_name = key_path.make_preferred();
 		std::string key = cleaned_file_name.u8string();
 
-		auto manifest_iter = this->manifest.find(key);
+		auto manifest_iter = manifest.find(key);
 
 		/* If we don't know about the file,
 		 * just leave it alone for now.
 		 * TODO Should we delete unknown files? */
-		if (manifest_iter == this->manifest.end())
+		if (manifest_iter == manifest.end())
 			continue;
 		
 		if (check_file_updatable(entry, true, blockers))
@@ -638,7 +411,7 @@ bool update_client::clean_manifest(blockers_map_t &blockers)
 			{
 				std::string checksum = "";
 				try {
-					checksum = calculate_checksum(entry);
+					checksum = calculate_files_checksum(entry);
 				}
 				catch (const boost::exception &e)
 				{
@@ -654,7 +427,7 @@ bool update_client::clean_manifest(blockers_map_t &blockers)
 				 * to download it (as it's already the same). */
 				if (checksum.compare(manifest_iter->second.hash_sum) == 0)
 				{
-					this->manifest.erase(manifest_iter);
+					manifest.erase(manifest_iter);
 					continue;
 				} else {
 					manifest_iter->second.compared_to_local = true;
@@ -690,7 +463,7 @@ void update_client::process_manifest_results()
 	try
 	{
 		blockers_map_t blockers;
-		this->clean_manifest(blockers);
+		checkup_manifest(blockers);
 
 		if (blockers.size() > 0)
 		{
@@ -829,7 +602,7 @@ void update_client::start_downloading_files()
 }
 
 template <class ConstBuffer>
-static size_t handle_manifest_read_buffer(update_client::manifest_map_t &map, const ConstBuffer &buffer)
+static size_t handle_manifest_read_buffer(manifest_map_t &map, const ConstBuffer &buffer)
 {
 	/* TODO: Hardcoded for SHA-256 checksums. */
 	static const regex manifest_regex("([A-Fa-f0-9]{64}) ([^\r\n]+)\r?\n");

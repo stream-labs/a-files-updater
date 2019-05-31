@@ -1,23 +1,14 @@
 #pragma once
 #include "update-http-request.hpp"
-#include <unordered_map>
+
 #include <fstream>
+#include "utils.hpp"
+
 /*##############################################
  *#
  *# Data definitions
  *#
  *############################################*/
-struct manifest_entry_t
-{
-	std::string hash_sum;
-	bool compared_to_local;
-	
-	manifest_entry_t(std::string &file_hash_sum) 
-	{
-		hash_sum = file_hash_sum;
-		compared_to_local = false;
-	}
-};
 
 struct update_file_t {
 	fs::path file_path;
@@ -44,7 +35,6 @@ struct update_client {
 	using io_context = asio::io_context;
 	using work_guard_type = executor_work_guard<io_context::executor_type>;
 	using resolver_type = tcp::resolver;
-	using manifest_map_t = std::unordered_map<std::string, manifest_entry_t>;
 
 	update_client() = delete;
 	update_client(const update_client&) = delete;
@@ -119,7 +109,7 @@ public:
 	void handle_resolve(const boost::system::error_code &error, tcp::resolver::results_type results);
 	void handle_manifest_result(manifest_request<manifest_body> *request_ctx);
 	void process_manifest_results();
-	bool clean_manifest(blockers_map_t &blockers);
+	bool checkup_manifest(blockers_map_t &blockers);
 
 	//files
 	void start_downloading_files();
@@ -135,27 +125,4 @@ public:
 
 	void create_work_threads_guards();
 	void reset_work_threads_gurards();
-};
-
-struct FileUpdater
-{
-	FileUpdater() = delete;
-	FileUpdater(FileUpdater&&) = delete;
-	FileUpdater(const FileUpdater&) = delete;
-	FileUpdater &operator=(const FileUpdater&) = delete;
-	FileUpdater &operator=(FileUpdater&&) = delete;
-
-	explicit FileUpdater(update_client *client_ctx);
-	~FileUpdater();
-
-	void update();
-	bool update_entry(update_client::manifest_map_t::iterator  &iter, fs::path & new_files_dir);
-	bool update_entry_with_retries(update_client::manifest_map_t::iterator  &iter, fs::path & new_files_dir);
-	void revert();
-	bool reset_rights(const fs::path& path);
-
-private:
-	update_client *m_client_ctx;
-	fs::path m_old_files_dir;
-	fs::path m_app_dir;
 };
