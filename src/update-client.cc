@@ -4,7 +4,6 @@
 #include <thread>
 #include <regex>
 
-#include <boost/algorithm/string/replace.hpp>
 #include <boost/asio.hpp>
 #include <boost/asio/ssl/error.hpp>
 #include <boost/asio/ssl/stream.hpp>
@@ -19,7 +18,6 @@
 #include <fmt/format.h>
 #include <aclapi.h>
 
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 
@@ -28,7 +26,6 @@ using tcp = asio::ip::tcp;
 namespace beast = boost::beast;
 namespace http = boost::beast::http;
 namespace ssl = boost::asio::ssl;
-namespace fs = std::filesystem;
 namespace bio = boost::iostreams;
 
 using std::regex;
@@ -47,6 +44,8 @@ const size_t file_buffer_size = 4096;
 #include "update-client-internal.hpp"
 #include "update-http-request.hpp"
 
+#include "utils.hpp"
+
 const std::string failed_to_revert_message = "Failed to move files.\nPlease make sure the application files are not in use and try again.";
 const std::string failed_to_update_message = "Failed to move files.\nPlease make sure the application files are not in use and try again.";
 const std::string failed_connect_to_server_message = "Failed to connect to update server.";
@@ -55,62 +54,6 @@ const std::string blocked_file_message = "Failed to move files.\nSome files may 
 const std::string locked_file_message = "Failed to move files.\nSome files could not be updated. Please download SLOBS installer from our site and run full installation.";
 const std::string failed_boost_file_operation_message = "Failed to move files.\nSome files could not be updated. Please download SLOBS installer from our site and run full installation.";
 const std::string restart_or_install_message = "Streamlabs OBS encountered an issue while downloading the update. \nPlease restart the application to finish updating. \nIf the issue persists, please download a new installer from www.streamlabs.com.";
-
-/*##############################################
- *#
- *# Utility functions
- *#
- *############################################*/
-namespace {
-	std::string encimpl(std::string::value_type v)
-	{
-		if ( isascii(v) )
-			return std::string() + v;
-
-		std::ostringstream enc;
-		enc << '%' << std::setw(2) << std::setfill('0') << std::hex << std::uppercase << int(static_cast<unsigned char>(v));
-		return enc.str();
-	}
-
-	std::string urlencode(const std::string& url)
-	{
-		const std::string::const_iterator start = url.begin();
-
-		std::vector<std::string> qstrs;
-
-		std::transform(start, url.end(),
-			std::back_inserter(qstrs),
-			encimpl);
-
-		std::ostringstream ostream;
-		
-		for (auto const& i : qstrs)
-		{
-			ostream << i;
-		}
-
-		return ostream.str();
-	}
-
-	std::string fixup_uri(const std::string &source)
-	{
-		std::string result(source);
-
-		boost::algorithm::replace_all(result, "\\", "/");
-		boost::algorithm::replace_all(result, " ", "%20");
-
-		return result;
-	}
-
-	std::string unfixup_uri(const std::string &source)
-	{
-		std::string result(source);
-
-		boost::algorithm::replace_all(result, "%20", " ");
-
-		return result;
-	}
-}
 
 /*##############################################
  *#
@@ -307,6 +250,8 @@ void update_client::start_file_update()
 {
 	log_info("Files downloaded and ready to start update.");
 
+	reset_work_threads_gurards();
+
 	FileUpdater updater(this);
 	bool updated = false;
 
@@ -342,8 +287,6 @@ void update_client::start_file_update()
 			client_events->error(failed_to_update_message.c_str());
 		}
 	}
-
-	reset_work_threads_gurards();
 }
 
 struct update_client::pid
@@ -404,7 +347,7 @@ void update_client::handle_network_error(const boost::system::error_code & error
 {
 	std::lock_guard<std::mutex> lock(handle_error_mutex);
 	
-	update_canceled = true;
+	update_download_aborted = true;
 
 	char error_buf[256]{0};
 
@@ -426,11 +369,17 @@ void update_client::handle_file_download_error(file_request<http::dynamic_body> 
 		{
 			ec = boost::asio::error::basic_errors::timed_out;
 		}
+		
+		{
+			std::lock_guard<std::mutex> lock(handle_error_mutex);
+			if(!update_download_aborted)
+			{
+				update_download_aborted = true;
 
-		update_canceled = true;
-
-		cancel_message = str;
-		cancel_error = error;
+				download_abort_message = str;
+				download_abort_error = error;
+			}
+		}
 
 		handle_file_download_canceled(request_ctx);
 		return;
@@ -465,10 +414,14 @@ void update_client::handle_manifest_download_error(manifest_request<manifest_bod
 			ec = boost::asio::error::basic_errors::timed_out;
 		}
 
-		update_canceled = true;
+		std::lock_guard<std::mutex> lock(handle_error_mutex);
+		if (!update_download_aborted)
+		{
+			update_download_aborted = true;
 
-		cancel_message = str;
-		cancel_error = error;
+			download_abort_message = str;
+			download_abort_error = error;
+		}
 
 		handle_manifest_download_canceled(request_ctx);
 		return;
@@ -490,12 +443,12 @@ void update_client::handle_manifest_download_canceled(manifest_request<manifest_
 	auto index = request_ctx->worker_id;
 	delete request_ctx;
 
-	handle_network_error(cancel_error, cancel_message);
+	handle_network_error(download_abort_error, download_abort_message);
 }
 
 void update_client::handle_resolve(const boost::system::error_code &error, tcp::resolver::results_type results) 
 {
-	deadline.cancel();
+	domain_resolve_timeout.cancel();
 
 	if (error) 
 	{
@@ -503,6 +456,7 @@ void update_client::handle_resolve(const boost::system::error_code &error, tcp::
 		return;
 	}
 
+	log_info("Successfuly resolved update server domain name. Continue to download update manifest.");
 	endpoints = results;
 
 	std::string manifest_target{ params->version+".sha256" };
@@ -518,7 +472,7 @@ update_client::update_client(struct update_parameters *params)
 	show_user_blockers_list( true),
 	active_workers(0),
 	resolver(io_ctx),
-	deadline(io_ctx)
+	domain_resolve_timeout(io_ctx)
 {
 	new_files_dir = params->temp_dir;
 	new_files_dir /= "new-files";
@@ -577,33 +531,31 @@ void update_client::do_stuff()
 
 	client_events->initialize();
 
-	deadline.expires_from_now(boost::posix_time::seconds(10));
-	check_deadline_callback_err({});
+	domain_resolve_timeout.expires_from_now(boost::posix_time::seconds(10));
+	check_resolve_timeout_callback_err({});
 
 	resolver.async_resolve( params->host.authority, params->host.scheme, cb );
 }
 
-void update_client::check_deadline_callback_err(const boost::system::error_code& error)
+void update_client::check_resolve_timeout_callback_err(const boost::system::error_code& error)
 {
 	if (error)
 	{
 		if (error == boost::asio::error::operation_aborted)
 		{
-			log_info("Timeout for cdn resolve error abort .");
 			return;
 		} else {
-			log_info("Timeout for cdn resolve error other.");
 			return;
 		}
 	}
 
-	if (deadline.expires_at() <= boost::asio::deadline_timer::traits_type::now())
+	if (domain_resolve_timeout.expires_at() <= boost::asio::deadline_timer::traits_type::now())
 	{
 		resolver.cancel();
 		log_info("Timeout for cdn resolve triggered.");
 		handle_network_error(error, failed_connect_to_server_message);
 	} else {
-		deadline.async_wait(bind(&update_client::check_deadline_callback_err, this, std::placeholders::_1));
+		domain_resolve_timeout.async_wait(bind(&update_client::check_resolve_timeout_callback_err, this, std::placeholders::_1));
 	}
 }
 
@@ -837,6 +789,7 @@ void update_client::process_manifest_results()
 
 void update_client::start_downloading_files()
 {
+	log_info("Manifest cleaned and ready to download files. Files to download %d", manifest.size());
 	/* TODO We should be able to make max configurable.*/
 	int max_threads = 4;
 
@@ -932,7 +885,9 @@ void update_client::handle_manifest_result(manifest_request<manifest_body> *requ
 {
 	delete request_ctx;
 
-	wait_for_blockers.expires_from_now(boost::posix_time::seconds(2));
+	log_info("Successfuly downloaded manifest. It has info about %d files", manifest.size());
+
+	wait_for_blockers.expires_from_now(boost::posix_time::seconds(3));
 	wait_for_blockers.async_wait(boost::bind(&update_client::process_manifest_results, this));
 
 	/* let time for SLOBS process to quit and make files available for update */
@@ -968,29 +923,6 @@ update_file_t::update_file_t(const fs::path &file_path)
 	this->output_chain.push(boost::reference_wrapper< std::ofstream >(this->file_stream), file_buffer_size);
 }
 
-fs::path prepare_file_path(const fs::path &base, const fs::path &target)
-{
-	fs::path file_path(base);
-	file_path /= target;
-	
-	file_path = fs::u8path( unfixup_uri(file_path.string()).c_str() );
-
-	file_path.make_preferred();
-	file_path.replace_extension();
-
-	try 
-	{
-		fs::create_directories(file_path.parent_path());
-		
-		fs::remove(file_path);
-	} catch (...)
-	{
-		file_path = "";
-	}
-
-	return file_path;
-}
-
 void update_client::handle_file_result(file_request<http::dynamic_body> *request_ctx, update_file_t *file_ctx, int index)
 {
 	auto &filter = file_ctx->checksum_filter;
@@ -1022,7 +954,7 @@ void update_client::next_manifest_entry(int index)
 {
 	std::unique_lock<std::mutex> manifest_lock(this->manifest_mutex);
 
-	if (this->manifest_iterator == this->manifest.end() || update_canceled)
+	if (this->manifest_iterator == this->manifest.end() || update_download_aborted)
 	{
 		--this->active_workers;
 
@@ -1031,9 +963,9 @@ void update_client::next_manifest_entry(int index)
 		if (this->active_workers == 0)
 		{
 			this->downloader_events->downloader_complete();
-			if (update_canceled)
+			if (update_download_aborted)
 			{
-				handle_network_error(cancel_error, cancel_message);
+				handle_network_error(download_abort_error, download_abort_message);
 			}
 			else {
 				this->start_file_update();

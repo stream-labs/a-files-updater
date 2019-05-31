@@ -30,8 +30,6 @@ struct update_file_t {
 	explicit update_file_t(const fs::path &path);
 };
 
-fs::path prepare_file_path(const fs::path &base, const fs::path &target);
-
 struct update_client {
 	struct pid;	
 
@@ -71,11 +69,11 @@ struct update_client {
 	void flush();
 
 	/* These two are explicitly initialized in constructor */
-	io_context io_ctx;
+	io_context				io_ctx;
 	update_parameters       *params;
 
 	work_guard_type         *work_thread_guard{ nullptr };
-	fs::path                 new_files_dir;
+	fs::path                new_files_dir;
 
 	client_callbacks        *client_events{ nullptr };
 	downloader_callbacks    *downloader_events{ nullptr };
@@ -101,12 +99,12 @@ struct update_client {
 	bool show_user_blockers_list;
 	std::wstring process_list_text;
 
-	bool					 update_canceled = false;
-	std::string				 cancel_message;
-	boost::system::error_code cancel_error;
+	bool					 update_download_aborted = false;
+	std::string				 download_abort_message;
+	boost::system::error_code download_abort_error;
 	
-	boost::asio::deadline_timer deadline;
-	void check_deadline_callback_err(const boost::system::error_code& error);
+	boost::asio::deadline_timer domain_resolve_timeout;
+	void check_resolve_timeout_callback_err(const boost::system::error_code& error);
 	std::mutex               handle_error_mutex;
 
 public:

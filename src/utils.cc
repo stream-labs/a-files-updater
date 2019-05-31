@@ -1,8 +1,12 @@
 #include "utils.hpp"
 
 #include <shellapi.h>
+#include <fstream>
+#include <iostream>
+#include <sstream>
 
 #include "logger/log.h" 
+#include <boost/algorithm/string/replace.hpp>
 
 MultiByteCommandLine::MultiByteCommandLine()
 {
@@ -159,4 +163,79 @@ BOOL StartApplication(const char *lpCommandLine, const char *lpWorkingDir)
 	delete lpWideWorkingDir;
 
 	return bSuccess;
+}
+
+
+fs::path prepare_file_path(const fs::path &base, const fs::path &target)
+{
+	fs::path file_path(base);
+	file_path /= target;
+
+	file_path = fs::u8path(unfixup_uri(file_path.string()).c_str());
+
+	file_path.make_preferred();
+	file_path.replace_extension();
+
+	try
+	{
+		fs::create_directories(file_path.parent_path());
+
+		fs::remove(file_path);
+	}
+	catch (...)
+	{
+		file_path = "";
+	}
+
+	return file_path;
+}
+
+
+std::string encimpl(std::string::value_type v)
+{
+	if (isascii(v))
+		return std::string() + v;
+
+	std::ostringstream enc;
+	enc << '%' << std::setw(2) << std::setfill('0') << std::hex << std::uppercase << int(static_cast<unsigned char>(v));
+	return enc.str();
+}
+
+std::string urlencode(const std::string& url)
+{
+	const std::string::const_iterator start = url.begin();
+
+	std::vector<std::string> qstrs;
+
+	std::transform(start, url.end(),
+		std::back_inserter(qstrs),
+		encimpl);
+
+	std::ostringstream ostream;
+
+	for (auto const& i : qstrs)
+	{
+		ostream << i;
+	}
+
+	return ostream.str();
+}
+
+std::string fixup_uri(const std::string &source)
+{
+	std::string result(source);
+
+	boost::algorithm::replace_all(result, "\\", "/");
+	boost::algorithm::replace_all(result, " ", "%20");
+
+	return result;
+}
+
+std::string unfixup_uri(const std::string &source)
+{
+	std::string result(source);
+
+	boost::algorithm::replace_all(result, "%20", " ");
+
+	return result;
 }

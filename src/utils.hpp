@@ -1,6 +1,9 @@
 #pragma once
 
 #include <windows.h>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 /* We cannot use the default WM_CLOSE since there
  * are various things outside of our control that
@@ -27,6 +30,12 @@ BOOL StartApplication(const char *lpCommandLine, const char *lpWorkingDir);
 BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory);
 
 LPWSTR ConvertToUtf16(const char *from, int *from_size);
+
+fs::path prepare_file_path(const fs::path &base, const fs::path &target);
+std::string unfixup_uri(const std::string &source);
+std::string fixup_uri(const std::string &source);
+std::string encimpl(std::string::value_type v);
+std::string urlencode(const std::string& url);
 
 /* Because Windows doesn't provide us a Unicode
  * command line by default and the command line

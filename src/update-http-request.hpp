@@ -144,7 +144,7 @@ bool update_http_request<Body, IncludeVersion>::handle_callback_precheck(const b
 {
 	deadline.cancel();
 
-	if (client_ctx->update_canceled)
+	if (client_ctx->update_download_aborted)
 	{
 		handle_download_canceled();
 		return true;

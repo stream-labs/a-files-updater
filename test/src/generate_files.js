@@ -28,7 +28,7 @@ async function generate_file(filedir, filename, filecontentextended = "", emptyf
       var lines = filecontentlines;
       filecontentextended = filecontentextended + filename;
       if (hugefile) {
-        filecontentextended = hugefilecontent;
+        filecontentextended = hugefilecontent + filecontentextended;
         lines = filecontentlines * hugefileincrese;
       }
       stream.write(filename + `\n`);

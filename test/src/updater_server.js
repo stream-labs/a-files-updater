@@ -129,7 +129,7 @@ exports.start_https_update_server = function (testinfo) {
       if(testinfo.more_log_output)
         console.log("Will make this request delayed for "+test_timeout + "ms, " + req.url);
     }
-
+    
     files_served = files_served + 1;
 
     setTimeout(function () {
