@@ -25,7 +25,6 @@
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
-
 #include "log.h"
 
 static struct {

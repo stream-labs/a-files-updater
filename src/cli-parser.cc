@@ -1,15 +1,12 @@
-#include <boost/filesystem.hpp>
-#include <boost/filesystem/detail/utf8_codecvt_facet.hpp>
 
 #include "argtable3.h"
 #include "fmt/format.h"
 #include "cli-parser.hpp"
 #include "logger/log.h"
-
-static boost::filesystem::detail::utf8_codecvt_facet utf8_facet;
+#include <codecvt>
 
 /* Filesystem is implicitly included from cli-parser.h */
-namespace fs = boost::filesystem;
+namespace fs = std::filesystem;
 
 static bool validate_https_uri(struct uri_components *components)
 {
@@ -42,8 +39,7 @@ static void print_generic_arg(const Arg *arg, Val *values, size_t length)
 		log_debug(
 			"%s,%s count: %s",
 			short_names, long_names,
-			fmt::format("{}", values[i]).c_str()
-		);
+			fmt::format("{}", values[i]).c_str());
 	}
 }
 
@@ -111,7 +107,7 @@ static std::vector<int> make_vector_from_arg(struct arg_int *arg)
 static fs::path fetch_path(const char *str, size_t length)
 {
 	/* Use the utf8_facet here for anything provided from argtable */
-	fs::path path(str, str + length, utf8_facet);
+	fs::path path = fs::u8path(str, str + length);
 
 	log_debug("Given to fetch path: %.*s", length, str);
 
@@ -120,7 +116,7 @@ static fs::path fetch_path(const char *str, size_t length)
 	/* We use the utf8_facet here one more time to print-out UTF-8.
 	 * Otherwise, it will print-out the system native which on Windows
 	 * is wchar_t (encoded in UTF-16LE) */
-	log_debug("Result of fetch path: %s", result.string(utf8_facet).c_str());
+	log_debug("Result of fetch path: %s", result.u8string().c_str());
 
 	return result;
 }
@@ -131,10 +127,10 @@ static fs::path fetch_default_temp_dir()
 	fs::path temp_dir = fs::temp_directory_path();
 	temp_dir /= "slobs-updater";
 	
-	time_t t = time(NULL);
+	time_t t = time(nullptr);
 	struct tm *lt = localtime(&t);
 	
-	srand(time(NULL));
+	std::srand(static_cast<unsigned int>(time(nullptr)));
 
 	char buf[24];
 	sprintf(buf, "%04i%c%03i%c%02i%c%02i%c%02i%c\0", lt->tm_year+1900, 'a'+rand()%20,lt->tm_yday, 'a' + rand() % 20,lt->tm_hour, 'a' + rand() % 20, lt->tm_min, 'a' + rand() % 20, lt->tm_sec, 'a' + rand() % 20);
@@ -254,6 +250,7 @@ bool su_parse_command_line( int argc, char **argv, struct update_parameters *par
 	log_path = fs::path(params->temp_dir);
 	log_path /= "slobs-updater.log";
 
+	params->log_file_path = log_path.string();
 	params->log_file = fopen(log_path.string().c_str(), "w+");
 
 	/* If we fail, we just won't get a log file unfortunately */

@@ -7,7 +7,7 @@ exports.start_updater = async function (testinfo) {
   const updateDirE = testinfo.initialDir.replace(/\\/g, '\\\\');
 
   const updaterArgs = [
-    '--base-url', `"https://localhost/"`,
+    '--base-url', `"${testinfo.serverUrl}"`,
     '--version', `"${testinfo.versionName}"`,
     '--exec', `"${updaterPathE}"`,
     '--cwd', `"${updateDirE}"`,
@@ -15,7 +15,17 @@ exports.start_updater = async function (testinfo) {
     '--app-dir', `"${updateDirE}"`,
     '--force-temp'
   ];
-  console.log(`SPAWN: args :\n${updaterArgs}`);
+  
+  if(testinfo.pidWaiting)
+  {
+    testinfo.pidWaitingList.forEach((pid) => {
+      updaterArgs.push('-p');
+      updaterArgs.push(pid);
+  });
+  }
+  
+  if(testinfo.more_log_output)
+    console.log(`SPAWN: args :\n${updaterArgs}`);
 
   const app_spawned = cp.spawn(`${updaterPath}`, updaterArgs, {
     cwd: testinfo.updaterDir,
@@ -39,7 +49,8 @@ exports.start_updater = async function (testinfo) {
 
   var promise = await Promise.race([primiseError, primiseExit]);
 
-  console.log(`SPAWN: promise: ${promise}`);
+  if(testinfo.more_log_output)
+    console.log(`SPAWN: promise: ${promise}`);
 
   app_spawned.unref();
 

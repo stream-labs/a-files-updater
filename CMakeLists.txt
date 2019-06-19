@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.10)
 
 project(slobs-updater)
 
@@ -17,7 +17,7 @@ find_package(ZLIB REQUIRED)
 find_package(OpenSSL 1.1.0 EXACT REQUIRED)
 
 find_package(Boost
-	1.68.0 EXACT
+	1.70.0 EXACT
 	REQUIRED
 	COMPONENTS
 		filesystem
@@ -25,34 +25,16 @@ find_package(Boost
 		system
 		date_time
 )
+	
+include(cppcheck)
+
+cppcheck(EXCLUDE "")
+
+file(GLOB_RECURSE SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cc ${PROJECT_SOURCE_DIR}/src/*/*.c ${PROJECT_SOURCE_DIR}/src/*/*.cpp)
 
 add_executable(slobs-updater
 	WIN32
-	src/main.cc
-	src/update-parameters.hpp
-	src/update-blockers.cc src/update-blockers.hpp 
-	src/cli-parser.cc src/cli-parser.hpp
-	src/uri-parser.cc src/uri-parser.hpp
-	src/update-client.cc src/update-client-internal.hpp src/update-client.hpp
-	src/crash-reporter.cc src/crash-reporter.hpp
-
-	# argtable
-	src/argtable/argtable3.c src/argtable/argtable3.h
-
-	# fmt
-	src/fmt/format.cc
-	src/fmt/posix.cc
-	src/fmt/fmt/format.h
-	src/fmt/fmt/core.h
-	src/fmt/fmt/format-inl.h
-
-	# boost iostreams
-	src/iostreams/gzip.cpp
-	src/iostreams/zlib.cpp
-	src/checksum-filters.hpp
-
-	# logger
-	src/logger/log.c src/logger/log.h
+	${SRC_FILES}
 )
 
 if (USE_STREAMLABS_RESOURCE)
@@ -71,6 +53,8 @@ target_link_options(slobs-updater
 		 /DEBUG 
 )
 
+set_property(TARGET slobs-updater PROPERTY CXX_STANDARD 17)
+set_property(TARGET slobs-updater PROPERTY CXX_STANDARD_REQUIRED ON)
 
 target_include_directories(slobs-updater
 	PRIVATE src/argtable
@@ -88,7 +72,6 @@ target_link_libraries(slobs-updater
 	ZLIB::ZLIB
 	# -MANIFESTUAC:level=requireAdministrator
 )
-
 
 # OpenSSL needs us to link against libraries it depends
 # on in order to be runtime agnostic
@@ -109,13 +92,16 @@ target_compile_definitions(slobs-updater
 
 		#This can be removed with Boost 1.68.0 I believe
 		-D_SILENCE_FPOS_SEEKPOS_DEPRECATION_WARNING
+		-D_SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING 
 )
 
 find_program(WIN_MT "mt.exe")
 
+
 if (NOT WIN_MT)
 	message(FATAL_ERROR "Failed to find mt.exe to embed manifest")
 endif ()
+cppcheck_add_project(slobs-updater)
 
 add_custom_command(
 	TARGET slobs-updater

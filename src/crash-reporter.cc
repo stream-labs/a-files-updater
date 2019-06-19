@@ -7,36 +7,43 @@
 #include <boost/asio/ssl/error.hpp>
 #include <boost/asio/ssl/stream.hpp>
 #include <boost/asio/ssl.hpp>
-#include <boost/filesystem.hpp>
 
 #include <memory>
 
 #include "crash-reporter.hpp"
+#include "update-parameters.hpp"
 
 using boost::asio::ip::tcp;
 
 #ifdef SENTRY_HOST_NAME
 const std::string host = SENTRY_HOST_NAME
+const std::string protocol = "https";
 #else
 const std::string host = "sentry.io";
+const std::string protocol = "https";
+//const std::string protocol = "1443";
 //const std::string host = "127.0.0.1";
 #endif
 
-const std::string protocol = "https";
 const std::string api_path = "/api/1390326/minidump/?sentry_key=7492ebea21f54618a550163938dc164d";
 const bool send_manual_backtrace = false;
+std::wstring minidump_filenamew = L"MiniDump.dmp";
+std::string minidump_filename = "MiniDump.dmp";
 
 extern bool update_completed;
+extern struct update_parameters params;
+
 bool report_unsuccessful = false;
 
 std::time_t app_start_timestamp;
 
 std::string get_uuid() noexcept;
 std::string get_timestamp() noexcept;
+std::string get_logs_json() noexcept; 
 
 double get_time_from_start() noexcept;
 
-std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo) noexcept;
+std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo, std::string minidump_result) noexcept;
 int send_crash_to_sentry_sync(const std::string& report_json) noexcept;
 
 void save_start_timestamp();
@@ -48,14 +55,14 @@ void handle_crash(struct _EXCEPTION_POINTERS* ExceptionInfo, bool callAbort = tr
 struct _EXCEPTION_POINTERS* generate_exception_info() noexcept;
 void print_stacktrace_sym(CONTEXT* ctx, std::ostringstream & report_stream) noexcept; //Prints stack trace based on context record
 
-void create_mini_dump(EXCEPTION_POINTERS* pep) noexcept;
+std::string create_mini_dump(EXCEPTION_POINTERS* pep) noexcept;
 
 std::string escapeJsonString(const std::string& input) noexcept;
 
 #include "dbghelp.h"
 #pragma comment(lib,"Dbghelp.lib")
 
-std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo) noexcept
+std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo, std::string minidump_result) noexcept
 {
 	std::ostringstream json_report;
 
@@ -89,6 +96,8 @@ std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo) noex
 	json_report << "	}, ";
 	json_report << "	\"extra\": { ";
 	json_report << "		\"app_run_time\": \"" << get_time_from_start() << "\", ";
+	json_report << "		\"app_logs_listing\": " << get_logs_json() << " , ";
+	json_report << "		\"minidump_result\": \"" << minidump_result << "\", ";
 	json_report << "		\"console_args\": \"" << get_command_line() << "\" ";
 	json_report << "	} ";
 	json_report << "}";
@@ -96,28 +105,33 @@ std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo) noex
 	return json_report.str();
 }
 
-void create_mini_dump(EXCEPTION_POINTERS* pep) noexcept
+std::string create_mini_dump(EXCEPTION_POINTERS* pep) noexcept
 {
-	// Open the file 
-	HANDLE hFile = CreateFile(L"MiniDump.dmp", GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	std::string ret = "successfully";
+	
+	HANDLE hFile = CreateFile(minidump_filenamew.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
 	if ((hFile != NULL) && (hFile != INVALID_HANDLE_VALUE))
 	{
-		MINIDUMP_EXCEPTION_INFORMATION mdei;
+		MINIDUMP_EXCEPTION_INFORMATION mdei = {0};
 
 		mdei.ThreadId = GetCurrentThreadId();
 		mdei.ExceptionPointers = pep;
-		mdei.ClientPointers = FALSE;
+		mdei.ClientPointers = TRUE;
 
-		const DWORD Flags = MiniDumpWithIndirectlyReferencedMemory | MiniDumpScanMemory | MiniDumpNormal | MiniDumpWithThreadInfo | MiniDumpWithDataSegs | MiniDumpWithHandleData | MiniDumpFilterMemory | MiniDumpScanMemory;
+		const DWORD CD_Flags = MiniDumpWithDataSegs | MiniDumpWithHandleData | MiniDumpScanMemory | MiniDumpWithUnloadedModules | MiniDumpWithIndirectlyReferencedMemory | MiniDumpWithPrivateReadWriteMemory | MiniDumpWithFullMemoryInfo | MiniDumpWithThreadInfo | MiniDumpIgnoreInaccessibleMemory;
 
-		BOOL rv = MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, (MINIDUMP_TYPE)Flags, (pep != 0) ? &mdei : 0, 0, 0);
+		BOOL rv = MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, (MINIDUMP_TYPE)CD_Flags, (pep != 0) ? &mdei : 0, 0, 0);
+		if(!rv)
+		{
+			ret = "failed to generate minidump: " + std::to_string(GetLastError());
+		}
 
 		CloseHandle(hFile);
+	} else {
+		ret = "failed to create file: " + std::to_string(GetLastError());
 	}
-	else {
-
-	}
+	return ret;
 }
 
 int send_crash_to_sentry_sync(const std::string& report_json) noexcept
@@ -157,34 +171,39 @@ int send_crash_to_sentry_sync(const std::string& report_json) noexcept
 			throw boost::system::system_error(error);
 		}
 
-		const std::string filename("MiniDump.dmp");
-		long long fileSize = boost::filesystem::file_size(filename);
+		long long minidump_file_size = 0L;
+		
+		try {
+			minidump_file_size = boost::filesystem::file_size(minidump_filename);
+		} catch (...) 
+		{
+			minidump_file_size = 0;
+		}
 
 		const std::string PREFIX = "--";
 		const std::string BOUNDARY = get_uuid();
 		const std::string NEWLINE = "\r\n";
-		const int NEWLINE_LENGTH = NEWLINE.length();
+		const size_t NEWLINE_LENGTH = NEWLINE.length();
 
 		//Calculate length of entire HTTP request - goes into header
 		long long lengthOfRequest = 0;
 		lengthOfRequest += PREFIX.length() + BOUNDARY.length() + NEWLINE_LENGTH;
-		lengthOfRequest += std::string("Content-Disposition: form-data; name=\"upload_file_minidump\"; filename=\"MiniDump.dmp\"").length();
+		lengthOfRequest += (std::string("Content-Disposition: form-data; name=\"upload_file_minidump\"; filename=\"")+minidump_filename+std::string("\"")).length();
 		lengthOfRequest += NEWLINE_LENGTH + NEWLINE_LENGTH;
-		lengthOfRequest += fileSize;
+		lengthOfRequest += minidump_file_size;
 		lengthOfRequest += NEWLINE_LENGTH + PREFIX.length() + BOUNDARY.length() + NEWLINE_LENGTH;
 
 		lengthOfRequest += std::string("Content-Disposition: form-data; name=\"sentry\"").length();
 		lengthOfRequest += NEWLINE_LENGTH + NEWLINE_LENGTH;
 		lengthOfRequest += report_json.size();
 		lengthOfRequest += NEWLINE_LENGTH + PREFIX.length() + BOUNDARY.length() + PREFIX.length() + NEWLINE_LENGTH;// + NEWLINE_LENGTH;
-
+		/*
 		FILE * filePointer;
-		fopen_s(&filePointer, filename.c_str(), "rb");
+		fopen_s(&filePointer, minidump_filename.c_str(), "rb");
 		std::unique_ptr<unsigned char[]> charArray(new unsigned char[1024 * 1024 * 2]);
 		fseek(filePointer, 0, SEEK_SET);
 		fread_s(charArray.get(), 1024 * 1024 * 2, sizeof(unsigned char), fileSize, filePointer);
-
-
+		*/
 		boost::asio::streambuf request;
 		std::ostream request_stream(&request);
 
@@ -192,7 +211,8 @@ int send_crash_to_sentry_sync(const std::string& report_json) noexcept
 		request_stream << "Host: " << host << NEWLINE;
 		request_stream << "Accept: *" << NEWLINE;
 		request_stream << "User-Agent: slobs_updater " << NEWLINE;
-		request_stream << "Accept-encoding: 'gzip, deflate, br'" << NEWLINE;
+		//request_stream << "Accept-encoding: 'gzip, deflate, br'" << NEWLINE;
+		request_stream << "Accept-encoding: 'br'" << NEWLINE;
 		request_stream << "Accept-language: 'en-US,en;q=0.9,ru;q=0.8'" << NEWLINE;
 		request_stream << "Connection: close" << NEWLINE;
 		request_stream << "X-Sentry-Auth: Sentry sentry_version=5,sentry_client=slobs_updater/";
@@ -206,21 +226,49 @@ int send_crash_to_sentry_sync(const std::string& report_json) noexcept
 		request_stream << NEWLINE << NEWLINE;
 		request_stream << PREFIX << BOUNDARY;
 		request_stream << NEWLINE;
-		request_stream << "Content-Disposition: form-data; name=\"upload_file_minidump\"; filename=\"MiniDump.dmp\"";
+		request_stream << "Content-Disposition: form-data; name=\"upload_file_minidump\"; filename=\"" << minidump_filename <<"\"";
 		request_stream << NEWLINE << NEWLINE;
 
 		// Send the request.
 		boost::asio::write(ssl_socket, request);
-
+		/*
 		auto bytesSent = 0;
 		while (bytesSent < fileSize)
 		{
 			int bytesToSendNow = fileSize - bytesSent;
-			if (bytesToSendNow > 1024 * 10) bytesToSendNow = 1024 * 10;
+			if (bytesToSendNow > 1024 * 8) bytesToSendNow = 1024 * 8;
 			boost::asio::write(ssl_socket, boost::asio::buffer(charArray.get() + bytesSent, bytesToSendNow));
 
 			bytesSent += bytesToSendNow;
 		}
+		*/
+
+		const long long minidump_buf_size = 1024 * 8;
+		static char minidump_buf[minidump_buf_size];
+		long long bytes_read = 0;
+		long long total_bytes_sent = 0;
+
+		try{
+			std::ifstream is(minidump_filename.c_str(), std::ios::in | std::ios::binary);
+		
+			while ((bytes_read = is.read(minidump_buf, minidump_buf_size).gcount() ) > 0)
+			{
+				boost::asio::write(ssl_socket, boost::asio::buffer(minidump_buf, bytes_read));
+				total_bytes_sent+=bytes_read;
+			}
+		} catch (...) {
+		}
+
+		if(total_bytes_sent < minidump_file_size)
+		{
+			memset( minidump_buf, 0x00, minidump_buf_size);
+			size_t bytes_to_send = 0;
+			while (bytes_to_send = std::min(minidump_buf_size, total_bytes_sent) > 0)
+			{
+				total_bytes_sent -= bytes_to_send;
+				boost::asio::write(ssl_socket, boost::asio::buffer(minidump_buf, bytes_to_send));
+			}
+		}			
 
 		boost::asio::streambuf request_end;
 		std::ostream request_stream_end(&request_end);
@@ -234,9 +282,7 @@ int send_crash_to_sentry_sync(const std::string& report_json) noexcept
 		request_stream_end << PREFIX << BOUNDARY;
 		request_stream_end << PREFIX;
 		request_stream_end << NEWLINE;
-		//request_stream_end << NEWLINE;
 		boost::asio::write(ssl_socket, request_end);
-
 
 		// Read the response status line. 
 		boost::asio::streambuf response;
@@ -286,7 +332,7 @@ int send_crash_to_sentry_sync(const std::string& report_json) noexcept
 		}
 
 	}
-	catch (std::exception& e)
+	catch (const std::exception& )
 	{
 		//have to ignore exceptions as programm is in reporting exception already
 	}
@@ -304,13 +350,13 @@ void handle_crash(struct _EXCEPTION_POINTERS* ExceptionInfo, bool callAbort) noe
 	}
 	insideCrashMethod = true;
 
-	std::string report = prepare_crash_report(ExceptionInfo);
+	std::string minidump_result = create_mini_dump(ExceptionInfo);
 
-	create_mini_dump(ExceptionInfo);
+	std::string report = prepare_crash_report(ExceptionInfo, minidump_result);
 
 	send_crash_to_sentry_sync(report);
 
-	DeleteFile(L"MiniDump.dmp");
+	DeleteFile(minidump_filenamew.c_str());
 
 	if (callAbort)
 	{
@@ -350,7 +396,6 @@ void print_stacktrace_sym(CONTEXT* ctx, std::ostringstream & report_stream) noex
 	const int		MaxNameLen = 256;
 
 	char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
-	char name[MaxNameLen];
 	char module[MaxNameLen];
 	PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)buffer;
 
@@ -493,6 +538,49 @@ void setup_crash_reporting()
 
 }
 
+std::string get_logs_json() noexcept
+{
+	std::list<std::string> last_logs;
+	try {
+		std::ifstream logfile(params.log_file_path);
+
+		std::string logline;
+		while (std::getline(logfile, logline))
+		{
+			last_logs.push_back(std::string("\"") + escapeJsonString(logline) + std::string("\""));
+			if(last_logs.size() > 100) 
+			{
+				last_logs.pop_front();
+			}
+		}
+
+	} catch (...)
+	{
+		return std::string(" \"failed to read logs\" "); 
+	}
+
+	std::ostringstream ss;
+	bool first_line = true;
+
+	ss << " [ ";
+	for (auto const& logline : last_logs)
+	{
+		if (first_line)
+		{
+			first_line = false;
+		}
+		else
+		{
+			ss << ", \n";
+		}
+
+		ss << logline;
+	}
+	ss << " ] \n";
+
+	return ss.str();
+}
+
 std::string get_timestamp() noexcept
 {
 	char buf[sizeof "xxxx-xx-xxTxx:xx:xxx\0"];
@@ -507,7 +595,7 @@ std::string get_timestamp() noexcept
 std::string get_uuid() noexcept
 {
 	char result[33] = { '\0' }; //"fc6d8c0c43fc4630ad850ee518f1b9d0";
-	std::srand(std::time(nullptr));
+	std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
 	for (std::size_t i = 0; i < sizeof(result) - 1; ++i)
 	{

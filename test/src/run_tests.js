@@ -4,7 +4,7 @@ const test_config = require('./test_config.js');
 const fse = require('fs-extra')
 const path = require('path');
 
-const run_one_test = true;
+const run_one_test = false;
 
 async function run_tests() {
     let testinfo;
@@ -16,7 +16,12 @@ async function run_tests() {
 
     if (run_one_test) {
         console.log("--- Tests launched in manual set of tests mode! ");
-        //testinfo.let_404 = true;
+        testinfo = test_config.gettestinfo(" // test for manual use ");
+        testinfo.more_log_output = true;
+        //testinfo.serverUrl = "https://outlook.live.com";
+        //testinfo.selfLockingFile = true;
+        //testinfo.selfBlockersCount = 2;
+        //testinfo.let_15sec = true;
         //testinfo.let_block_one_file = true;
         //testinfo.morebigfiles = true;
         //testinfo.expectedResult = "filesnotchanged"
@@ -25,13 +30,18 @@ async function run_tests() {
         //testinfo.runAsInteractive = 1;
         //testinfo.expectedResult = "filesnotchanged"
         //testinfo.manifestGenerated = false;
-        testinfo = test_config.gettestinfo(" // test for manual use ");
         //testinfo.let_5sec = true;
-        testinfo.runAsInteractive = 1;
+        //testinfo.runAsInteractive = 1;
         //testinfo.morebigfiles = true;
-        testinfo.selfBlockersCount = 5;
-        testinfo.selfBlockingFile = true;
+        //testinfo.selfBlockersCount = 5;
+        //testinfo.selfBlockingFile = true;
+        //testinfo.pidWaiting = true;
+        //testinfo.selfBlockingFile = true;
+        //testinfo.selfBlockersCount = 3;
+        //testinfo.let_404 = true;
+        //testinfo.let_block_manifest = true;
         //testinfo.selfLockingFile = true;
+        //testinfo.more_log_output = true;
 
         test_result = await run_test.test_update(testinfo);
         if (test_result != 0) {
@@ -80,8 +90,42 @@ async function run_tests() {
             failed_test_names.push(testinfo.testName);
         }
 
+        testinfo = test_config.gettestinfo(" //test wrong server failed connection ");
+        testinfo.serverUrl = "https://outlook.live.com";
+        testinfo.expectedResult = "filesnotchanged"
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
         testinfo = test_config.gettestinfo(" //test server more slow to responce connection ");
         testinfo.let_15sec = true;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //test server on stuck manifest connection ");
+        testinfo.let_15sec = true;
+        testinfo.let_block_manifest = true;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //test server giving 404 on first manifest connection ");
+        testinfo.let_404 = true;
+        testinfo.let_block_manifest = true;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //test server giving 404 on each manifest connection ");
+        testinfo.let_404 = true;
+        testinfo.let_block_one_file = true;
+        testinfo.let_block_manifest = true;
+        testinfo.expectedResult = "filesnotchanged"
         test_result = await run_test.test_update(testinfo);
         if (test_result != 0) {
             failed_test_names.push(testinfo.testName);
@@ -100,6 +144,15 @@ async function run_tests() {
         testinfo = test_config.gettestinfo(" //bad update - no server. files have to not change  ");
         testinfo.expectedResult = "filesnotchanged"
         testinfo.serverStarted = false;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //test pid waiting  ");
+        testinfo.pidWaiting = true;
+        testinfo.selfBlockingFile = true;
+        testinfo.selfBlockersCount = 3;
         test_result = await run_test.test_update(testinfo);
         if (test_result != 0) {
             failed_test_names.push(testinfo.testName);

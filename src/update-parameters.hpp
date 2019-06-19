@@ -7,16 +7,22 @@
 
 #include "uri-parser.hpp"
 
+#include <filesystem>
+
+namespace fs = std::filesystem;
+
+
 /* We want this to be C compatible eventually */
 struct update_parameters {
 	struct uri_components host;
 
-	boost::filesystem::path temp_dir;
-	boost::filesystem::path app_dir;
+	fs::path temp_dir;
+	fs::path app_dir;
 	std::string exec;
 	std::string exec_cwd;
 	std::vector<int> pids;
 	std::string version;
+	std::string log_file_path;
 	FILE *log_file = nullptr;
 	bool interactive = false;
 
