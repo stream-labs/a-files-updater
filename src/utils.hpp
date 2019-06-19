@@ -1,6 +1,10 @@
 #pragma once
 
 #include <windows.h>
+#include <filesystem>
+#include <unordered_map>
+
+namespace fs = std::filesystem;
 
 /* We cannot use the default WM_CLOSE since there
  * are various things outside of our control that
@@ -28,6 +32,14 @@ BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory);
 
 LPWSTR ConvertToUtf16(const char *from, int *from_size);
 
+fs::path prepare_file_path(const fs::path &base, const fs::path &target);
+std::string unfixup_uri(const std::string &source);
+std::string fixup_uri(const std::string &source);
+std::string encimpl(std::string::value_type v);
+std::string urlencode(const std::string& url);
+
+std::string calculate_files_checksum(fs::path &path);
+
 /* Because Windows doesn't provide us a Unicode
  * command line by default and the command line
  * it does provide us is in UTF-16LE. */
@@ -48,3 +60,13 @@ private:
 	int m_argc{ 0 };
 	LPSTR *m_argv{ nullptr };
 };
+
+struct manifest_entry_t
+{
+	std::string hash_sum;
+	bool compared_to_local;
+
+	manifest_entry_t(std::string &file_hash_sum): hash_sum(file_hash_sum), compared_to_local(false){}
+};
+
+using manifest_map_t = std::unordered_map<std::string, manifest_entry_t>;

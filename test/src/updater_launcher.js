@@ -7,7 +7,7 @@ exports.start_updater = async function (testinfo) {
   const updateDirE = testinfo.initialDir.replace(/\\/g, '\\\\');
 
   const updaterArgs = [
-    '--base-url', `"https://localhost/"`,
+    '--base-url', `"${testinfo.serverUrl}"`,
     '--version', `"${testinfo.versionName}"`,
     '--exec', `"${updaterPathE}"`,
     '--cwd', `"${updateDirE}"`,
@@ -15,6 +15,7 @@ exports.start_updater = async function (testinfo) {
     '--app-dir', `"${updateDirE}"`,
     '--force-temp'
   ];
+  
   if(testinfo.pidWaiting)
   {
     testinfo.pidWaitingList.forEach((pid) => {

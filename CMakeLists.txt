@@ -73,7 +73,6 @@ target_link_libraries(slobs-updater
 	# -MANIFESTUAC:level=requireAdministrator
 )
 
-
 # OpenSSL needs us to link against libraries it depends
 # on in order to be runtime agnostic
 target_link_libraries(slobs-updater Crypt32)

@@ -4,7 +4,6 @@
 #include <thread>
 #include <regex>
 
-#include <boost/algorithm/string/replace.hpp>
 #include <boost/asio.hpp>
 #include <boost/asio/ssl/error.hpp>
 #include <boost/asio/ssl/stream.hpp>
@@ -19,7 +18,6 @@
 #include <fmt/format.h>
 #include <aclapi.h>
 
-#include <filesystem>
 #include <fstream>
 #include <iostream>
 
@@ -28,7 +26,6 @@ using tcp = asio::ip::tcp;
 namespace beast = boost::beast;
 namespace http = boost::beast::http;
 namespace ssl = boost::asio::ssl;
-namespace fs = std::filesystem;
 namespace bio = boost::iostreams;
 
 using std::regex;
@@ -46,6 +43,8 @@ const size_t file_buffer_size = 4096;
 
 #include "update-client-internal.hpp"
 #include "update-http-request.hpp"
+#include "utils.hpp"
+#include "file-updater.h"
 
 const std::string failed_to_revert_message = "Failed to move files.\nPlease make sure the application files are not in use and try again.";
 const std::string failed_to_update_message = "Failed to move files.\nPlease make sure the application files are not in use and try again.";
@@ -58,256 +57,17 @@ const std::string restart_or_install_message = "Streamlabs OBS encountered an is
 
 /*##############################################
  *#
- *# Utility functions
- *#
- *############################################*/
-namespace {
-	std::string encimpl(std::string::value_type v)
-	{
-		if ( isascii(v) )
-			return std::string() + v;
-
-		std::ostringstream enc;
-		enc << '%' << std::setw(2) << std::setfill('0') << std::hex << std::uppercase << int(static_cast<unsigned char>(v));
-		return enc.str();
-	}
-
-	std::string urlencode(const std::string& url)
-	{
-		const std::string::const_iterator start = url.begin();
-
-		std::vector<std::string> qstrs;
-
-		std::transform(start, url.end(),
-			std::back_inserter(qstrs),
-			encimpl);
-
-		std::ostringstream ostream;
-		
-		for (auto const& i : qstrs)
-		{
-			ostream << i;
-		}
-
-		return ostream.str();
-	}
-
-	std::string fixup_uri(const std::string &source)
-	{
-		std::string result(source);
-
-		boost::algorithm::replace_all(result, "\\", "/");
-		boost::algorithm::replace_all(result, " ", "%20");
-
-		return result;
-	}
-
-	std::string unfixup_uri(const std::string &source)
-	{
-		std::string result(source);
-
-		boost::algorithm::replace_all(result, "%20", " ");
-
-		return result;
-	}
-}
-
-/*##############################################
- *#
  *# Class Implementation
  *#
  *############################################*/
-
-FileUpdater::FileUpdater(update_client *client_ctx)
-	: m_client_ctx(client_ctx),
-	m_old_files_dir(client_ctx->params->temp_dir),
-	m_app_dir(client_ctx->params->app_dir)
-{
-	m_old_files_dir /= "old-files";
-}
-
-FileUpdater::~FileUpdater()
-{
-	std::error_code ec;
-
-	fs::remove_all(m_old_files_dir, ec);
-	if (ec)
-	{
-		wlog_warn(L"Failed to clean temp folder.");
-	}
-}
-
-void FileUpdater::update()
-{
-	fs::create_directories(m_old_files_dir);
-
-	update_client::manifest_map_t::iterator iter;
-	update_client::manifest_map_t &manifest = m_client_ctx->manifest;
-
-	fs::path &new_files_dir = m_client_ctx->new_files_dir;
-	std::string version_file_key = "resources\app.asar";
-
-	for (iter = manifest.begin(); iter != manifest.end(); ++iter)
-	{
-		if (version_file_key.compare(iter->first) != 0)
-		{
-			update_entry_with_retries(iter, new_files_dir);
-		}
-	}
-
-	auto version_file = manifest.find(version_file_key);
-	if (version_file != manifest.end())
-	{
-		update_entry_with_retries(version_file, new_files_dir);
-	}
-}
-
-bool FileUpdater::update_entry_with_retries(update_client::manifest_map_t::iterator &iter, fs::path &new_files_dir)
-{
-	int retries = 0;
-	const int max_retries = 5;
-	bool ret = false;
-
-	while (retries < max_retries && !ret)
-	{
-		retries++;
-		ret = update_entry(iter, new_files_dir);
-		if (!ret)
-		{
-			std::wstring wmsg(iter->first.begin(), iter->first.end());
-			wlog_warn(L"Have failed to update file: %s, will retry", wmsg.c_str());
-			Sleep(100*retries);
-		}
-	}
-
-	if (!ret)
-	{
-		std::wstring wmsg(iter->first.begin(), iter->first.end());
-		wlog_warn(L"Have failed to update file: %s", wmsg.c_str());
-		throw std::runtime_error("Error: failed to update file");
-	}
-	return ret;
-}
-
-bool FileUpdater::update_entry(update_client::manifest_map_t::iterator &iter, fs::path &new_files_dir)
-{
-	std::error_code ec;
-	fs::path file_name_part = fs::u8path(iter->first.c_str());
-	fs::path to_path(m_app_dir);
-	to_path /= file_name_part;
-
-	fs::path old_file_path(m_old_files_dir);
-	old_file_path /= file_name_part;
-
-	fs::path from_path(new_files_dir);
-	from_path /= file_name_part;
-	
-	try
-	{
-		fs::create_directories(old_file_path.parent_path());
-		fs::create_directories(to_path.parent_path());
-   
- 		if (fs::exists(to_path))
-		{
-			fs::rename(to_path, old_file_path, ec);
-			if (ec)
-			{
-				std::string msg = ec.message();
-				std::wstring wmsg(msg.begin(), msg.end());
-
-				wlog_debug(L"Failed to move file %s %s, error %s", to_path.c_str(), old_file_path.c_str(), wmsg.c_str());
-				return false;
-			}
-		}
-
-		fs::rename(from_path, to_path, ec);
-		if (ec)
-		{
-			std::string msg = ec.message();
-			std::wstring wmsg(msg.begin(), msg.end());
-
-			wlog_debug(L"Failed to move file %s %s, error %s", from_path.c_str(), to_path.c_str(), wmsg.c_str());
-			return false;
-		}
-
-		try
-		{
-			reset_rights(to_path);
-		}
-		catch (...)
-		{
-			wlog_warn(L"Have failed to update file rights: %s", to_path.c_str());
-		}
-
-		return true;
-	}
-	catch (...)
-	{
-		wlog_warn(L"Have failed to update file in function: %s", to_path.c_str());
-	}
-
-	return false;
-}
-
-bool FileUpdater::reset_rights(const fs::path& path)
-{
-	ACL empty_acl;
-	if (InitializeAcl(&empty_acl, sizeof(empty_acl), ACL_REVISION))
-	{
-		const std::wstring path_str = path.generic_wstring();
-		DWORD result = SetNamedSecurityInfo((LPWSTR)path_str.c_str(), SE_FILE_OBJECT,
-			DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION,
-			0, 0, &empty_acl, 0);
-		if (result == ERROR_SUCCESS)
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-void FileUpdater::revert()
-{
-	/* Generate the manifest for the current application directory */
-	fs::recursive_directory_iterator iter(m_old_files_dir);
-	fs::recursive_directory_iterator end_iter{};
-	std::error_code ec;
-	int error_count = 0;
-
-	for (; iter != end_iter; ++iter)
-	{
-		/* Fetch relative paths */
-		fs::path rel_path(fs::relative(iter->path(), m_old_files_dir));
-
-		fs::path to_path(m_app_dir);
-		to_path /= rel_path;
-
-		fs::remove(to_path, ec);
-		if (ec)
-		{
-			wlog_warn(L"Revert have failed to correctly remove changed file: %s ", to_path.c_str());
-			error_count++;
-		}
-
-		fs::rename(iter->path(), to_path, ec);
-		if (ec)
-		{
-			wlog_warn(L"Revert have failed to correctly move file back: %s ", to_path.c_str());
-			error_count++;
-		}
-	}
-
-	if (error_count > 0)
-	{
-		wlog_warn(L"Revert have failed to correctly revert some files. Fails: %i", error_count);
-	}
-}
 
 void update_client::start_file_update()
 {
 	log_info("Files downloaded and ready to start update.");
 
-	FileUpdater updater(this);
+	reset_work_threads_gurards();
+
+	FileUpdater updater(params->temp_dir, params->app_dir, new_files_dir, manifest);
 	bool updated = false;
 
 	try {
@@ -342,8 +102,6 @@ void update_client::start_file_update()
 			client_events->error(failed_to_update_message.c_str());
 		}
 	}
-
-	reset_work_threads_gurards();
 }
 
 struct update_client::pid
@@ -400,22 +158,24 @@ void update_client::handle_pids()
 	}
 }
 
-void update_client::handle_network_error(const boost::system::error_code & error, const char * str)
+void update_client::handle_network_error(const boost::system::error_code & error, const std::string & str)
 {
-	char error_buf[256];
+	std::lock_guard<std::mutex> lock(handle_error_mutex);
+	
+	update_download_aborted = true;
+
+	char error_buf[256]{0};
 
 	snprintf(error_buf, sizeof(error_buf), "%s\0", restart_or_install_message.c_str());
-
 	client_events->error(error_buf);
 
-	snprintf(error_buf, sizeof(error_buf), "%s - %s\0", str, error.message().c_str());
-
+	snprintf(error_buf, sizeof(error_buf), "%s - %s\0", str.c_str(), error.message().c_str());
 	log_error(error_buf);
 
 	reset_work_threads_gurards();
 }
 
-void update_client::handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code & error, const char * str)
+void update_client::handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code & error, const std::string & str)
 {
 	if (request_ctx->retries > 5)
 	{
@@ -424,11 +184,17 @@ void update_client::handle_file_download_error(file_request<http::dynamic_body> 
 		{
 			ec = boost::asio::error::basic_errors::timed_out;
 		}
+		
+		{
+			std::lock_guard<std::mutex> lock(handle_error_mutex);
+			if(!update_download_aborted)
+			{
+				update_download_aborted = true;
 
-		update_canceled = true;
-
-		cancel_message = str;
-		cancel_error = error;
+				download_abort_message = str;
+				download_abort_error = error;
+			}
+		}
 
 		handle_file_download_canceled(request_ctx);
 		return;
@@ -453,7 +219,7 @@ void update_client::handle_file_download_canceled(file_request<http::dynamic_bod
 	next_manifest_entry(index);
 }
 
-void update_client::handle_manifest_download_error(manifest_request<manifest_body> *request_ctx, const boost::system::error_code & error, const char * str)
+void update_client::handle_manifest_download_error(manifest_request<manifest_body> *request_ctx, const boost::system::error_code & error, const std::string & str)
 {
 	if (request_ctx->retries > 5)
 	{
@@ -462,11 +228,17 @@ void update_client::handle_manifest_download_error(manifest_request<manifest_bod
 		{
 			ec = boost::asio::error::basic_errors::timed_out;
 		}
+		
+		{
+			std::lock_guard<std::mutex> lock(handle_error_mutex);
+			if (!update_download_aborted)
+			{
+				update_download_aborted = true;
 
-		update_canceled = true;
-
-		cancel_message = str;
-		cancel_error = error;
+				download_abort_message = str;
+				download_abort_error = error;
+			}
+		}
 
 		handle_manifest_download_canceled(request_ctx);
 		return;
@@ -488,20 +260,22 @@ void update_client::handle_manifest_download_canceled(manifest_request<manifest_
 	auto index = request_ctx->worker_id;
 	delete request_ctx;
 
-	handle_network_error(cancel_error, cancel_message.c_str());
+	handle_network_error(download_abort_error, download_abort_message);
 }
 
 void update_client::handle_resolve(const boost::system::error_code &error, tcp::resolver::results_type results) 
 {
+	domain_resolve_timeout.cancel();
+
 	if (error) 
 	{
-		handle_network_error(error, failed_connect_to_server_message.c_str());
+		handle_network_error(error, failed_connect_to_server_message);
 		return;
 	}
 
+	log_info("Successfuly resolved update server domain name. Continue to download update manifest.");
 	endpoints = results;
 
-	/* TODO I should make hash type configurable. */
 	std::string manifest_target{ params->version+".sha256" };
 
 	auto *request_ctx = new manifest_request<manifest_body>(this, manifest_target, 0);
@@ -514,7 +288,8 @@ update_client::update_client(struct update_parameters *params)
 	wait_for_blockers(io_ctx),
 	show_user_blockers_list( true),
 	active_workers(0),
-	resolver(io_ctx)
+	resolver(io_ctx),
+	domain_resolve_timeout(io_ctx)
 {
 	new_files_dir = params->temp_dir;
 	new_files_dir /= "new-files";
@@ -573,7 +348,32 @@ void update_client::do_stuff()
 
 	client_events->initialize();
 
+	domain_resolve_timeout.expires_from_now(boost::posix_time::seconds(10));
+	check_resolve_timeout_callback_err({});
+
 	resolver.async_resolve( params->host.authority, params->host.scheme, cb );
+}
+
+void update_client::check_resolve_timeout_callback_err(const boost::system::error_code& error)
+{
+	if (error)
+	{
+		if (error == boost::asio::error::operation_aborted)
+		{
+			return;
+		} else {
+			return;
+		}
+	}
+
+	if (domain_resolve_timeout.expires_at() <= boost::asio::deadline_timer::traits_type::now())
+	{
+		resolver.cancel();
+		log_info("Timeout for cdn resolve triggered.");
+		handle_network_error(error, failed_connect_to_server_message);
+	} else {
+		domain_resolve_timeout.async_wait(bind(&update_client::check_resolve_timeout_callback_err, this, std::placeholders::_1));
+	}
 }
 
 /*##############################################
@@ -582,71 +382,27 @@ void update_client::do_stuff()
  *#
  *############################################*/
 
-static std::string calculate_checksum(fs::path &path)
-{
-	std::ostringstream hex_digest;
-	unsigned char hash[SHA256_DIGEST_LENGTH] = {0};
-
-	std::ifstream file(path, std::ios::in | std::ios::binary );
-	if (file.is_open())
-	{
-		SHA256_CTX sha256;
-		SHA256_Init(&sha256);
-
-		unsigned char buffer[4096];
-		while (true)
-		{
-			file.read((char *)buffer, 4096);
-			std::streamsize read_byte = file.gcount();
-			if(read_byte!=0)
-			{
-				SHA256_Update(&sha256, buffer, read_byte);
-			}
-			if ( !file.good())
-			{
-				break;
-			}
-		}
-
-		SHA256_Final(hash, &sha256);
-
-		file.close();
-		
-		hex_digest << std::nouppercase << std::setfill('0') << std::hex;
-
-		for (int i = 0; i < SHA256_DIGEST_LENGTH ; ++i)
-		{
-			hex_digest << std::setw(2) << static_cast<unsigned int>(hash[i]);
-		}
-	}
-
-	return hex_digest.str();
-}
-
-/* TODO Read a book on how to properly name things.
- * This removes unneeded entries in the manifest */
-bool update_client::clean_manifest(blockers_map_t &blockers)
+bool update_client::checkup_manifest(blockers_map_t &blockers)
 {
 	/* Generate the manifest for the current application directory */
-	fs::recursive_directory_iterator app_dir_iter(this->params->app_dir);
-
+	fs::recursive_directory_iterator app_dir_iter(params->app_dir);
 	fs::recursive_directory_iterator end_iter{};
 
 	for (; app_dir_iter != end_iter; ++app_dir_iter)
 	{
 		fs::path entry = app_dir_iter->path();
 
-		fs::path key_path(fs::relative(entry, this->params->app_dir));
+		fs::path key_path(fs::relative(entry, params->app_dir));
 
 		fs::path cleaned_file_name = key_path.make_preferred();
 		std::string key = cleaned_file_name.u8string();
 
-		auto manifest_iter = this->manifest.find(key);
+		auto manifest_iter = manifest.find(key);
 
 		/* If we don't know about the file,
 		 * just leave it alone for now.
 		 * TODO Should we delete unknown files? */
-		if (manifest_iter == this->manifest.end())
+		if (manifest_iter == manifest.end())
 			continue;
 		
 		if (check_file_updatable(entry, true, blockers))
@@ -655,7 +411,7 @@ bool update_client::clean_manifest(blockers_map_t &blockers)
 			{
 				std::string checksum = "";
 				try {
-					checksum = calculate_checksum(entry);
+					checksum = calculate_files_checksum(entry);
 				}
 				catch (const boost::exception &e)
 				{
@@ -671,7 +427,7 @@ bool update_client::clean_manifest(blockers_map_t &blockers)
 				 * to download it (as it's already the same). */
 				if (checksum.compare(manifest_iter->second.hash_sum) == 0)
 				{
-					this->manifest.erase(manifest_iter);
+					manifest.erase(manifest_iter);
 					continue;
 				} else {
 					manifest_iter->second.compared_to_local = true;
@@ -707,7 +463,7 @@ void update_client::process_manifest_results()
 	try
 	{
 		blockers_map_t blockers;
-		this->clean_manifest(blockers);
+		checkup_manifest(blockers);
 
 		if (blockers.size() > 0)
 		{
@@ -806,6 +562,7 @@ void update_client::process_manifest_results()
 
 void update_client::start_downloading_files()
 {
+	log_info("Manifest cleaned and ready to download files. Files to download %d", manifest.size());
 	/* TODO We should be able to make max configurable.*/
 	int max_threads = 4;
 
@@ -845,7 +602,7 @@ void update_client::start_downloading_files()
 }
 
 template <class ConstBuffer>
-static size_t handle_manifest_read_buffer(update_client::manifest_map_t &map, const ConstBuffer &buffer)
+static size_t handle_manifest_read_buffer(manifest_map_t &map, const ConstBuffer &buffer)
 {
 	/* TODO: Hardcoded for SHA-256 checksums. */
 	static const regex manifest_regex("([A-Fa-f0-9]{64}) ([^\r\n]+)\r?\n");
@@ -901,7 +658,9 @@ void update_client::handle_manifest_result(manifest_request<manifest_body> *requ
 {
 	delete request_ctx;
 
-	wait_for_blockers.expires_from_now(boost::posix_time::seconds(2));
+	log_info("Successfuly downloaded manifest. It has info about %d files", manifest.size());
+
+	wait_for_blockers.expires_from_now(boost::posix_time::seconds(3));
 	wait_for_blockers.async_wait(boost::bind(&update_client::process_manifest_results, this));
 
 	/* let time for SLOBS process to quit and make files available for update */
@@ -937,29 +696,6 @@ update_file_t::update_file_t(const fs::path &file_path)
 	this->output_chain.push(boost::reference_wrapper< std::ofstream >(this->file_stream), file_buffer_size);
 }
 
-fs::path prepare_file_path(const fs::path &base, const fs::path &target)
-{
-	fs::path file_path(base);
-	file_path /= target;
-	
-	file_path = fs::u8path( unfixup_uri(file_path.string()).c_str() );
-
-	file_path.make_preferred();
-	file_path.replace_extension();
-
-	try 
-	{
-		fs::create_directories(file_path.parent_path());
-		
-		fs::remove(file_path);
-	} catch (...)
-	{
-		file_path = "";
-	}
-
-	return file_path;
-}
-
 void update_client::handle_file_result(file_request<http::dynamic_body> *request_ctx, update_file_t *file_ctx, int index)
 {
 	auto &filter = file_ctx->checksum_filter;
@@ -991,7 +727,7 @@ void update_client::next_manifest_entry(int index)
 {
 	std::unique_lock<std::mutex> manifest_lock(this->manifest_mutex);
 
-	if (this->manifest_iterator == this->manifest.end() || update_canceled)
+	if (this->manifest_iterator == this->manifest.end() || update_download_aborted)
 	{
 		--this->active_workers;
 
@@ -1000,9 +736,9 @@ void update_client::next_manifest_entry(int index)
 		if (this->active_workers == 0)
 		{
 			this->downloader_events->downloader_complete();
-			if (update_canceled)
+			if (update_download_aborted)
 			{
-				handle_network_error(cancel_error, cancel_message.c_str());
+				handle_network_error(download_abort_error, download_abort_message);
 			}
 			else {
 				this->start_file_update();
@@ -1050,13 +786,13 @@ void update_http_request<http::dynamic_body, true>::handle_download_canceled()
 }
 
 template<>
-void update_http_request<manifest_body, false>::handle_download_error(const boost::system::error_code & error, const char * str)
+void update_http_request<manifest_body, false>::handle_download_error(const boost::system::error_code & error, const std::string & str)
 {
 	client_ctx->io_ctx.post(boost::bind(&update_client::handle_manifest_download_error, client_ctx, this, error, str));
 }
 
 template<>
-void update_http_request<http::dynamic_body, true>::handle_download_error(const boost::system::error_code & error, const char * str)
+void update_http_request<http::dynamic_body, true>::handle_download_error(const boost::system::error_code & error, const std::string & str)
 {
 	client_ctx->io_ctx.post(boost::bind(&update_client::handle_file_download_error, client_ctx, this, error, str));
 }
@@ -1083,7 +819,7 @@ void update_http_request<http::dynamic_body, true>::start_reading()
 	if (file_path.empty())
 	{
 		std::string msg = std::string("Failed to create file path for: ") + target;
-		handle_download_error({}, msg.c_str());
+		handle_download_error({}, msg);
 		return;
 	}
 
@@ -1136,7 +872,7 @@ void update_http_request<http::dynamic_body, true>::handle_response_body(boost::
 
 		std::string msg = std::string("Failed to recieve file body correctly. for : ") + target;
 
-		handle_download_error(boost::asio::error::basic_errors::connection_aborted, msg.c_str());
+		handle_download_error(boost::asio::error::basic_errors::connection_aborted, msg);
 
 		return;
 	}

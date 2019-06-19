@@ -18,8 +18,9 @@ async function run_tests() {
         console.log("--- Tests launched in manual set of tests mode! ");
         testinfo = test_config.gettestinfo(" // test for manual use ");
         testinfo.more_log_output = true;
-        testinfo.selfLockingFile = true;
-        testinfo.selfBlockersCount = 2;
+        //testinfo.serverUrl = "https://outlook.live.com";
+        //testinfo.selfLockingFile = true;
+        //testinfo.selfBlockersCount = 2;
         //testinfo.let_15sec = true;
         //testinfo.let_block_one_file = true;
         //testinfo.morebigfiles = true;
@@ -84,6 +85,14 @@ async function run_tests() {
 
         testinfo = test_config.gettestinfo(" //test server slow to responce connection ");
         testinfo.let_5sec = true;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //test wrong server failed connection ");
+        testinfo.serverUrl = "https://outlook.live.com";
+        testinfo.expectedResult = "filesnotchanged"
         test_result = await run_test.test_update(testinfo);
         if (test_result != 0) {
             failed_test_names.push(testinfo.testName);

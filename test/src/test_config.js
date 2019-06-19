@@ -12,6 +12,8 @@ exports.gettestinfo = function (testname) {
     versionName: "0.11.9-preview.1",
     updaterName: "slobs-updater.exe",
 
+    serverUrl: "https://localhost/",
+
     files: [],
 
     //posible errors to test
@@ -85,7 +87,7 @@ exports.gettestinfo = function (testname) {
     { name: "dir/file3.zip",  hugefile: false, testing: "deleted" }, 
     { name: "file4.log.txt",   hugefile: false, testing: "created" }, 
     { name: "file5.1",   hugefile: false, testing: "created" }, 
-    { name: "file 1.txt",  hugefile: false, testing: "creted" }, 
+    { name: "file 1.txt",  hugefile: false, testing: "created" }, 
     { name: "dir/file6.ept",   hugefile: false, testing: "created empty" }, 
   ];  
 

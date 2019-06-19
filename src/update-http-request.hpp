@@ -47,7 +47,7 @@ struct update_http_request
 
 	bool handle_callback_precheck(const boost::system::error_code& error, const std::string & message);
 	void handle_download_canceled();
-	void handle_download_error(const boost::system::error_code & error, const char * str);
+	void handle_download_error(const boost::system::error_code & error, const std::string & str);
 	void handle_result(update_file_t *file_ctx);
 
 	void start_connect();
@@ -118,7 +118,7 @@ void update_http_request<Body, IncludeVersion>::check_deadline_callback_err(cons
 
 	if (deadline.expires_at() <= boost::asio::deadline_timer::traits_type::now())
 	{
-		log_info("Timeout for file download operation trigered.");
+		log_info("Timeout for file download operation triggered.");
 		deadline_reached = true;
 
 		boost::system::error_code ignored_ec;
@@ -144,7 +144,7 @@ bool update_http_request<Body, IncludeVersion>::handle_callback_precheck(const b
 {
 	deadline.cancel();
 
-	if (client_ctx->update_canceled)
+	if (client_ctx->update_download_aborted)
 	{
 		handle_download_canceled();
 		return true;
@@ -154,7 +154,7 @@ bool update_http_request<Body, IncludeVersion>::handle_callback_precheck(const b
 	{
 		std::string msg = std::string( "Failed to ") + message + ", for : " + target;
 
-		handle_download_error(error, msg.c_str());
+		handle_download_error(error, msg);
 		return true;
 	}
 
@@ -240,7 +240,7 @@ void update_http_request<Body, IncludeVersion>::handle_response_header(boost::sy
 
 		std::string output_str = std::string("Server send status Code: ") + std::to_string(status_code) + " for: "+ std::string(target_info.data(), target_info.size()) ;
 
-		handle_download_error(boost::asio::error::basic_errors::connection_aborted, output_str.c_str());
+		handle_download_error(boost::asio::error::basic_errors::connection_aborted, output_str);
 		return;
 	}
 
@@ -257,7 +257,7 @@ void update_http_request<Body, IncludeVersion>::handle_response_header(boost::sy
 
 		std::string output_str = std::string("Receive empty header for: ") + std::string(target_info.data(), target_info.size());
 
-		handle_download_error(boost::asio::error::basic_errors::connection_aborted, output_str.c_str());
+		handle_download_error(boost::asio::error::basic_errors::connection_aborted, output_str);
 		return;
 	}
 
