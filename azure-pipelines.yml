@@ -1,0 +1,77 @@
+trigger:
+  branches:
+    include:
+      - master
+  tags:
+    include:
+      - v*
+
+workspace:
+  clean: all
+
+strategy:
+  matrix:
+    Release:
+      BUILD_TYPE: Release 
+    Debug:
+      BUILD_TYPE: Debug
+
+pool:
+  vmImage: 'vs2017-win2016'
+
+variables:
+  ZLIB_DIST_NAME: zlib-1.2.11-static-mt
+  OPENSSL_DIST_NAME: openssl-1.1.0h
+  BOOST_DIST_NAME: boost-vc141-1_70_0-bin
+  DEPS_DIST_URI: https://s3-us-west-2.amazonaws.com/streamlabs-obs-updater-deps/
+  DEPS_LOCAL_PATH: $(Build.SourcesDirectory)\slobs-updater-deps
+  ZLIB_ROOT: $(DEPS_LOCAL_PATH)\$(ZLIB_DIST_NAME)
+  OPENSSL_ROOT: $(DEPS_LOCAL_PATH)\$(OPENSSL_DIST_NAME)
+  BOOST_ROOT: $(DEPS_LOCAL_PATH)\$(BOOST_DIST_NAME)
+  BUILD_DIR: $(Build.SourcesDirectory)\build
+
+steps:
+- script: |
+    nuget install secure-file -ExcludeVersion
+    mkdir "%DEPS_LOCAL_PATH%"
+    ci\get_dependency.bat "%ZLIB_DIST_NAME%"
+    ci\get_dependency.bat "%OPENSSL_DIST_NAME%"
+    ci\get_dependency.bat "%BOOST_DIST_NAME%"
+    set PATH=%DEPS_LOCAL_PATH%;%PATH%
+  displayName: 'Install dependencies'
+
+- script: 'cmake -H.
+	               -B"%BUILD_DIR%"
+	               -G "Visual Studio 15 2017 Win64"
+	               -DCMAKE_BUILD_TYPE=%BUILD_TYPE%
+	               -DBOOST_ROOT="%BOOST_ROOT%"
+	               -DOPENSSL_ROOT_DIR="%OPENSSL_ROOT%"
+	               -DZLIB_ROOT="%ZLIB_ROOT%"
+                 -DUSE_STREAMLABS_RESOURCE=ON'
+  displayName: 'Configure updater'
+
+- script: 'cmake --build "%BUILD_DIR%" --config %BUILD_TYPE%'
+  displayName: 'Build updater'
+
+- task: CopyFiles@2
+  displayName: 'Copy files to be published'
+  inputs:
+    sourceFolder: '$(BUILD_DIR)'
+    contents: |
+      $(BUILD_DIR)\*.exe
+      $(BUILD_DIR)\*.pdb
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish artifacts'
+  inputs:
+    pathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    artifactName: 'updater-$(BUILD_TYPE)'
+    
+- task: GithubRelease@0 
+  displayName: 'Deploy to GitHub'
+  condition: and(succeeded(), contains(variables['Build.SourceBranch'], 'tags'))  
+  inputs:
+    gitHubConnection: stream-labs_deploy
+    repositoryName: stream-labs/a-files-updater
+    assets: $(Build.ArtifactStagingDirectory)
