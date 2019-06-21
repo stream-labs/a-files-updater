@@ -48,14 +48,9 @@ steps:
     set PATH=%DEPS_LOCAL_PATH%;%PATH%
   displayName: 'Install dependencies'
 
-- script: 'cmake -H.
-	               -B"%BUILD_DIR%"
-	               -G "Visual Studio 15 2017 Win64"
-	               -DCMAKE_BUILD_TYPE=%BUILD_TYPE%
-	               -DBOOST_ROOT="%BOOST_ROOT%"
-	               -DOPENSSL_ROOT_DIR="%OPENSSL_ROOT%"
-	               -DZLIB_ROOT="%ZLIB_ROOT%"
-                 -DUSE_STREAMLABS_RESOURCE=ON'
+- script: |
+    call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+    cmake -H. -B"%BUILD_DIR%" -G "Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -DBOOST_ROOT="%BOOST_ROOT%" -DOPENSSL_ROOT_DIR="%OPENSSL_ROOT%" -DZLIB_ROOT="%ZLIB_ROOT%" -DUSE_STREAMLABS_RESOURCE=ON
   displayName: 'Configure updater'
 
 - script: 'cmake --build "%BUILD_DIR%" --config %BUILD_TYPE%'
@@ -64,7 +59,7 @@ steps:
 - task: CopyFiles@2
   displayName: 'Copy files to be published'
   inputs:
-    sourceFolder: '$(BUILD_DIR)'
+    sourceFolder: '$(BUILD_DIR)\$(BUILD_TYPE)'
     contents: |
       $(BUILD_DIR)\*.exe
       $(BUILD_DIR)\*.pdb
