@@ -23,7 +23,7 @@ variables:
   ZLIB_DIST_NAME: zlib-1.2.11-static-mt
   OPENSSL_DIST_NAME: openssl-1.1.0h
   BOOST_DIST_NAME: boost-vc141-1_70_0-bin
-  DEPS_DIST_URI: https://s3-us-west-2.amazonaws.com/streamlabs-obs-updater-deps/
+  DEPS_DIST_URI: https://s3-us-west-2.amazonaws.com/streamlabs-obs-updater-deps
   DEPS_LOCAL_PATH: $(Build.SourcesDirectory)\slobs-updater-deps
   ZLIB_ROOT: $(DEPS_LOCAL_PATH)\$(ZLIB_DIST_NAME)
   OPENSSL_ROOT: $(DEPS_LOCAL_PATH)\$(OPENSSL_DIST_NAME)
@@ -31,12 +31,20 @@ variables:
   BUILD_DIR: $(Build.SourcesDirectory)\build
 
 steps:
+- task: NuGetToolInstaller@0
+  displayName: 'Install NuGet'
+  inputs:
+    versionSpec: '5.1.0'
+
 - script: |
     nuget install secure-file -ExcludeVersion
     mkdir "%DEPS_LOCAL_PATH%"
-    ci\get_dependency.bat "%ZLIB_DIST_NAME%"
-    ci\get_dependency.bat "%OPENSSL_DIST_NAME%"
-    ci\get_dependency.bat "%BOOST_DIST_NAME%"
+    curl -kLO "%DEPS_DIST_URI%/%ZLIB_DIST_NAME%.7z" -f --retry 5
+    curl -kLO "%DEPS_DIST_URI%/%ZLIB_DIST_NAME%.7z" -f --retry 5
+    curl -kLO "%DEPS_DIST_URI%/%BOOST_DIST_NAME%.7z" -f --retry 5
+    7z x "%~1.7z" -o"%DEPS_LOCAL_PATH%\%OPENSSL_DIST_NAME%" -y
+    7z x "%~1.7z" -o"%DEPS_LOCAL_PATH%\%ZLIB_DIST_NAME%" -y
+    7z x "%~1.7z" -o"%DEPS_LOCAL_PATH%\%BOOST_DIST_NAME%" -y
     set PATH=%DEPS_LOCAL_PATH%;%PATH%
   displayName: 'Install dependencies'
 
