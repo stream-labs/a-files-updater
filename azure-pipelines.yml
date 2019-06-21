@@ -31,6 +31,12 @@ variables:
   BUILD_DIR: $(Build.SourcesDirectory)\build
 
 steps:
+- powershell: git config --global core.autocrlf false
+  displayName: 'Set Unix checkout for git'
+
+- checkout: self
+  fetchDepth: 10
+
 - task: NuGetToolInstaller@0
   displayName: 'Install NuGet'
   inputs:
