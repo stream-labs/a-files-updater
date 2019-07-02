@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 #include "utils.hpp"
+=======
+#include "utils.hpp"
+>>>>>>> add another way to autolaunch slobs after update
 
 #include <shellapi.h>
 #include <fstream>
@@ -159,6 +163,29 @@ BOOL StartApplication(const char *lpCommandLine, const char *lpWorkingDir)
 	lpWideWorkingDir = ConvertToUtf16(lpWorkingDir, &dwCLSize);
 
 	bSuccess = StartApplication(lpWideCommandLine, lpWideWorkingDir);
+<<<<<<< HEAD
+=======
+	
+	if (!bSuccess)
+	{
+		HINSTANCE exec_result = ShellExecute(NULL,
+			L"runas",
+			lpWideCommandLine,
+			nullptr,
+			NULL, 
+			SW_SHOWNORMAL
+		);
+
+		int exec_result_code = static_cast<int>(reinterpret_cast<uintptr_t>(exec_result));
+
+		if (exec_result_code >= 32)
+		{
+			bSuccess = true;
+		} else {
+			LogLastError(L"ShellExecute");
+		}
+	}
+>>>>>>> add another way to autolaunch slobs after update
 
 	delete lpWideCommandLine;
 	delete lpWideWorkingDir;

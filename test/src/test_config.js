@@ -69,8 +69,8 @@ exports.gettestinfo = function (testname) {
   newinfo.resultDir = path.join(testfilesDir, "result")
   newinfo.reporterDir = path.join(testfilesDir, "crash_reports")
 
-  newinfo.updaterDir = path.join(__dirname, "..", "..", "build_1_70", "Debug")
-  
+  newinfo.updaterDir = path.join(__dirname, "..", "..", "build", "Debug")
+ 
   newinfo.files = [ 
     { name: "filea.exe",  hugefile: false, testing: "deleted empty" }, 
     { name: "file1.exe",  hugefile: false, testing: "deleted" }, 
