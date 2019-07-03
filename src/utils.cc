@@ -159,6 +159,26 @@ BOOL StartApplication(const char *lpCommandLine, const char *lpWorkingDir)
 	lpWideWorkingDir = ConvertToUtf16(lpWorkingDir, &dwCLSize);
 
 	bSuccess = StartApplication(lpWideCommandLine, lpWideWorkingDir);
+	
+	if (!bSuccess)
+	{
+		HINSTANCE exec_result = ShellExecute(NULL,
+			L"runas",
+			lpWideCommandLine,
+			nullptr,
+			NULL, 
+			SW_SHOWNORMAL
+		);
+
+		int exec_result_code = static_cast<int>(reinterpret_cast<uintptr_t>(exec_result));
+
+		if (exec_result_code >= 32)
+		{
+			bSuccess = true;
+		} else {
+			LogLastError(L"ShellExecute");
+		}
+	}
 
 	delete lpWideCommandLine;
 	delete lpWideWorkingDir;
