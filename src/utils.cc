@@ -166,19 +166,20 @@ BOOL StartApplication(const char *lpCommandLine, const char *lpWorkingDir)
 	return bSuccess;
 }
 
-
 fs::path prepare_file_path(const fs::path &base, const fs::path &target)
 {
-	fs::path file_path(base);
-	file_path /= target;
-
-	file_path = fs::u8path(unfixup_uri(file_path.string()).c_str());
-
-	file_path.make_preferred();
-	file_path.replace_extension();
-
+	fs::path file_path = "";
 	try
 	{
+		file_path = base;
+		file_path /= target;
+	
+		std::string un_urled_path = unfixup_uri(file_path.string());
+		file_path = fs::u8path(un_urled_path.c_str());
+
+		file_path.make_preferred();
+		file_path.replace_extension();
+
 		fs::create_directories(file_path.parent_path());
 
 		fs::remove(file_path);
