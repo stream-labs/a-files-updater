@@ -3,7 +3,7 @@ const path = require('path');
 
 exports.start_updater = async function (testinfo) {
   const updaterPath = path.join(testinfo.updaterDir, testinfo.updaterName)
-  const updaterPathE = updaterPath.replace(/\\/g, '\\\\');
+  const updaterPathE = updaterPath.replace(/\\/g, '\\\\')+"test";
   const updateDirE = testinfo.initialDir.replace(/\\/g, '\\\\');
 
   const updaterArgs = [
