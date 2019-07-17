@@ -52,6 +52,7 @@ steps:
     7z x "%OPENSSL_DIST_NAME%.7z" -o"%DEPS_LOCAL_PATH%\%OPENSSL_DIST_NAME%" -y
     7z x "%BOOST_DIST_NAME%.7z" -o"%DEPS_LOCAL_PATH%\%BOOST_DIST_NAME%" -y
     set PATH=%DEPS_LOCAL_PATH%;%PATH%
+    echo $env:Build_SourceBranch
   displayName: 'Install dependencies'
 
 - script: |
