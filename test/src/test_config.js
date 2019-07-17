@@ -9,6 +9,7 @@ exports.gettestinfo = function (testname) {
     resultDir: "",
     updaterDir: "",
     reporterDir: "",
+    appPathExtra: "OBS",
     versionName: "0.11.9-preview.1",
     updaterName: "slobs-updater.exe",
 
@@ -65,7 +66,7 @@ exports.gettestinfo = function (testname) {
 
   const testfilesDir = path.join(__dirname, "..", "testfiles", ""+newinfo.number);
   newinfo.serverDir = path.join(testfilesDir, "server")
-  newinfo.initialDir = path.join(testfilesDir, "i件Яnitial")
+  newinfo.initialDir = path.join(testfilesDir, "i件Яnitial"+newinfo.appPathExtra)
   newinfo.resultDir = path.join(testfilesDir, "result")
   newinfo.reporterDir = path.join(testfilesDir, "crash_reports")
 

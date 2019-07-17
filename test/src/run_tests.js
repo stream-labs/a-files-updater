@@ -4,7 +4,7 @@ const test_config = require('./test_config.js');
 const fse = require('fs-extra')
 const path = require('path');
 
-const run_one_test = false;
+const run_one_test = true;
 
 async function run_tests() {
     let testinfo;
@@ -18,8 +18,6 @@ async function run_tests() {
         console.log("--- Tests launched in manual set of tests mode! ");
         testinfo = test_config.gettestinfo(" // test for manual use ");
         testinfo.more_log_output = true;
-        testinfo.selfBlockingFile = true;
-        testinfo.selfBlockersCount = 5;
         //testinfo.serverUrl = "https://outlook.live.com";
         //testinfo.selfLockingFile = true;
         //testinfo.selfBlockersCount = 2;
