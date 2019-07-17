@@ -317,9 +317,9 @@ async function generate_result_dir(testinfo, update_subdirpath) {
     } else if(file.testing == "created empty") {
       fileempty = true;
     } else if(file.testing == "deleted") {
-  
+      continue;
     } else if(file.testing == "deleted empty") {
-      fileempty = true;
+      continue;
     } 
 
     await generate_file(update_subdirpath, file.name, filecontentextended, fileempty, file.hugefile);

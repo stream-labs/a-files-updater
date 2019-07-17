@@ -20,7 +20,7 @@ FileUpdater::~FileUpdater()
 	fs::remove_all(m_old_files_dir, ec);
 	if (ec)
 	{
-		wlog_warn(L"Failed to clean temp folder.");
+		wlog_warn(L"Failed to cleanup temp folder.");
 	}
 }
 
@@ -74,6 +74,11 @@ bool FileUpdater::update_entry_with_retries(manifest_map_t::const_iterator &iter
 
 bool FileUpdater::update_entry(manifest_map_t::const_iterator &iter, fs::path &new_files_dir)
 {
+	if (iter->second.skip_update)
+	{
+		return true;
+	}
+
 	std::error_code ec;
 	fs::path file_name_part = fs::u8path(iter->first.c_str());
 	fs::path to_path(m_app_dir);
@@ -103,23 +108,27 @@ bool FileUpdater::update_entry(manifest_map_t::const_iterator &iter, fs::path &n
 			}
 		}
 
-		fs::rename(from_path, to_path, ec);
-		if (ec)
+		if(!iter->second.file_for_remove)
 		{
-			std::string msg = ec.message();
-			std::wstring wmsg(msg.begin(), msg.end());
+			fs::rename(from_path, to_path, ec);
 
-			wlog_debug(L"Failed to move file %s %s, error %s", from_path.c_str(), to_path.c_str(), wmsg.c_str());
-			return false;
-		}
+			if (ec)
+			{
+				std::string msg = ec.message();
+				std::wstring wmsg(msg.begin(), msg.end());
 
-		try
-		{
-			reset_rights(to_path);
-		}
-		catch (...)
-		{
-			wlog_warn(L"Have failed to update file rights: %s", to_path.c_str());
+				wlog_debug(L"Failed to move file %s %s, error %s", from_path.c_str(), to_path.c_str(), wmsg.c_str());
+				return false;
+			}
+
+			try
+			{
+				reset_rights(to_path);
+			}
+			catch (...)
+			{
+				wlog_warn(L"Have failed to update file rights: %s", to_path.c_str());
+			}
 		}
 
 		return true;

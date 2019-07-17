@@ -124,5 +124,5 @@ public:
 	void start_file_update();
 
 	void create_work_threads_guards();
-	void reset_work_threads_gurards();
+	void reset_work_threads_guards();
 };

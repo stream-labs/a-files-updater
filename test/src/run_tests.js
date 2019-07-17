@@ -18,6 +18,8 @@ async function run_tests() {
         console.log("--- Tests launched in manual set of tests mode! ");
         testinfo = test_config.gettestinfo(" // test for manual use ");
         testinfo.more_log_output = true;
+        testinfo.selfBlockingFile = true;
+        testinfo.selfBlockersCount = 5;
         //testinfo.serverUrl = "https://outlook.live.com";
         //testinfo.selfLockingFile = true;
         //testinfo.selfBlockersCount = 2;
