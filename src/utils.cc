@@ -159,6 +159,26 @@ BOOL StartApplication(const char *lpCommandLine, const char *lpWorkingDir)
 	lpWideWorkingDir = ConvertToUtf16(lpWorkingDir, &dwCLSize);
 
 	bSuccess = StartApplication(lpWideCommandLine, lpWideWorkingDir);
+	
+	if (!bSuccess)
+	{
+		HINSTANCE exec_result = ShellExecute(NULL,
+			L"runas",
+			lpWideCommandLine,
+			nullptr,
+			NULL, 
+			SW_SHOWNORMAL
+		);
+
+		int exec_result_code = static_cast<int>(reinterpret_cast<uintptr_t>(exec_result));
+
+		if (exec_result_code >= 32)
+		{
+			bSuccess = true;
+		} else {
+			LogLastError(L"ShellExecute");
+		}
+	}
 
 	delete lpWideCommandLine;
 	delete lpWideWorkingDir;
@@ -166,19 +186,20 @@ BOOL StartApplication(const char *lpCommandLine, const char *lpWorkingDir)
 	return bSuccess;
 }
 
-
 fs::path prepare_file_path(const fs::path &base, const fs::path &target)
 {
-	fs::path file_path(base);
-	file_path /= target;
-
-	file_path = fs::u8path(unfixup_uri(file_path.string()).c_str());
-
-	file_path.make_preferred();
-	file_path.replace_extension();
-
+	fs::path file_path = "";
 	try
 	{
+		file_path = base;
+		file_path /= target;
+	
+		std::string un_urled_path = unfixup_uri(file_path.string());
+		file_path = fs::u8path(un_urled_path.c_str());
+
+		file_path.make_preferred();
+		file_path.replace_extension();
+
 		fs::create_directories(file_path.parent_path());
 
 		fs::remove(file_path);

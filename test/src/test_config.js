@@ -9,6 +9,7 @@ exports.gettestinfo = function (testname) {
     resultDir: "",
     updaterDir: "",
     reporterDir: "",
+    appPathExtra: "OBS",
     versionName: "0.11.9-preview.1",
     updaterName: "slobs-updater.exe",
 
@@ -65,18 +66,19 @@ exports.gettestinfo = function (testname) {
 
   const testfilesDir = path.join(__dirname, "..", "testfiles", ""+newinfo.number);
   newinfo.serverDir = path.join(testfilesDir, "server")
-  newinfo.initialDir = path.join(testfilesDir, "i件Яnitial")
+  newinfo.initialDir = path.join(testfilesDir, "i件Яnitial"+newinfo.appPathExtra)
   newinfo.resultDir = path.join(testfilesDir, "result")
   newinfo.reporterDir = path.join(testfilesDir, "crash_reports")
 
-  newinfo.updaterDir = path.join(__dirname, "..", "..", "build_1_70", "Debug")
-  
+  newinfo.updaterDir = path.join(__dirname, "..", "..", "build", "Debug")
+ 
   newinfo.files = [ 
     { name: "filea.exe",  hugefile: false, testing: "deleted empty" }, 
     { name: "file1.exe",  hugefile: false, testing: "deleted" }, 
     { name: "file2.txt",  hugefile: false, testing: "deleted" }, 
     { name: "file2.jpeg", hugefile: false, testing: "same" }, 
     { name: "file3.jpeg", hugefile: false, testing: "same" }, 
+    { name: "Uninstall SLOBS.exe", hugefile: false, testing: "deleted exception" }, 
     { name: "руский файл.jpeg", hugefile: false, testing: "same" }, 
     { name: "文件名.jpeg", hugefile: false, testing: "same" }, 
     { name: "рузский файл.jpeg", hugefile: false, testing: "changed content" }, 

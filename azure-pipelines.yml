@@ -13,8 +13,6 @@ strategy:
   matrix:
     Release:
       BUILD_TYPE: Release 
-    Debug:
-      BUILD_TYPE: Debug
 
 pool:
   vmImage: 'vs2017-win2016'

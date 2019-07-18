@@ -123,22 +123,26 @@ static fs::path fetch_path(const char *str, size_t length)
 
 static fs::path fetch_default_temp_dir()
 {
-	boost::system::error_code ec{};
-	fs::path temp_dir = fs::temp_directory_path();
-	temp_dir /= "slobs-updater";
-	
-	time_t t = time(nullptr);
-	struct tm *lt = localtime(&t);
-	
-	std::srand(static_cast<unsigned int>(time(nullptr)));
+	std::error_code ec{};
+	fs::path temp_dir = fs::temp_directory_path(ec);
+	if(!ec)
+	{
+		temp_dir /= "slobs-updater";
+		
+		time_t t = time(nullptr);
+		struct tm *lt = localtime(&t);
+		
+		std::srand(static_cast<unsigned int>(time(nullptr)));
 
-	char buf[24];
-	sprintf(buf, "%04i%c%03i%c%02i%c%02i%c%02i%c\0", lt->tm_year+1900, 'a'+rand()%20,lt->tm_yday, 'a' + rand() % 20,lt->tm_hour, 'a' + rand() % 20, lt->tm_min, 'a' + rand() % 20, lt->tm_sec, 'a' + rand() % 20);
+		char buf[24];
+		sprintf(buf, "%04i%03i%02i%02i%02i%c%c\0", lt->tm_year+1900, lt->tm_yday, lt->tm_hour, lt->tm_min, lt->tm_sec, 'a' + rand() % 20, 'a' + rand() % 20);
 
-	temp_dir /= buf;
+		temp_dir /= buf;
 
-	fs::create_directories(temp_dir);
-
+		fs::create_directories(temp_dir);
+	} else {
+		temp_dir = "";
+	}
 	return temp_dir;
 }
 
@@ -278,6 +282,12 @@ bool su_parse_command_line( int argc, char **argv, struct update_parameters *par
 	}
 
 	params->app_dir = fetch_path( app_dir_arg->sval[0], strlen(app_dir_arg->sval[0]) );
+
+	if(params->app_dir.u8string().find("OBS") != std::string::npos)
+	{
+		params->enable_removing_old_files = true;
+		log_warn("App path does contain \"OBS\" substring. Updater be able to remove files from old versions.");
+	}
 
 	params->exec.assign(exec_arg->sval[0]);
 
