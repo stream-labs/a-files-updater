@@ -78,6 +78,7 @@ exports.gettestinfo = function (testname) {
     { name: "file2.txt",  hugefile: false, testing: "deleted" }, 
     { name: "file2.jpeg", hugefile: false, testing: "same" }, 
     { name: "file3.jpeg", hugefile: false, testing: "same" }, 
+    { name: "Uninstall SLOBS.exe", hugefile: false, testing: "deleted exception" }, 
     { name: "руский файл.jpeg", hugefile: false, testing: "same" }, 
     { name: "文件名.jpeg", hugefile: false, testing: "same" }, 
     { name: "рузский файл.jpeg", hugefile: false, testing: "changed content" }, 
