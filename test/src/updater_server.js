@@ -84,6 +84,8 @@ exports.start_https_update_server = function (testinfo) {
           file_ok_to_update = false;
         } else if(update_file.testing == "deleted empty") {
           file_ok_to_update = false;
+        } else if(update_file.testing == "deleted exception") {
+          file_ok_to_update = false;
         } 
     
         if(!file_ok_to_update)

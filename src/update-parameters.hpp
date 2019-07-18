@@ -25,6 +25,7 @@ struct update_parameters {
 	std::string log_file_path;
 	FILE *log_file = nullptr;
 	bool interactive = false;
+	bool enable_removing_old_files = false;
 
 	~update_parameters()
 	{

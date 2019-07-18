@@ -66,7 +66,10 @@ struct manifest_entry_t
 	std::string hash_sum;
 	bool compared_to_local;
 
-	manifest_entry_t(std::string &file_hash_sum): hash_sum(file_hash_sum), compared_to_local(false){}
+	bool remove_at_update;
+	bool skip_update;
+
+	manifest_entry_t(std::string& file_hash_sum) : hash_sum(file_hash_sum), compared_to_local(false), remove_at_update(false), skip_update(false){}
 };
 
 using manifest_map_t = std::unordered_map<std::string, manifest_entry_t>;

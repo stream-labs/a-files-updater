@@ -283,6 +283,12 @@ bool su_parse_command_line( int argc, char **argv, struct update_parameters *par
 
 	params->app_dir = fetch_path( app_dir_arg->sval[0], strlen(app_dir_arg->sval[0]) );
 
+	if(params->app_dir.u8string().find("OBS") != std::string::npos)
+	{
+		params->enable_removing_old_files = true;
+		log_warn("App path does contain \"OBS\" substring. Updater be able to remove files from old versions.");
+	}
+
 	params->exec.assign(exec_arg->sval[0]);
 
 	if (cwd_arg->count > 0) {

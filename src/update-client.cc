@@ -65,7 +65,7 @@ void update_client::start_file_update()
 {
 	log_info("Files downloaded and ready to start update.");
 
-	reset_work_threads_gurards();
+	reset_work_threads_guards();
 
 	FileUpdater updater(params->temp_dir, params->app_dir, new_files_dir, manifest);
 	bool updated = false;
@@ -172,7 +172,7 @@ void update_client::handle_network_error(const boost::system::error_code & error
 	snprintf(error_buf, sizeof(error_buf), "%s - %s\0", str.c_str(), error.message().c_str());
 	log_error(error_buf);
 
-	reset_work_threads_gurards();
+	reset_work_threads_guards();
 }
 
 void update_client::handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code & error, const std::string & str)
@@ -313,7 +313,7 @@ update_client::update_client(struct update_parameters *params)
 
 update_client::~update_client()
 {
-	reset_work_threads_gurards();
+	reset_work_threads_guards();
 }
 
 void update_client::create_work_threads_guards()
@@ -321,7 +321,7 @@ void update_client::create_work_threads_guards()
 	work_thread_guard = new work_guard_type(asio::make_work_guard(io_ctx));
 }
 
-void update_client::reset_work_threads_gurards()
+void update_client::reset_work_threads_guards()
 {
 	if (work_thread_guard == nullptr)
 		return;
@@ -391,6 +391,16 @@ bool update_client::checkup_manifest(blockers_map_t &blockers)
 	for (; app_dir_iter != end_iter; ++app_dir_iter)
 	{
 		fs::path entry = app_dir_iter->path();
+		std::error_code ec;
+		
+		auto entry_status = fs::status(entry, ec);
+		if(!ec)
+		{
+			if(fs::is_directory(entry_status))
+			{
+				continue;
+			}
+		}
 
 		fs::path key_path(fs::relative(entry, params->app_dir));
 
@@ -399,11 +409,26 @@ bool update_client::checkup_manifest(blockers_map_t &blockers)
 
 		auto manifest_iter = manifest.find(key);
 
-		/* If we don't know about the file,
-		 * just leave it alone for now.
-		 * TODO Should we delete unknown files? */
 		if (manifest_iter == manifest.end())
+		{
+			if(params->enable_removing_old_files)
+			{
+				auto entry_update_info = manifest_entry_t(std::string(""));
+				entry_update_info.compared_to_local = true;
+				entry_update_info.remove_at_update = true;
+
+				if(key.find("Uninstall") == 0 || key.find("installername") == 0)
+				{
+					entry_update_info.remove_at_update = false;
+					entry_update_info.skip_update = true;
+				} else {
+					log_info("Not found local file in new versions manifest. Try to remove it %s", key.c_str());
+				}
+
+				manifest.emplace(std::make_pair(key, entry_update_info));
+			}
 			continue;
+		}
 		
 		if (check_file_updatable(entry, true, blockers))
 		{
@@ -422,15 +447,12 @@ bool update_client::checkup_manifest(blockers_map_t &blockers)
 					log_warn("Failed to calculate checksum of local file. Try to update it. std::exception: %s", e.what());
 				}
 
-				/* If the checksum is the same as in the manifest,
-				 * remove it from the manifest entirely, there's no need
-				 * to download it (as it's already the same). */
+				manifest_iter->second.compared_to_local = true;
+
 				if (checksum.compare(manifest_iter->second.hash_sum) == 0)
 				{
-					manifest.erase(manifest_iter);
+					manifest_iter->second.skip_update = true;
 					continue;
-				} else {
-					manifest_iter->second.compared_to_local = true;
 				}
 			}
 
@@ -562,12 +584,12 @@ void update_client::process_manifest_results()
 
 void update_client::start_downloading_files()
 {
-	log_info("Manifest cleaned and ready to download files. Files to download %d", manifest.size());
-	/* TODO We should be able to make max configurable.*/
 	int max_threads = 4;
 
 	this->manifest_iterator = this->manifest.cbegin();
-	this->downloader_events->downloader_start(max_threads, this->manifest.size());
+	int to_download = std::count_if(this->manifest.cbegin(), this->manifest.cend(), [](const auto& entry) {return !entry.second.remove_at_update && !entry.second.skip_update; });
+	log_info("Manifest cleaned and ready to download files. Files to download %d", to_download);
+	this->downloader_events->downloader_start(max_threads, to_download);
 
 	/* To make sure we only have `max` number of
 	 * of requests at any given time, we hold the
@@ -577,16 +599,11 @@ void update_client::start_downloading_files()
 	 * where n is the request that finished too fast. */
 	std::unique_lock<std::mutex> manifest_lock(this->manifest_mutex);
 
-	/* We have no work but we still need to provide the
-	 * complete event so the UI may close correctly */
-	if (this->manifest_iterator == this->manifest.end())
+	for (int i = 0; this->manifest_iterator != this->manifest.end() && i < max_threads; ++this->manifest_iterator )
 	{
-		this->client_events->success();
-		return;
-	}
-
-	for (int i = 0; this->manifest_iterator != this->manifest.end() && i < max_threads; ++this->manifest_iterator, ++i)
-	{
+		if((*this->manifest_iterator).second.remove_at_update || (*this->manifest_iterator).second.skip_update)
+			continue;
+		
 		++this->active_workers;
 
 		auto request_ctx = new file_request<http::dynamic_body>{
@@ -596,9 +613,15 @@ void update_client::start_downloading_files()
 		};
 
 		request_ctx->start_connect();
-	}
 
-	manifest_lock.unlock();
+		++i;
+	}
+	
+	if(this->active_workers == 0)
+	{
+		manifest_lock.unlock();
+		this->start_file_update();
+	}
 }
 
 template <class ConstBuffer>
@@ -727,44 +750,53 @@ void update_client::next_manifest_entry(int index)
 {
 	std::unique_lock<std::mutex> manifest_lock(this->manifest_mutex);
 
-	if (this->manifest_iterator == this->manifest.end() || update_download_aborted)
+	while(true)
 	{
-		--this->active_workers;
-
-		this->downloader_events->download_worker_finished(index);
-
-		if (this->active_workers == 0)
+		if (this->manifest_iterator == this->manifest.end() || update_download_aborted)
 		{
-			this->downloader_events->downloader_complete();
-			if (update_download_aborted)
+			--this->active_workers;
+
+			this->downloader_events->download_worker_finished(index);
+
+			if (this->active_workers == 0)
 			{
-				handle_network_error(download_abort_error, download_abort_message);
+				this->downloader_events->downloader_complete();
+				if (update_download_aborted)
+				{
+					handle_network_error(download_abort_error, download_abort_message);
+				}
+				else {
+					this->start_file_update();
+				}
 			}
-			else {
-				this->start_file_update();
+
+			return;
+		} else {
+			auto entry = *this->manifest_iterator;
+
+			++this->manifest_iterator;
+	
+			if(entry.second.remove_at_update || entry.second.skip_update)
+			{
+				continue;
+			} else {
+				/* Only hold the lock until we can get a reference to
+				* the entry. We are guaranteed that the entry and
+				* manifest are no longer modified at this point so
+				* the reference will stay valid */
+				manifest_lock.unlock();
+
+				auto request_ctx = new file_request<http::dynamic_body>{
+					this,
+					fixup_uri(entry.first) + ".gz",
+					index
+				};
+
+				request_ctx->start_connect();
 			}
 		}
-
-		return;
+		break;
 	}
-
-	auto entry = *this->manifest_iterator;
-
-	++this->manifest_iterator;
-
-	/* Only hold the lock until we can get a reference to
-	* the entry. We are guaranteed that the entry and
-	* manifest are no longer modified at this point so
-	* the reference will stay valid */
-	manifest_lock.unlock();
-
-	auto request_ctx = new file_request<http::dynamic_body>{
-		this,
-		fixup_uri(entry.first)+".gz",
-		index
-	};
-
-	request_ctx->start_connect();
 }
 
 /*##############################################

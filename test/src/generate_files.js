@@ -214,6 +214,8 @@ async function generate_server_dir(testinfo) {
       continue;
     } else if(file.testing == "deleted empty") {
       continue;
+    } else if(file.testing == "deleted exception") {
+      continue;
     } 
 
     await generate_file(update_subdirpath, file.name, filecontentextended, fileempty, file.hugefile);
@@ -274,6 +276,8 @@ async function generate_initial_dir(testinfo, update_subdirpath = "") {
       
     } else if(file.testing == "deleted empty") {
       fileempty = true;
+    } else if(file.testing == "deleted exception") {
+
     } 
 
     await generate_file(update_subdirpath, file.name, filecontentextended, fileempty, file.hugefile);
@@ -317,9 +321,11 @@ async function generate_result_dir(testinfo, update_subdirpath) {
     } else if(file.testing == "created empty") {
       fileempty = true;
     } else if(file.testing == "deleted") {
-  
+      continue;
     } else if(file.testing == "deleted empty") {
-      fileempty = true;
+      continue;
+    } else if(file.testing == "deleted exception") {
+
     } 
 
     await generate_file(update_subdirpath, file.name, filecontentextended, fileempty, file.hugefile);
