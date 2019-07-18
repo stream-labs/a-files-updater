@@ -413,8 +413,19 @@ bool update_client::checkup_manifest(blockers_map_t &blockers)
 		{
 			if(params->enable_removing_old_files)
 			{
-				manifest.emplace(std::make_pair(key, manifest_entry_t(std::string(""), true)));
-				log_info("Not found local file in new versions manifest. Try to remove it %s", key.c_str());
+				auto entry_update_info = manifest_entry_t(std::string(""));
+				entry_update_info.compared_to_local = true;
+				entry_update_info.remove_at_update = true;
+
+				if(key.find("Uninstall") == 0 || key.find("installername") == 0)
+				{
+					entry_update_info.remove_at_update = false;
+					entry_update_info.skip_update = true;
+				} else {
+					log_info("Not found local file in new versions manifest. Try to remove it %s", key.c_str());
+				}
+
+				manifest.emplace(std::make_pair(key, entry_update_info));
 			}
 			continue;
 		}
@@ -436,9 +447,6 @@ bool update_client::checkup_manifest(blockers_map_t &blockers)
 					log_warn("Failed to calculate checksum of local file. Try to update it. std::exception: %s", e.what());
 				}
 
-				/* If the checksum is the same as in the manifest,
-				 * remove it from the manifest entirely, there's no need
-				 * to download it (as it's already the same). */
 				manifest_iter->second.compared_to_local = true;
 
 				if (checksum.compare(manifest_iter->second.hash_sum) == 0)
@@ -576,12 +584,12 @@ void update_client::process_manifest_results()
 
 void update_client::start_downloading_files()
 {
-	log_info("Manifest cleaned and ready to download files. Files to update/remove %d", manifest.size());
-	/* TODO We should be able to make max configurable.*/
 	int max_threads = 4;
 
 	this->manifest_iterator = this->manifest.cbegin();
-	this->downloader_events->downloader_start(max_threads, this->manifest.size());
+	int to_download = std::count_if(this->manifest.cbegin(), this->manifest.cend(), [](const auto& entry) {return !entry.second.remove_at_update && !entry.second.skip_update; });
+	log_info("Manifest cleaned and ready to download files. Files to download %d", to_download);
+	this->downloader_events->downloader_start(max_threads, to_download);
 
 	/* To make sure we only have `max` number of
 	 * of requests at any given time, we hold the
@@ -593,7 +601,7 @@ void update_client::start_downloading_files()
 
 	for (int i = 0; this->manifest_iterator != this->manifest.end() && i < max_threads; ++this->manifest_iterator )
 	{
-		if((*this->manifest_iterator).second.file_for_remove || (*this->manifest_iterator).second.skip_update)
+		if((*this->manifest_iterator).second.remove_at_update || (*this->manifest_iterator).second.skip_update)
 			continue;
 		
 		++this->active_workers;
@@ -611,7 +619,8 @@ void update_client::start_downloading_files()
 	
 	if(this->active_workers == 0)
 	{
-		this->client_events->success();
+		manifest_lock.unlock();
+		this->start_file_update();
 	}
 }
 
@@ -767,7 +776,7 @@ void update_client::next_manifest_entry(int index)
 
 			++this->manifest_iterator;
 	
-			if(entry.second.file_for_remove || entry.second.skip_update)
+			if(entry.second.remove_at_update || entry.second.skip_update)
 			{
 				continue;
 			} else {

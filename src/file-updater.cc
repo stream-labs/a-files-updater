@@ -108,7 +108,7 @@ bool FileUpdater::update_entry(manifest_map_t::const_iterator &iter, fs::path &n
 			}
 		}
 
-		if(!iter->second.file_for_remove)
+		if(!iter->second.remove_at_update)
 		{
 			fs::rename(from_path, to_path, ec);
 
