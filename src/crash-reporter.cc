@@ -91,7 +91,7 @@ std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo, std:
 	}
 	json_report << "	\"tags\": { ";
 	json_report << "		\"app_build_timestamp\": \"" << __DATE__ << " " << __TIME__ << "\", ";
-	json_report << "		\"release\": \"" << "0.0.1" << "\", ";
+	json_report << "		\"release\": \"" << "0.0.22" << "\", ";
 	json_report << "		\"os_version\": \"" << "WIN32" << "\" ";
 	json_report << "	}, ";
 	json_report << "	\"extra\": { ";
