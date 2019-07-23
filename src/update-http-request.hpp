@@ -18,7 +18,7 @@ struct update_http_request
 	int worker_id;
 	update_client *client_ctx;
 	std::string target;
-	std::string address;
+	std::string used_cdn_node_address;
 	
 	/* We used to support http and then I realized
 	 * I was spending a lot of time supporting both.
@@ -119,7 +119,7 @@ void update_http_request<Body, IncludeVersion>::check_deadline_callback_err(cons
 
 	if (deadline.expires_at() <= boost::asio::deadline_timer::traits_type::now())
 	{
-		log_info("Timeout for file download operation triggered.");
+		log_info("Timeout for file download operation triggered for %s", target.c_str());
 		deadline_reached = true;
 		boost::system::error_code ignored_ec;
 		ssl_socket.lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored_ec);
@@ -173,17 +173,22 @@ void update_http_request<Body, IncludeVersion>::start_connect()
 	};
 
 	switch_deadline_on();
+	
+	auto use_node = client_ctx->get_endpoint();
+	
+	if(use_node == client_ctx->endpoints.end())
+	{
+		handle_callback_precheck(boost::asio::error::basic_errors::connection_aborted, "get good cdn node");
+	} else {
+		used_cdn_node_address = (*use_node).endpoint().address().to_string();
 
-	asio::async_connect(ssl_socket.lowest_layer(), client_ctx->get_endpoint(), client_ctx->endpoints.end() , connect_handler);
+		asio::async_connect(ssl_socket.lowest_layer(), use_node, client_ctx->endpoints.end() , connect_handler);
+	}
 }
 
 template<class Body, bool IncludeVersion>
 void update_http_request<Body, IncludeVersion>::handle_connect(const boost::system::error_code &error, tcp::resolver::results_type::iterator ep)
 {
-	log_info("handled connect with address - %s", (*ep).endpoint().address().to_string().c_str());
-	address = (*ep).endpoint().address().to_string();
-
-	//todo if it was a fail count it in a map of fails 
 	if(handle_callback_precheck(error, "connect to host"))
 	{
 		return;

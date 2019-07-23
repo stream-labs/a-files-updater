@@ -85,7 +85,7 @@ struct update_client {
 	resolver_type::results_type endpoints;
 	std::map<std::string, std::pair<int, int> > endpoint_fails_counts;
 	resolver_type::results_type::iterator get_endpoint();
-	void set_endpoint_fail(const std::string & address );
+	void set_endpoint_fail(const std::string & used_cdn_node_address );
 
 	std::vector<std::thread> thread_pool;
 

@@ -177,8 +177,7 @@ void update_client::handle_network_error(const boost::system::error_code & error
 
 void update_client::handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code & error, const std::string & str)
 {
-	log_info("error on - %s", request_ctx->address.c_str());
-	set_endpoint_fail(request_ctx->address);
+	set_endpoint_fail(request_ctx->used_cdn_node_address);
 
 	if (request_ctx->retries > 5)
 	{
@@ -224,8 +223,7 @@ void update_client::handle_file_download_canceled(file_request<http::dynamic_bod
 
 void update_client::handle_manifest_download_error(manifest_request<manifest_body> *request_ctx, const boost::system::error_code & error, const std::string & str)
 {
-	log_info("error on - %s", request_ctx->address.c_str());
-	set_endpoint_fail(request_ctx->address);
+	set_endpoint_fail(request_ctx->used_cdn_node_address);
 
 	if (request_ctx->retries > 5)
 	{
@@ -285,7 +283,7 @@ void update_client::handle_resolve(const boost::system::error_code &error, tcp::
 	auto first_ip = endpoints.cbegin();
 	while(first_ip!=endpoints.cend())
 	{
-		log_info("Resolved address - %s", (*first_ip).endpoint().address().to_string().c_str());
+		log_info("Resolved cdn node address - %s", (*first_ip).endpoint().address().to_string().c_str());
 		endpoint_fails_counts.emplace((*first_ip).endpoint().address().to_string(), std::make_pair<int,int>( 0,0) );
 		first_ip++;
 	}
@@ -368,19 +366,17 @@ void update_client::do_stuff()
 	resolver.async_resolve( params->host.authority, params->host.scheme, cb );
 }
 
-void update_client::set_endpoint_fail(const std::string& address)
+void update_client::set_endpoint_fail(const std::string& used_cdn_node_address)
 {
 	auto iter = endpoints.begin();
 	
-	log_info("set_endpoint_fail. %s ", address.c_str());
-
 	while (iter != endpoints.end())
 	{
-		if((*iter).endpoint().address().to_string().compare( address ) == 0)
+		if((*iter).endpoint().address().to_string().compare( used_cdn_node_address ) == 0)
 		{
-			auto counters = endpoint_fails_counts.find(address );
+			auto counters = endpoint_fails_counts.find(used_cdn_node_address );
 			(*counters).second.first++;
-			log_info("set_endpoint_fail. %d , %d", (*counters).second.first, (*counters).second.second);
+			log_error("CDN node fail: \"%s\". fails: %d , gets: %d", used_cdn_node_address.c_str(), (*counters).second.first, (*counters).second.second);
 			break;
 		}
 		
@@ -391,23 +387,24 @@ void update_client::set_endpoint_fail(const std::string& address)
 tcp::resolver::results_type::iterator update_client::get_endpoint()
 {
 	auto iter = endpoints.begin();
-	auto ret = endpoints.begin();
+	auto ret = endpoints.end();
 	int ret_fails = -1;
 	int ret_gets = -1;
 
 	while(iter != endpoints.end())
 	{
 		auto counters = endpoint_fails_counts.find((*iter).endpoint().address().to_string());
-		if (ret_fails < 0 || ret_fails >(*counters).second.first)
+		if( (*counters).second.first <= 24 ) //ignore nodes with count of fails more than limit 
 		{
-			ret = iter;
-			ret_fails = (*counters).second.first;
-			ret_gets = (*counters).second.second;
-		} 
-		//log_info("get_endpoint. %d , %d", (*counters).second.first, (*counters).second.second);
+			if (ret_fails < 0 || ret_fails >(*counters).second.first || (ret_fails == (*counters).second.first && ret_gets > (*counters).second.second)  )
+			{
+				ret = iter;
+				ret_fails = (*counters).second.first;
+				ret_gets = (*counters).second.second;
+			} 
+		}
 		iter++;
 	}
-	log_info("get_endpoint. %d , %d", ret_fails, ret_gets);
 	
 	if(ret != endpoints.end())
 	{

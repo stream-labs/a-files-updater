@@ -12,6 +12,7 @@ async function run_tests() {
     testinfo.skipUpdaterLaunch = true;
     //testinfo.manifestGenerated = true;
     //testinfo.let_15sec = true;
+    //testinfo.serverStarted = false;
     testinfo.expectedResult = "filesnotchanged"
     //testinfo.selfBlockingFile = true;
     await run_test.test_update(testinfo)
