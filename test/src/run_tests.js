@@ -38,7 +38,11 @@ async function run_tests() {
         //testinfo.pidWaiting = true;
         //testinfo.selfBlockingFile = true;
         //testinfo.selfBlockersCount = 3;
-        //testinfo.let_404 = true;
+        //testinfo.let_drop = true;
+        testinfo.let_404 = true;
+        //testinfo.max_trouble = 500;
+        //testinfo.expected_change_for_trouble = 50;
+        //testinfo.serverStarted = false;
         //testinfo.let_block_manifest = true;
         //testinfo.selfLockingFile = true;
         //testinfo.more_log_output = true;
@@ -104,6 +108,17 @@ async function run_tests() {
         if (test_result != 0) {
             failed_test_names.push(testinfo.testName);
         }
+
+        testinfo = test_config.gettestinfo(" //test server to fail on all bad nodes with to many faild downloads ");
+        testinfo.let_404 = true;
+        testinfo.max_trouble = 100;
+        testinfo.expected_change_for_trouble = 55;
+        testinfo.morebigfiles = true;
+        testinfo.expectedResult = "filesnotchanged"
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }        
 
         testinfo = test_config.gettestinfo(" //test server on stuck manifest connection ");
         testinfo.let_15sec = true;
