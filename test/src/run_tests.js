@@ -4,7 +4,7 @@ const test_config = require('./test_config.js');
 const fse = require('fs-extra')
 const path = require('path');
 
-const run_one_test = false;
+const run_one_test = true;
 
 async function run_tests() {
     let testinfo;
@@ -38,7 +38,8 @@ async function run_tests() {
         //testinfo.pidWaiting = true;
         //testinfo.selfBlockingFile = true;
         //testinfo.selfBlockersCount = 3;
-        //testinfo.let_404 = true;
+        //testinfo.let_drop = true;
+        testinfo.let_404 = true;
         //testinfo.let_block_manifest = true;
         //testinfo.selfLockingFile = true;
         //testinfo.more_log_output = true;

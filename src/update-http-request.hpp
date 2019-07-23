@@ -18,6 +18,7 @@ struct update_http_request
 	int worker_id;
 	update_client *client_ctx;
 	std::string target;
+	std::string address;
 	
 	/* We used to support http and then I realized
 	 * I was spending a lot of time supporting both.
@@ -51,7 +52,7 @@ struct update_http_request
 	void handle_result(update_file_t *file_ctx);
 
 	void start_connect();
-	void handle_connect(const boost::system::error_code &error, const tcp::endpoint &ep);
+	void handle_connect(const boost::system::error_code &error, tcp::resolver::results_type::iterator ep);
 	void handle_handshake(const boost::system::error_code& error);
 	void handle_request(boost::system::error_code &error, size_t bytes);
 	void handle_response_header(boost::system::error_code &error, size_t bytes);
@@ -173,12 +174,16 @@ void update_http_request<Body, IncludeVersion>::start_connect()
 
 	switch_deadline_on();
 
-	asio::async_connect(ssl_socket.lowest_layer(), client_ctx->endpoints, connect_handler);
+	asio::async_connect(ssl_socket.lowest_layer(), client_ctx->get_endpoint(), client_ctx->endpoints.end() , connect_handler);
 }
 
 template<class Body, bool IncludeVersion>
-void update_http_request<Body, IncludeVersion>::handle_connect(const boost::system::error_code &error, const tcp::endpoint &ep)
+void update_http_request<Body, IncludeVersion>::handle_connect(const boost::system::error_code &error, tcp::resolver::results_type::iterator ep)
 {
+	log_info("handled connect with address - %s", (*ep).endpoint().address().to_string().c_str());
+	address = (*ep).endpoint().address().to_string();
+
+	//todo if it was a fail count it in a map of fails 
 	if(handle_callback_precheck(error, "connect to host"))
 	{
 		return;
