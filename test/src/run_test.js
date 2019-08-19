@@ -19,7 +19,6 @@ exports.test_update = async function (testinfo) {
 
   if (testinfo.serverStarted) {
     updater_server.start_https_update_server(testinfo);
-
     reporter_server.start_crash_report_server(testinfo);
   }
 
@@ -46,9 +45,10 @@ exports.test_update = async function (testinfo) {
       }
     }
 
-
-    updater_server.stop_https_update_server();
-    reporter_server.stop_crash_report_server();
+    if (testinfo.serverStarted) {
+      updater_server.stop_https_update_server();
+      reporter_server.stop_crash_report_server();
+    }
 
     generate_files.clean_after_test(testinfo, false);
 

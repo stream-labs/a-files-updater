@@ -34,8 +34,8 @@ exports.start_https_update_server = function (testinfo) {
   proxyServer = https.createServer(ssl_options, function (req, res) {
     let test_timeout = 100 + Math.floor(Math.random() * Math.floor(500));
     let chanse_for_trouble = Math.floor(Math.random() * Math.floor(100));
-    
-    let do_block = (chanse_for_trouble > 90 && have_trouble < testinfo.max_trouble ) ;
+    //console.log( req.socket.localAddress );
+    let do_block = (chanse_for_trouble > testinfo.expected_change_for_trouble && have_trouble < testinfo.max_trouble ) ;
 
     if((testinfo.let_block_one_file && (testinfo.block_file_number == files_served) ) && ! file_to_block)
     {
