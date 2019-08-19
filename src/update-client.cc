@@ -648,7 +648,7 @@ void update_client::start_downloading_files()
 	int max_threads = 4;
 
 	this->manifest_iterator = this->manifest.cbegin();
-	int to_download = std::count_if(this->manifest.cbegin(), this->manifest.cend(), [](const auto& entry) {return !entry.second.remove_at_update && !entry.second.skip_update; });
+	auto to_download = std::count_if(this->manifest.cbegin(), this->manifest.cend(), [](const auto& entry) {return !entry.second.remove_at_update && !entry.second.skip_update; });
 	log_info("Manifest cleaned and ready to download files. Files to download %d", to_download);
 	this->downloader_events->downloader_start(max_threads, to_download);
 
