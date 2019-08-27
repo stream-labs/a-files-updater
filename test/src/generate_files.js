@@ -154,10 +154,10 @@ function generate_manifest(testinfo) {
   });
 }
 
-async function put_file_blocking(testinfo, use_blocking_program, update_subdirpath, need_to_launch, blocker_id) {
+async function put_file_blocking(testinfo, use_blocking_program, update_subdirpath, need_to_launch, blocker_number) {
   if (testinfo.selfBlockingFile || testinfo.selfLockingFile) {
     let pathInResources = path.join(__dirname, "..", "resources", use_blocking_program);
-    let pathInTest = path.join(update_subdirpath, selfblockingfile_name+blocker_id+".exe");
+    let pathInTest = path.join(update_subdirpath, selfblockingfile_name+blocker_number+".exe");
     fse.copySync(pathInResources, pathInTest);
 
     let arg1 = "";
@@ -170,8 +170,9 @@ async function put_file_blocking(testinfo, use_blocking_program, update_subdirpa
     if (testinfo.pidWaiting) {
       arg2 = "-t 2";
     }
+    let blocker_to_launch = blocker_number;
 
-    if (need_to_launch) {
+    while (need_to_launch && blocker_to_launch > 0) {
       let new_blocking_process = require('child_process').spawn(pathInTest, [
         arg1, arg2
       ], {
@@ -185,6 +186,7 @@ async function put_file_blocking(testinfo, use_blocking_program, update_subdirpa
       if (testinfo.pidWaiting) {
         testinfo.pidWaitingList.push(new_blocking_process.pid);
       }
+      blocker_to_launch = blocker_to_launch -1;
     }
   }
 }
