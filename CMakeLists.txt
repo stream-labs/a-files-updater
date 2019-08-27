@@ -14,7 +14,7 @@ set(Boost_USE_STATIC_RUNTIME ON)
 option(USE_STREAMLABS_RESOURCE "Embed and use the streamlabs resource file in the resulting executable" OFF)
 
 find_package(ZLIB REQUIRED)
-find_package(OpenSSL 1.1.0 EXACT REQUIRED)
+find_package(OpenSSL 1.1.1 EXACT REQUIRED)
 
 find_package(Boost
 	1.70.0 EXACT
