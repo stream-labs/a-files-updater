@@ -105,6 +105,7 @@ struct callbacks_impl :
 	void success() final;
 	void error(const char* error) final;
 
+	void downloader_preparing() final;
 	void downloader_start(int num_threads, size_t num_files_) final;
 	void download_file(int thread_index, std::string &relative_path, size_t size);
 	void download_progress(int thread_index, size_t consumed, size_t accum) final;
@@ -291,6 +292,14 @@ void callbacks_impl::error(const char* error)
 	PostMessage(frame, CUSTOM_ERROR_MSG, NULL, NULL);
 }
 
+void callbacks_impl::downloader_preparing()
+{
+	LONG_PTR data = GetWindowLongPtr(frame, GWLP_USERDATA);
+	auto ctx = reinterpret_cast<callbacks_impl*>(data);
+
+	SetWindowTextW(ctx->progress_label, L"Checking local files...");
+}
+
 void callbacks_impl::downloader_start(int num_threads, size_t num_files_)
 {
 	file_sizes.resize(num_threads, 0);
@@ -379,7 +388,6 @@ void callbacks_impl::blocker_start()
 {
 	ShowWindow(progress_worker, SW_HIDE);
 
-	//SetWindowTextW(progress_label, L"Update blocked by following programs:");
 	SetWindowTextW(progress_label, L"The following programs are preventing Streamlabs OBS from updating :");
 	SetWindowTextW(blockers_list, L"");
 

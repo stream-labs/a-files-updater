@@ -743,6 +743,8 @@ void update_client::handle_manifest_result(manifest_request<manifest_body> *requ
 	delete request_ctx;
 
 	log_info("Successfuly downloaded manifest. It has info about %d files", manifest.size());
+	
+	this->downloader_events->downloader_preparing();
 
 	wait_for_blockers.expires_from_now(boost::posix_time::seconds(3));
 	wait_for_blockers.async_wait(boost::bind(&update_client::process_manifest_results, this));
