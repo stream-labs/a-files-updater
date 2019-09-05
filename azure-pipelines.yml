@@ -19,7 +19,7 @@ pool:
 
 variables:
   ZLIB_DIST_NAME: zlib-1.2.11-static-mt
-  OPENSSL_DIST_NAME: openssl-1.1.1c
+  OPENSSL_DIST_NAME: openssl-1.1.1d
   BOOST_DIST_NAME: boost-vc141-1_70_0-bin
   DEPS_DIST_URI: https://s3-us-west-2.amazonaws.com/streamlabs-obs-updater-deps
   DEPS_LOCAL_PATH: $(Build.SourcesDirectory)\slobs-updater-deps
@@ -47,7 +47,7 @@ steps:
     curl -kLO "%DEPS_DIST_URI%/%OPENSSL_DIST_NAME%.7z" -f --retry 5
     curl -kLO "%DEPS_DIST_URI%/%BOOST_DIST_NAME%.7z" -f --retry 5
     7z x "%ZLIB_DIST_NAME%.7z" -o"%DEPS_LOCAL_PATH%\%ZLIB_DIST_NAME%" -y
-    7z x "%OPENSSL_DIST_NAME%.7z" -o"%DEPS_LOCAL_PATH%\%OPENSSL_DIST_NAME%" -y
+    7z x "%OPENSSL_DIST_NAME%.7z" -o"%DEPS_LOCAL_PATH%\$(OPENSSL_DIST_NAME)" -y
     7z x "%BOOST_DIST_NAME%.7z" -o"%DEPS_LOCAL_PATH%\%BOOST_DIST_NAME%" -y
     set PATH=%DEPS_LOCAL_PATH%;%PATH%
   displayName: 'Install dependencies'

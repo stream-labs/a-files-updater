@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
+cmake_policy(SET CMP0074 NEW)
 
 project(slobs-updater)
 
@@ -7,15 +8,19 @@ set(CMAKE_MODULE_PATH
 	"${slobs-updater_SOURCE_DIR}/cmake"
 )
 
-set(OPENSSL_USE_STATIC_LIBS TRUE)
-set(OPENSSL_MSVC_STATIC_RT TRUE)
-set(Boost_USE_STATIC_LIBS ON)
-set(Boost_USE_STATIC_RUNTIME ON)
+#set(OPENSSL_USE_STATIC_LIBS TRUE)
+#set(OPENSSL_MSVC_STATIC_RT TRUE)
+#find_package(OpenSSL REQUIRED )
+#message(STATUS "${OPENSSL_LIBRARIES}")
+
+set(OPENSSL_LIBRARIES ${OPENSSL_ROOT_DIR}/lib/libssl.lib ${OPENSSL_ROOT_DIR}/lib/libcrypto.lib )
 
 option(USE_STREAMLABS_RESOURCE "Embed and use the streamlabs resource file in the resulting executable" OFF)
 
 find_package(ZLIB REQUIRED)
-find_package(OpenSSL 1.1.1 EXACT REQUIRED)
+
+set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_STATIC_RUNTIME ON)
 
 find_package(Boost
 	1.70.0 EXACT
@@ -62,6 +67,10 @@ target_include_directories(slobs-updater
 	PRIVATE src/fmt
 )
 
+target_include_directories(slobs-updater
+	SYSTEM PUBLIC ${OPENSSL_ROOT_DIR}/include
+)
+
 target_link_libraries(slobs-updater
 	comctl32
 	Boost::boost
@@ -69,7 +78,7 @@ target_link_libraries(slobs-updater
 	Boost::iostreams
 	Boost::system
 	Boost::date_time
-	OpenSSL::SSL #Note that this pulls in Crypto
+	${OPENSSL_LIBRARIES}
 	ZLIB::ZLIB
 	# -MANIFESTUAC:level=requireAdministrator
 )
