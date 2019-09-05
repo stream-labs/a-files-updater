@@ -9,13 +9,15 @@ struct client_callbacks {
 };
 
 /* Sequence of events:
- *                            ┌────More─files───┐
- *                            ↓                 ↑
+ * downloader_preparing       ┌────More─files───┐
+ *         ↓                  ↓                 ↑
  * downloader_start -> download_file -> download_progress
  *            ┌───────────No─more─files─────────┘
  *            ↓
  * download_worker_finished -> downloader_complete */
 struct downloader_callbacks {
+	virtual void downloader_preparing() = 0;
+
 	virtual void downloader_start(int concurrent_requests, size_t num_files) = 0;
 
 	virtual void download_file(int thread_index, std::string &filename, size_t size) = 0;

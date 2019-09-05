@@ -4,7 +4,7 @@ const test_config = require('./test_config.js');
 const fse = require('fs-extra')
 const path = require('path');
 
-const run_one_test = true;
+const run_one_test = false;
 
 async function run_tests() {
     let testinfo;
@@ -23,7 +23,7 @@ async function run_tests() {
         //testinfo.selfBlockersCount = 2;
         //testinfo.let_15sec = true;
         //testinfo.let_block_one_file = true;
-        //testinfo.morebigfiles = true;
+        testinfo.morebigfiles = true;
         //testinfo.expectedResult = "filesnotchanged"
         //testinfo.selfBlockingFile = true;
         //testinfo.selfLockingFile = true;
@@ -34,12 +34,12 @@ async function run_tests() {
         //testinfo.runAsInteractive = 1;
         //testinfo.morebigfiles = true;
         //testinfo.selfBlockersCount = 5;
-        testinfo.selfBlockingFile = true;
+        //testinfo.selfBlockingFile = true;
         //testinfo.pidWaiting = true;
         //testinfo.selfBlockingFile = true;
-        testinfo.selfBlockersCount = 3;
+        //testinfo.selfBlockersCount = 3;
         //testinfo.let_drop = true;
-        //testinfo.let_404 = true;
+        testinfo.let_404 = true;
         //testinfo.max_trouble = 500;
         //testinfo.expected_change_for_trouble = 50;
         //testinfo.serverStarted = false;
