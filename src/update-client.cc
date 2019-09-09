@@ -648,7 +648,7 @@ void update_client::start_downloading_files()
 	int max_threads = 4;
 
 	this->manifest_iterator = this->manifest.cbegin();
-	int to_download = std::count_if(this->manifest.cbegin(), this->manifest.cend(), [](const auto& entry) {return !entry.second.remove_at_update && !entry.second.skip_update; });
+	auto to_download = std::count_if(this->manifest.cbegin(), this->manifest.cend(), [](const auto& entry) {return !entry.second.remove_at_update && !entry.second.skip_update; });
 	log_info("Manifest cleaned and ready to download files. Files to download %d", to_download);
 	this->downloader_events->downloader_start(max_threads, to_download);
 
@@ -743,6 +743,8 @@ void update_client::handle_manifest_result(manifest_request<manifest_body> *requ
 	delete request_ctx;
 
 	log_info("Successfuly downloaded manifest. It has info about %d files", manifest.size());
+	
+	this->downloader_events->downloader_preparing();
 
 	wait_for_blockers.expires_from_now(boost::posix_time::seconds(3));
 	wait_for_blockers.async_wait(boost::bind(&update_client::process_manifest_results, this));

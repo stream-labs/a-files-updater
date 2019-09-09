@@ -42,6 +42,7 @@ bool get_blockers_list(fs::path & check_path, blockers_map_t &blockers)
 				{
 					break;
 				}
+				nProcInfo = nProcInfoNeeded;
 			}
 
 			if (dwError == ERROR_SUCCESS)

@@ -141,6 +141,8 @@ static fs::path fetch_default_temp_dir()
 
 		fs::create_directories(temp_dir);
 	} else {
+		log_info("Failed to get temporary directory from system: %d %s", ec.value(), ec.message().c_str());
+
 		temp_dir = "";
 	}
 	return temp_dir;
@@ -241,14 +243,18 @@ bool su_parse_command_line( int argc, char **argv, struct update_parameters *par
 				strlen(temp_dir_arg->sval[0])
 			);
 	} else {
-		params->temp_dir = fetch_default_temp_dir();
-
 		log_info("Temporary directory not provided.");
 
-		log_info("Generated temporary directory: %s", params->temp_dir.string().c_str() );
+		params->temp_dir = fetch_default_temp_dir();
 
 		if (params->temp_dir.empty())
+		{
+			log_info("Generated temporary directory failed");
 			success = false;
+			goto parse_error;
+		} else {
+			log_info("Generated temporary directory: %s", params->temp_dir.string().c_str());
+		}
 	}
 
 	log_path = fs::path(params->temp_dir);

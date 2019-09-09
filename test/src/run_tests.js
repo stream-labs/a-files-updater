@@ -23,7 +23,7 @@ async function run_tests() {
         //testinfo.selfBlockersCount = 2;
         //testinfo.let_15sec = true;
         //testinfo.let_block_one_file = true;
-        //testinfo.morebigfiles = true;
+        testinfo.morebigfiles = true;
         //testinfo.expectedResult = "filesnotchanged"
         //testinfo.selfBlockingFile = true;
         //testinfo.selfLockingFile = true;
