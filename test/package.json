@@ -20,7 +20,7 @@
     "tree-kill": "^1.2.1"
   },
   "devDependencies": {
-    "request": "2.49.x"
+    "request": "2.88.x"
   },
   "bugs": {}
 }
