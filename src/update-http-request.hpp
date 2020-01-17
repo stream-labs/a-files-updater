@@ -121,14 +121,15 @@ void update_http_request<Body, IncludeVersion>::check_deadline_callback_err(cons
 	{
 		log_info("Timeout for file download operation triggered for %s", target.c_str());
 		deadline_reached = true;
-		boost::system::error_code ignored_ec;
-		ssl_socket.lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored_ec);
 
 		try{
 			deadline.expires_at(boost::posix_time::pos_infin);
 		} catch (...) {
 			log_error("Got error canceling timer");	
 		}
+
+		boost::system::error_code ignored_ec;
+		ssl_socket.lowest_layer().shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored_ec);
 	}
 	else {
 		// Put the actor back to sleep.
