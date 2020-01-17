@@ -103,7 +103,7 @@ struct callbacks_impl :
 
 	void initialize() final;
 	void success() final;
-	void error(const char* error) final;
+	void error(const char* error, const char * error_type) final;
 
 	void downloader_preparing() final;
 	void downloader_start(int num_threads, size_t num_files_) final;
@@ -283,11 +283,13 @@ void callbacks_impl::success()
 	PostMessage(frame, CUSTOM_CLOSE_MSG, NULL, NULL);
 }
 
-void callbacks_impl::error(const char* error)
+void callbacks_impl::error(const char* error, const char* error_type)
 {
 	int error_sz = -1;
 
 	this->error_buf = ConvertToUtf16(error, &error_sz);
+	
+	save_exit_error(error_type);
 
 	PostMessage(frame, CUSTOM_ERROR_MSG, NULL, NULL);
 }
@@ -493,7 +495,7 @@ LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		ShowError(ctx->error_buf);
 		delete[] ctx->error_buf;
 		ctx->error_buf = nullptr;
-
+				
 		DestroyWindow(hwnd);
 
 		break;
@@ -541,7 +543,7 @@ extern "C"
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnused, int nCmdShow) {
 
 	setup_crash_reporting();
-
+	
 	callbacks_impl cb_impl(hInstance, nCmdShow);
 
 	MultiByteCommandLine command_line;
@@ -551,6 +553,8 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 	if (!update_completed)
 	{
 		ShowError(L"Failed to parse cli arguments!");
+		save_exit_error("Failed parising arguments");
+		handle_exit();
 		return 0;
 	}
 
@@ -583,6 +587,8 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 	/* Don't attempt start if application failed to update */
 	if (!cb_impl.should_start)
 	{
+		handle_exit();
+		log_debug("after message sent");
 		return 1;
 	}  else {
 		update_completed = StartApplication( params.exec.c_str(), params.exec_cwd.c_str() );
@@ -591,6 +597,8 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 		{
 			ShowInfo(L"The application has finished updating.\n"
 				"Please manually start Streamlabs OBS.");
+			save_exit_error("Failed to autorestart");
+			handle_exit();
 		}
 	}
 

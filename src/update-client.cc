@@ -96,10 +96,10 @@ void update_client::start_file_update()
 		
 		if (reverted) 
 		{
-			client_events->error(failed_to_revert_message.c_str());
+			client_events->error(failed_to_revert_message.c_str(), "Failed to revert on fail");
 		}
 		else {
-			client_events->error(failed_to_update_message.c_str());
+			client_events->error(failed_to_update_message.c_str(), "Failed to update");
 		}
 	}
 }
@@ -167,7 +167,7 @@ void update_client::handle_network_error(const boost::system::error_code & error
 	char error_buf[256]{0};
 
 	snprintf(error_buf, sizeof(error_buf), "%s\0", restart_or_install_message.c_str());
-	client_events->error(error_buf);
+	client_events->error(error_buf, "Network error");
 
 	snprintf(error_buf, sizeof(error_buf), "%s - %s\0", str.c_str(), error.message().c_str());
 	log_error(error_buf);
@@ -362,8 +362,10 @@ void update_client::do_stuff()
 
 	domain_resolve_timeout.expires_from_now(boost::posix_time::seconds(10));
 	check_resolve_timeout_callback_err({});
+	
+	log_info("Ready to resolve cdn address \"%s\" and \"%s\" ", params->host.authority.c_str(), params->host.scheme.c_str());
 
-	resolver.async_resolve( params->host.authority, params->host.scheme, cb );
+	resolver.async_resolve( params->host.authority, params->host.scheme, cb);
 }
 
 void update_client::set_endpoint_fail(const std::string& used_cdn_node_address)
@@ -601,7 +603,7 @@ void update_client::process_manifest_results()
 			case 2:
 			{
 				log_info("Got cancel command from ui");
-				client_events->error(update_was_canceled_message.c_str());
+				client_events->error(update_was_canceled_message.c_str(), "Canceled");
 				return;
 			}
 			break;
@@ -621,22 +623,22 @@ void update_client::process_manifest_results()
 	}
 	catch (update_exception_blocked& )
 	{
-		client_events->error(blocked_file_message.c_str());
+		client_events->error(blocked_file_message.c_str(), "File access error");
 		return;
 	}
 	catch (update_exception_failed& )
 	{
-		client_events->error(locked_file_message.c_str());
+		client_events->error(locked_file_message.c_str(), "File access error");
 		return;
 	}
 	catch (std::exception & )
 	{
-		client_events->error(failed_boost_file_operation_message.c_str());
+		client_events->error(failed_boost_file_operation_message.c_str(), "File operation error");
 		return;
 	}
 	catch (...)
 	{
-		client_events->error(failed_boost_file_operation_message.c_str());
+		client_events->error(failed_boost_file_operation_message.c_str(), "File operation error");
 		return;
 	}
 

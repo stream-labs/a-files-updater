@@ -10,8 +10,8 @@ namespace fs = std::filesystem;
 
 static bool validate_https_uri(struct uri_components *components)
 {
-	if (components->scheme == "http") {
-		log_debug("http isn't supported at this time");
+	if (components->scheme.compare("https") ) {
+		log_debug("URL other than https isn't supported at this time");
 		return false;
 	}
 
@@ -125,6 +125,7 @@ static fs::path fetch_default_temp_dir()
 {
 	std::error_code ec{};
 	fs::path temp_dir = fs::temp_directory_path(ec);
+
 	if(!ec)
 	{
 		temp_dir /= "slobs-updater";
@@ -253,7 +254,7 @@ bool su_parse_command_line( int argc, char **argv, struct update_parameters *par
 			success = false;
 			goto parse_error;
 		} else {
-			log_info("Generated temporary directory: %s", params->temp_dir.string().c_str());
+			log_info("Generated temporary directory: %s", params->temp_dir.c_str());
 		}
 	}
 
