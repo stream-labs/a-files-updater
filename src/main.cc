@@ -585,13 +585,12 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 	update_client_flush(client.get());
 
 	/* Don't attempt start if application failed to update */
-	if (!cb_impl.should_start)
+	if (cb_impl.should_start || params.restart_on_fail)
 	{
-		handle_exit();
-		log_debug("after message sent");
-		return 1;
-	}  else {
-		update_completed = StartApplication( params.exec.c_str(), params.exec_cwd.c_str() );
+		if( params.restart_on_fail )
+			update_completed = StartApplication(params.exec_no_update.c_str(), params.exec_cwd.c_str());
+		else 
+			update_completed = StartApplication(params.exec.c_str(), params.exec_cwd.c_str());
 
 		if (!update_completed)
 		{
@@ -600,6 +599,10 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 			save_exit_error("Failed to autorestart");
 			handle_exit();
 		}
+	}  else {
+		handle_exit();
+
+		return 1;
 	}
 
 	return 0;
