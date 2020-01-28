@@ -85,6 +85,7 @@ struct update_client {
 	resolver_type::results_type endpoints;
 	std::map<std::string, std::pair<int, int> > endpoint_fails_counts;
 	resolver_type::results_type::iterator get_endpoint();
+	const std::string get_endpoint_address_string(resolver_type::results_type::iterator & iter);
 	void set_endpoint_fail(const std::string & used_cdn_node_address );
 
 	std::vector<std::thread> thread_pool;
@@ -110,7 +111,7 @@ public:
 	void handle_manifest_download_canceled(manifest_request<manifest_body>* request_ctx);
 
 	//manifest 
-	void handle_resolve(const boost::system::error_code &error, tcp::resolver::results_type results);
+	void handle_resolve(const boost::system::error_code &error, resolver_type::results_type results);
 	void handle_manifest_result(manifest_request<manifest_body> *request_ctx);
 	void process_manifest_results();
 	bool checkup_manifest(blockers_map_t &blockers);
