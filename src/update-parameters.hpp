@@ -19,12 +19,14 @@ struct update_parameters {
 	fs::path temp_dir;
 	fs::path app_dir;
 	std::string exec;
+	std::string exec_no_update;
 	std::string exec_cwd;
 	std::vector<int> pids;
 	std::string version;
 	std::string log_file_path;
 	FILE *log_file = nullptr;
-	bool interactive = false;
+	bool interactive = true;
+	bool restart_on_fail = false;
 	bool enable_removing_old_files = false;
 
 	~update_parameters()

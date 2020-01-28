@@ -186,8 +186,11 @@ bool su_parse_command_line( int argc, char **argv, struct update_parameters *par
 	struct arg_int *pids_arg = arg_intn("p", "pids", "<pid>", 0, 100,
 		"The process ID's to wait on before starting the update");
 
-	struct arg_int *interactive = arg_intn("i", "interactive", "<interactive>", 0, 1,
+	struct arg_int* interactive_arg = arg_intn("i", "interactive", "<interactive>", 0, 1,
 		"Show user modal message boxes");
+
+	struct arg_lit* restart_arg = arg_lit0(NULL, "restart-after-fail",
+		"Start SLOBS after update fail with option to skip update");
 
 	struct arg_end *end_arg = arg_end(255);
 
@@ -202,7 +205,8 @@ bool su_parse_command_line( int argc, char **argv, struct update_parameters *par
 		temp_dir_arg,
 		version_arg,
 		pids_arg,
-		interactive,
+		interactive_arg,
+		restart_arg,
 		end_arg
 	};
 
@@ -223,9 +227,9 @@ bool su_parse_command_line( int argc, char **argv, struct update_parameters *par
 		ARG_STRING,
 		ARG_INTEGER,
 		ARG_INTEGER,
+		ARG_LITERAL,
 		ARG_END
 	};
-	params->interactive = true;
 
 	/* Here we assume that stdout is setup correctly, otherwise --help is pointless */
 	if (help_arg->count > 0) {
@@ -295,8 +299,9 @@ bool su_parse_command_line( int argc, char **argv, struct update_parameters *par
 		params->enable_removing_old_files = true;
 		log_warn("App path does contain \"OBS\" substring. Updater be able to remove files from old versions.");
 	}
-
-	params->exec.assign(exec_arg->sval[0]);
+		
+	params->exec.assign(std::string("\"") + std::string(exec_arg->sval[0]) + std::string("\""));
+	params->exec_no_update.assign(std::string("\"") + std::string(exec_arg->sval[0]) + std::string("\"") + std::string(" --skip-update"));
 
 	if (cwd_arg->count > 0) {
 		params->exec_cwd.assign(cwd_arg->sval[0]);
@@ -329,9 +334,14 @@ bool su_parse_command_line( int argc, char **argv, struct update_parameters *par
 	params->pids = make_vector_from_arg(pids_arg);
 	params->version.assign(version_arg->sval[0]);
 
-	if(interactive->count > 0)
+	if (interactive_arg->count > 0)
 	{
-		params->interactive = interactive->ival[0];
+		params->interactive = interactive_arg->ival[0];
+	}
+
+	if (restart_arg->count > 0)
+	{
+		params->restart_on_fail = true;
 	}
 
 	if (!success) goto parse_error;

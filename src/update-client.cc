@@ -485,7 +485,14 @@ bool update_client::checkup_manifest(blockers_map_t &blockers)
 					entry_update_info.remove_at_update = false;
 					entry_update_info.skip_update = true;
 				} else {
-					log_info("Not found local file in new versions manifest. Try to remove it %s", key.c_str());
+					static int removed_files = 0;
+					removed_files++;
+					if (removed_files < 30)
+					{
+						log_info("Not found local file in new versions manifest. Try to remove it %s", key.c_str());
+					} else if (removed_files == 30) {
+						log_info("More than 30 files not found in manifest. Logging postponed.");
+					}
 				}
 
 				manifest.emplace(std::make_pair(key, entry_update_info));
