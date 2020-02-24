@@ -26,7 +26,6 @@ find_package(Boost
 	1.70.0 EXACT
 	REQUIRED
 	COMPONENTS
-		filesystem
 		iostreams
 		system
 		date_time
@@ -74,7 +73,6 @@ target_include_directories(slobs-updater
 target_link_libraries(slobs-updater
 	comctl32
 	Boost::boost
-	Boost::filesystem
 	Boost::iostreams
 	Boost::system
 	Boost::date_time

@@ -13,6 +13,7 @@
 #include "logger/log.h" 
 #include "crash-reporter.hpp"
 #include "utils.hpp"
+#include <atomic>
 
 namespace fs = std::filesystem;
 namespace chrono = std::chrono;

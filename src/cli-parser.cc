@@ -4,6 +4,7 @@
 #include "cli-parser.hpp"
 #include "logger/log.h"
 #include <codecvt>
+#include <clocale>
 
 /* Filesystem is implicitly included from cli-parser.h */
 namespace fs = std::filesystem;
@@ -151,6 +152,12 @@ static fs::path fetch_default_temp_dir()
 
 bool su_parse_command_line( int argc, char **argv, struct update_parameters *params) 
 {
+	const char * current_locale = std::setlocale(LC_ALL, nullptr);
+	if (current_locale == nullptr || std::strlen(current_locale) == 0)
+	{
+		std::setlocale(LC_ALL, "en_US.UTF-8");
+	}
+
 	bool success = true;
 	fs::path log_path;
 

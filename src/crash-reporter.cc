@@ -187,7 +187,7 @@ int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump
 		const size_t NEWLINE_LENGTH = NEWLINE.length();
 		if (send_minidump) {
 			try {
-				minidump_file_size = boost::filesystem::file_size(minidump_filename);
+				minidump_file_size = std::filesystem::file_size(minidump_filename);
 			}
 			catch (...)
 			{
