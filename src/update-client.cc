@@ -617,6 +617,7 @@ void update_client::process_manifest_results()
 			{
 				log_info("Got cancel command from ui");
 				client_events->error(update_was_canceled_message.c_str(), "Canceled");
+				reset_work_threads_guards();
 				return;
 			}
 			break;
