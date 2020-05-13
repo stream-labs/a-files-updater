@@ -92,6 +92,8 @@ target_compile_definitions(slobs-updater
 		-DUNICODE
 		-D_UNICODE
 		-DBOOST_IOSTREAMS_NO_LIB
+		-DSENTRY_PROJECT_ID="${SENTRY_PROJECT_ID}"
+		-DSENTRY_PROJECT_KEY="${SENTRY_PROJECT_KEY}"
 
 		#It might be worth removing this eventually
 		-D_CRT_SECURE_NO_WARNINGS
