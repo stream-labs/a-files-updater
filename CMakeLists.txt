@@ -26,7 +26,6 @@ find_package(Boost
 	1.70.0 EXACT
 	REQUIRED
 	COMPONENTS
-		filesystem
 		iostreams
 		system
 		date_time
@@ -37,11 +36,9 @@ include(cppcheck)
 cppcheck(EXCLUDE "")
 
 file(GLOB_RECURSE SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cc ${PROJECT_SOURCE_DIR}/src/*/*.c ${PROJECT_SOURCE_DIR}/src/*/*.cpp)
+file(GLOB_RECURSE HEADER_FILES ${PROJECT_SOURCE_DIR}/src/*.h ${PROJECT_SOURCE_DIR}/src/*.hpp)
 
-add_executable(slobs-updater
-	WIN32
-	${SRC_FILES}
-)
+add_executable(slobs-updater WIN32 ${SRC_FILES} ${HEADER_FILES} )
 
 if (USE_STREAMLABS_RESOURCE)
 	target_sources(slobs-updater PUBLIC resources/slobs-updater.rc)
@@ -74,7 +71,6 @@ target_include_directories(slobs-updater
 target_link_libraries(slobs-updater
 	comctl32
 	Boost::boost
-	Boost::filesystem
 	Boost::iostreams
 	Boost::system
 	Boost::date_time

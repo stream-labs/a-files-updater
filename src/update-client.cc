@@ -267,7 +267,7 @@ void update_client::handle_manifest_download_canceled(manifest_request<manifest_
 	handle_network_error(download_abort_error, download_abort_message);
 }
 
-void update_client::handle_resolve(const boost::system::error_code &error, tcp::resolver::results_type results) 
+void update_client::handle_resolve(const boost::system::error_code &error, resolver_type::results_type results)
 {
 	domain_resolve_timeout.cancel();
 
@@ -283,8 +283,8 @@ void update_client::handle_resolve(const boost::system::error_code &error, tcp::
 	auto first_ip = endpoints.cbegin();
 	while(first_ip!=endpoints.cend())
 	{
-		log_info("Resolved cdn node address - %s", (*first_ip).endpoint().address().to_string().c_str());
-		endpoint_fails_counts.emplace((*first_ip).endpoint().address().to_string(), std::make_pair<int,int>( 0,0) );
+		log_info("Resolved cdn node address - %s", get_endpoint_address_string(first_ip).c_str());
+		endpoint_fails_counts.emplace(get_endpoint_address_string(first_ip), std::make_pair<int,int>( 0,0) );
 		first_ip++;
 	}
 	
@@ -370,20 +370,25 @@ void update_client::do_stuff()
 
 void update_client::set_endpoint_fail(const std::string& used_cdn_node_address)
 {
-	auto iter = endpoints.begin();
-	
-	while (iter != endpoints.end())
+	auto counters = endpoint_fails_counts.find(used_cdn_node_address );
+	if(counters != endpoint_fails_counts.end())
 	{
-		if((*iter).endpoint().address().to_string().compare( used_cdn_node_address ) == 0)
-		{
-			auto counters = endpoint_fails_counts.find(used_cdn_node_address );
-			(*counters).second.first++;
-			log_error("CDN node fail: \"%s\". fails: %d , gets: %d", used_cdn_node_address.c_str(), (*counters).second.first, (*counters).second.second);
-			break;
-		}
-		
-		iter++;
+		(*counters).second.first++;
+		log_error("CDN node fail: \"%s\". fails: %d , gets: %d", used_cdn_node_address.c_str(), (*counters).second.first, (*counters).second.second);
+	} else {
+		log_error("CDN node fail: \"%s\". ", used_cdn_node_address.c_str() );
 	}
+}
+
+const std::string update_client::get_endpoint_address_string(resolver_type::results_type::iterator &iter)
+{
+	std::string ret = "";
+	if(iter != endpoints.end())
+	{
+		boost::system::error_code ec;
+		ret = (*iter).endpoint().address().to_string(ec);
+	}
+	return ret;
 }
 
 tcp::resolver::results_type::iterator update_client::get_endpoint()
@@ -395,8 +400,8 @@ tcp::resolver::results_type::iterator update_client::get_endpoint()
 
 	while(iter != endpoints.end())
 	{
-		auto counters = endpoint_fails_counts.find((*iter).endpoint().address().to_string());
-		if( (*counters).second.first <= 24 ) //ignore nodes with count of fails more than limit 
+		auto counters = endpoint_fails_counts.find( get_endpoint_address_string(iter) );
+		if( counters != endpoint_fails_counts.end() && (*counters).second.first <= 24 ) //ignore nodes with count of fails more than limit 
 		{
 			if (ret_fails < 0 || ret_fails >(*counters).second.first || (ret_fails == (*counters).second.first && ret_gets > (*counters).second.second)  )
 			{
@@ -410,8 +415,9 @@ tcp::resolver::results_type::iterator update_client::get_endpoint()
 	
 	if(ret != endpoints.end())
 	{
-		auto counters = endpoint_fails_counts.find((*ret).endpoint().address().to_string());
-		(*counters).second.second++;
+		auto counters = endpoint_fails_counts.find(get_endpoint_address_string(ret));
+		if(counters != endpoint_fails_counts.end())
+			(*counters).second.second++;
 	}
 
 	return ret;
@@ -485,7 +491,14 @@ bool update_client::checkup_manifest(blockers_map_t &blockers)
 					entry_update_info.remove_at_update = false;
 					entry_update_info.skip_update = true;
 				} else {
-					log_info("Not found local file in new versions manifest. Try to remove it %s", key.c_str());
+					static int removed_files = 0;
+					removed_files++;
+					if (removed_files < 30)
+					{
+						log_info("Not found local file in new versions manifest. Try to remove it %s", key.c_str());
+					} else if (removed_files == 30) {
+						log_info("More than 30 files not found in manifest. Logging postponed.");
+					}
 				}
 
 				manifest.emplace(std::make_pair(key, entry_update_info));
@@ -604,6 +617,7 @@ void update_client::process_manifest_results()
 			{
 				log_info("Got cancel command from ui");
 				client_events->error(update_was_canceled_message.c_str(), "Canceled");
+				reset_work_threads_guards();
 				return;
 			}
 			break;

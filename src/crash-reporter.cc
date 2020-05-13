@@ -98,7 +98,7 @@ std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo, std:
 	json_report << "		\"app_build_timestamp\": \"" << __DATE__ << " " << __TIME__ << "\", ";
 	if (!minidump_result.size())
 		json_report << "		\"report_type\": \"" << "catched_error" << "\", ";
-	json_report << "		\"updater_version\": \"" << "v0.0.24" << "\", ";
+	json_report << "		\"updater_version\": \"" << "v0.0.26" << "\", ";
 	json_report << "		\"os_version\": \"" << "WIN32" << "\" ";
 	json_report << "	}, ";
 	json_report << "	\"extra\": { ";
@@ -187,7 +187,7 @@ int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump
 		const size_t NEWLINE_LENGTH = NEWLINE.length();
 		if (send_minidump) {
 			try {
-				minidump_file_size = boost::filesystem::file_size(minidump_filename);
+				minidump_file_size = std::filesystem::file_size(minidump_filename);
 			}
 			catch (...)
 			{
