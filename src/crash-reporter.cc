@@ -26,8 +26,11 @@ std::string last_error_type = "";
 //const std::string host = "127.0.0.1";
 #endif
 
-const std::string api_path_minidump = "/api/1390326/minidump/?sentry_key=7492ebea21f54618a550163938dc164d";
-const std::string api_path_store = "/api/1390326/store/";
+#if !defined(SENTRY_PROJECT_KEY) or !defined(SENTRY_PROJECT_ID)
+#error "sentry project info not provided"
+#endif
+const std::string api_path_minidump = "/api/" SENTRY_PROJECT_ID "/minidump/?sentry_key=" SENTRY_PROJECT_KEY;
+const std::string api_path_store = "/api/" SENTRY_PROJECT_ID "/store/";
 
 const bool send_manual_backtrace = false;
 std::wstring minidump_filenamew = L"MiniDump.dmp";
