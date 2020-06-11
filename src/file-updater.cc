@@ -192,5 +192,6 @@ void FileUpdater::revert()
 	if (error_count > 0)
 	{
 		wlog_warn(L"Revert have failed to correctly revert some files. Fails: %i", error_count);
+		throw std::exception("Revert have failed to correctly revert some files");
 	}
 }

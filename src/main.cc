@@ -36,7 +36,7 @@ void ShowError(LPCWSTR lpMsg)
 {
 	if (params.interactive)
 	{
-		MessageBoxW(NULL, lpMsg, TEXT("Error"), MB_ICONEXCLAMATION | MB_OK);
+		MessageBoxW(NULL, lpMsg, TEXT("Error while updating"), MB_ICONEXCLAMATION | MB_OK);
 	}
 }
 

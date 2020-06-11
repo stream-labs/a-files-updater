@@ -46,7 +46,7 @@ const size_t file_buffer_size = 4096;
 #include "utils.hpp"
 #include "file-updater.h"
 
-const std::string failed_to_revert_message = "Failed to move files.\nPlease make sure the application files are not in use and try again.";
+const std::string failed_to_revert_message = "The automatic update failed to perform successfully.\nPlease install the latest version of Streamlabs OBS from https://streamlabs.com/";
 const std::string failed_to_update_message = "Failed to move files.\nPlease make sure the application files are not in use and try again.";
 const std::string failed_connect_to_server_message = "Failed to connect to update server.";
 const std::string update_was_canceled_message = "Update was canceled.";
@@ -77,29 +77,35 @@ void update_client::start_file_update()
 		client_events->success();
 		updated = true;
 	}
+	catch(std::exception& e) {
+		log_error("Got error while updating files: %s.", e.what());
+	}
 	catch (...) {
-		log_info("Got error while updating files.");
+		log_error("Got error while updating files.");
 	}
 
 	if (!updated)
 	{
-		bool reverted = true;
+		bool reverted = false;
 		log_info("Going to revert.");
 		try {
 			updater.revert();
 			reverted = true;
-			log_debug("Revert complited.");
+			log_info("Revert complited.");
+		}
+		catch(std::exception& e) {
+			log_error("Revert failed: %s.", e.what());
 		}
 		catch (...) {
-			log_debug("Revert failed.");
+			log_error("Revert failed.");
 		}	
 		
 		if (reverted) 
 		{
-			client_events->error(failed_to_revert_message.c_str(), "Failed to revert on fail");
+			client_events->error(failed_to_update_message.c_str(), "Failed to update");
 		}
 		else {
-			client_events->error(failed_to_update_message.c_str(), "Failed to update");
+			client_events->error(failed_to_revert_message.c_str(), "Failed to revert on fail");
 		}
 	}
 }
