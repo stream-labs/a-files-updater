@@ -86,7 +86,7 @@ void update_client::start_file_update()
 
 	if (!updated)
 	{
-		bool reverted = true;
+		bool reverted = false;
 		log_info("Going to revert.");
 		try {
 			updater.revert();
@@ -102,10 +102,10 @@ void update_client::start_file_update()
 		
 		if (reverted) 
 		{
-			client_events->error(failed_to_revert_message.c_str(), "Failed to revert on fail");
+			client_events->error(failed_to_update_message.c_str(), "Failed to update");
 		}
 		else {
-			client_events->error(failed_to_update_message.c_str(), "Failed to update");
+			client_events->error(failed_to_revert_message.c_str(), "Failed to revert on fail");
 		}
 	}
 }
