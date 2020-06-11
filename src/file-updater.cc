@@ -168,6 +168,10 @@ void FileUpdater::revert()
 
 	for (; iter != end_iter; ++iter)
 	{
+		if (fs::is_directory(iter->path()))
+		{
+			continue;
+		}
 		/* Fetch relative paths */
 		fs::path rel_path(fs::relative(iter->path(), m_old_files_dir));
 
