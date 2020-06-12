@@ -23,6 +23,7 @@ struct FileUpdater
 	bool update_entry_with_retries(manifest_map_t::const_iterator  &iter, fs::path & new_files_dir);
 	void revert();
 	bool reset_rights(const fs::path& path);
+	bool backup();
 
 private:
 	fs::path m_old_files_dir;

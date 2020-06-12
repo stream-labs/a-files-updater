@@ -9,6 +9,7 @@
 #include <boost/asio/ssl.hpp>
 
 #include <memory>
+#include <codecvt>
 
 #include "crash-reporter.hpp"
 #include "update-parameters.hpp"

@@ -92,22 +92,6 @@ bool FileUpdater::update_entry(manifest_map_t::const_iterator &iter, fs::path &n
 
 	try
 	{
-		fs::create_directories(old_file_path.parent_path());
-		fs::create_directories(to_path.parent_path());
-
-		if (fs::exists(to_path))
-		{
-			fs::rename(to_path, old_file_path, ec);
-			if (ec)
-			{
-				std::string msg = ec.message();
-				std::wstring wmsg(msg.begin(), msg.end());
-
-				wlog_debug(L"Failed to move file %s %s, error %s", to_path.c_str(), old_file_path.c_str(), wmsg.c_str());
-				return false;
-			}
-		}
-
 		if(!iter->second.remove_at_update)
 		{
 			fs::rename(from_path, to_path, ec);
@@ -198,4 +182,45 @@ void FileUpdater::revert()
 		wlog_warn(L"Revert have failed to correctly revert some files. Fails: %i", error_count);
 		throw std::exception("Revert have failed to correctly revert some files");
 	}
+}
+
+bool FileUpdater::backup()
+{
+	for (manifest_map_t::const_iterator iter = m_manifest.begin(); iter != m_manifest.end(); ++iter) {
+		try
+		{
+			if (iter->second.skip_update)
+				continue;
+
+			std::error_code ec;
+			fs::path file_name_part = fs::u8path(iter->first.c_str());
+			fs::path to_path(m_app_dir);
+			to_path /= file_name_part;
+
+			fs::path old_file_path(m_old_files_dir);
+			old_file_path /= file_name_part;
+
+			fs::create_directories(old_file_path.parent_path());
+			fs::create_directories(to_path.parent_path());
+
+			if (fs::exists(to_path))
+			{
+				fs::rename(to_path, old_file_path, ec);
+				if (ec)
+				{
+					std::string msg = ec.message();
+					std::wstring wmsg(msg.begin(), msg.end());
+
+					wlog_debug(L"Failed to backup entry %s to %s, error %s", to_path.c_str(), old_file_path.c_str(), wmsg.c_str());
+					return false;
+				}
+			}
+		}
+		catch (...)
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
