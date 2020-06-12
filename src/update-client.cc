@@ -71,11 +71,13 @@ void update_client::start_file_update()
 	bool updated = false;
 
 	try {
-		updater.update();
+		if (updater.backup()) {
+			updater.update();
 
-		log_info("Finished updating files without errors.");
-		client_events->success();
-		updated = true;
+			log_info("Finished updating files without errors.");
+			client_events->success();
+			updated = true;
+		}
 	}
 	catch(std::exception& e) {
 		log_error("Got error while updating files: %s.", e.what());
@@ -91,7 +93,7 @@ void update_client::start_file_update()
 		try {
 			updater.revert();
 			reverted = true;
-			log_info("Revert complited.");
+			log_info("Revert completed.");
 		}
 		catch(std::exception& e) {
 			log_error("Revert failed: %s.", e.what());
