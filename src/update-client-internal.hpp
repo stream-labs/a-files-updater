@@ -102,6 +102,8 @@ struct update_client {
 	void check_resolve_timeout_callback_err(const boost::system::error_code& error);
 	std::mutex               handle_error_mutex;
 
+	std::mutex blockers_mutex;
+
 public:
 	void handle_network_error(const boost::system::error_code &error, const std::string& str);
 	void handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code &error, const std::string & str);
@@ -114,7 +116,8 @@ public:
 	void handle_resolve(const boost::system::error_code &error, resolver_type::results_type results);
 	void handle_manifest_result(manifest_request<manifest_body> *request_ctx);
 	void process_manifest_results();
-	bool checkup_manifest(blockers_map_t &blockers);
+	void checkup_files(struct blockers_map_t& blockers, std::vector<fs::path> files, int from, int to);
+	void checkup_manifest(struct blockers_map_t &blockers);
 
 	//files
 	void start_downloading_files();
