@@ -114,7 +114,8 @@ public:
 	void handle_resolve(const boost::system::error_code &error, resolver_type::results_type results);
 	void handle_manifest_result(manifest_request<manifest_body> *request_ctx);
 	void process_manifest_results();
-	bool checkup_manifest(blockers_map_t &blockers);
+	void checkup_files(struct blockers_map_t& blockers, std::vector<fs::path> files, int from, int to);
+	void checkup_manifest(struct blockers_map_t &blockers);
 
 	//files
 	void start_downloading_files();

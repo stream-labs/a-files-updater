@@ -56,7 +56,8 @@ bool get_blockers_list(fs::path & check_path, blockers_map_t &blockers)
 						log_debug("%d.Process.dwProcessId = %d\n", i, rgpi[i].Process.dwProcessId);
 					}
 
-					blockers.insert({ rgpi[i].Process.dwProcessId, rgpi[i] });
+					std::unique_lock<std::mutex> ulock(blockers.mtx);
+					blockers.list.insert({ rgpi[i].Process.dwProcessId, rgpi[i] });
 				}
 
 				ret = true;
@@ -68,7 +69,9 @@ bool get_blockers_list(fs::path & check_path, blockers_map_t &blockers)
 					unknown_locker_process.Process.dwProcessId = 0;
 					const WCHAR * unknown_name = L"Unknown Process\0";
 					memcpy( unknown_locker_process.strAppName, unknown_name, 32 );
-					blockers.insert({ unknown_locker_process.Process.dwProcessId, unknown_locker_process });
+
+					std::unique_lock<std::mutex> ulock(blockers.mtx);
+					blockers.list.insert({ unknown_locker_process.Process.dwProcessId, unknown_locker_process });
 					ret = true;
 				}
 				log_debug("RmGetList for (%s) returned %d\n", check_path.u8string().c_str(), dwError);
