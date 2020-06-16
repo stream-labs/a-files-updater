@@ -64,9 +64,17 @@ private:
 struct manifest_entry_t
 {
 	std::string hash_sum;
+
+	// We were able to get the read permissions to compare the file
 	bool compared_to_local;
 
+	// Local file is not present on the manifest
+	// Will be deleted during the update process
 	bool remove_at_update;
+
+	// This is the result of comparing the checksum,
+	// if true it means the checkup is the same,
+	// it means that the file is the same and doesnn't need to be updated
 	bool skip_update;
 
 	manifest_entry_t(std::string& file_hash_sum) : hash_sum(file_hash_sum), compared_to_local(false), remove_at_update(false), skip_update(false){}
