@@ -459,26 +459,9 @@ void update_client::check_resolve_timeout_callback_err(const boost::system::erro
  *#
  *############################################*/
 
-bool update_client::checkup_manifest(blockers_map_t &blockers)
-{
-	/* Generate the manifest for the current application directory */
-	fs::recursive_directory_iterator app_dir_iter(params->app_dir);
-	fs::recursive_directory_iterator end_iter{};
-
-	for (; app_dir_iter != end_iter; ++app_dir_iter)
-	{
-		fs::path entry = app_dir_iter->path();
-		std::error_code ec;
-		
-		auto entry_status = fs::status(entry, ec);
-		if(!ec)
-		{
-			if(fs::is_directory(entry_status))
-			{
-				continue;
-			}
-		}
-
+void update_client::checkup_files(struct blockers_map_t& blockers, std::vector<fs::path> files, int from, int to) {
+	for (int i = from; i < to; i++) {
+		fs::path entry = files.at(i);
 		fs::path key_path(fs::relative(entry, params->app_dir));
 
 		fs::path cleaned_file_name = key_path.make_preferred();
@@ -488,23 +471,25 @@ bool update_client::checkup_manifest(blockers_map_t &blockers)
 
 		if (manifest_iter == manifest.end())
 		{
-			if(params->enable_removing_old_files)
+			if (params->enable_removing_old_files)
 			{
 				auto entry_update_info = manifest_entry_t(std::string(""));
 				entry_update_info.compared_to_local = true;
 				entry_update_info.remove_at_update = true;
 
-				if(key.find("Uninstall") == 0 || key.find("installername") == 0)
+				if (key.find("Uninstall") == 0 || key.find("installername") == 0)
 				{
 					entry_update_info.remove_at_update = false;
 					entry_update_info.skip_update = true;
-				} else {
+				}
+				else {
 					static int removed_files = 0;
 					removed_files++;
 					if (removed_files < 30)
 					{
 						log_info("Not found local file in new versions manifest. Try to remove it %s", key.c_str());
-					} else if (removed_files == 30) {
+					}
+					else if (removed_files == 30) {
 						log_info("More than 30 files not found in manifest. Logging postponed.");
 					}
 				}
@@ -513,7 +498,7 @@ bool update_client::checkup_manifest(blockers_map_t &blockers)
 			}
 			continue;
 		}
-		
+
 		if (check_file_updatable(entry, true, blockers))
 		{
 			if (!manifest_iter->second.compared_to_local)
@@ -543,8 +528,55 @@ bool update_client::checkup_manifest(blockers_map_t &blockers)
 			check_file_updatable(entry, false, blockers);
 		}
 	}
+}
 
-	return true;
+void update_client::checkup_manifest(blockers_map_t &blockers)
+{
+	int max_threads = std::thread::hardware_concurrency();
+
+	/* Generate the manifest for the current application directory */
+	fs::recursive_directory_iterator app_dir_iter(params->app_dir);
+	fs::recursive_directory_iterator end_iter{};
+
+	std::vector<fs::path> files;
+
+	for (; app_dir_iter != end_iter; ++app_dir_iter) {
+		fs::path entry = app_dir_iter->path();
+		std::error_code ec;
+
+		auto entry_status = fs::status(entry, ec);
+		if (ec)
+			continue;
+
+		if (fs::is_directory(entry_status))
+			continue;
+
+		files.push_back(entry);
+	}
+
+	std::vector<std::thread*> workers;
+
+	log_info("Full size: %d", files.size());
+
+	for (int i = 0; i < max_threads; i++) {
+		int from = files.size() / max_threads * i;
+		int to;
+
+		if (i + 1 != max_threads)
+			to = files.size() / max_threads * (i + 1);
+		else
+			to = files.size();
+
+		log_info("Begining work from: %d to: %d", from, to);
+		workers.push_back(new std::thread(&update_client::checkup_files, this, std::ref(blockers), files, from, to));
+	}
+
+	for (auto worker : workers) {
+		if (worker->joinable())
+			worker->join();
+	}
+
+	return;
 }
 
 std::mutex manifest_result_mutex;
@@ -571,10 +603,10 @@ void update_client::process_manifest_results()
 		blockers_map_t blockers;
 		checkup_manifest(blockers);
 
-		if (blockers.size() > 0)
+		if (blockers.list.size() > 0)
 		{
 			std::wstring new_process_list_text;
-			for (auto it = blockers.begin(); it != blockers.end(); it++)
+			for (auto it = blockers.list.begin(); it != blockers.list.end(); it++)
 			{
 				//log_debug("Got blocker process info %i %ls", (*it).second.Process.dwProcessId, (*it).second.strAppName);
 
@@ -600,7 +632,7 @@ void update_client::process_manifest_results()
 			{
 			case 1:
 				log_info("Got kill all command from ui");
-				for (auto it = blockers.begin(); it != blockers.end(); it++)
+				for (auto it = blockers.list.begin(); it != blockers.list.end(); it++)
 				{
 					if ((*it).second.Process.dwProcessId != 0)
 					{

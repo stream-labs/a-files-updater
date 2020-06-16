@@ -5,12 +5,16 @@
 #include <RestartManager.h>
 #include <list>
 #include <map>
+#include <mutex>
 
 #include <filesystem>
 
 namespace fs = std::filesystem;
 
-using blockers_map_t = std::map<DWORD, RM_PROCESS_INFO>;
+struct blockers_map_t {
+	std::map<DWORD, RM_PROCESS_INFO> list;
+	std::mutex mtx;
+};
 
 // === Update exceptions
 
