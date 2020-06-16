@@ -532,7 +532,7 @@ void update_client::checkup_files(struct blockers_map_t& blockers, std::vector<f
 
 void update_client::checkup_manifest(blockers_map_t &blockers)
 {
-	int max_threads = 16;
+	int max_threads = std::thread::hardware_concurrency();
 
 	/* Generate the manifest for the current application directory */
 	fs::recursive_directory_iterator app_dir_iter(params->app_dir);
