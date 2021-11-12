@@ -14,6 +14,11 @@
 #include "crash-reporter.hpp"
 #include "utils.hpp"
 #include <atomic>
+#include <thread>
+#include <fstream>
+#include <Wininet.h>
+
+#pragma comment(lib, "Wininet.lib")
 
 namespace fs = std::filesystem;
 namespace chrono = std::chrono;
@@ -213,7 +218,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	
 	progress_label = CreateWindow(
 		WC_STATIC,
-		TEXT("Looking for new files..."),
+		TEXT("Installing Visual C++ Redistributable..."),
 		WS_CHILD | WS_VISIBLE | SS_CENTER | SS_CENTERIMAGE,
 		x_pos, ui_padding,
 		x_size, ui_basic_height,
@@ -276,6 +281,121 @@ void callbacks_impl::initialize()
 {
 	ShowWindow(frame, SW_SHOWNORMAL);
 	UpdateWindow(frame);
+
+	std::atomic<bool> working{true};
+
+	std::thread workerThread([&]()
+	{
+		std::vector<char> data;
+
+		// Download
+		if (HINTERNET connect = InternetOpenA("SLOBS", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0))
+		{
+			if (HINTERNET hOpenAddress = InternetOpenUrlA(connect, "https://aka.ms/vs/16/release/vc_redist.x64.exe", NULL, 0, INTERNET_FLAG_PRAGMA_NOCACHE | INTERNET_FLAG_KEEP_CONNECTION, 0))
+			{
+				char buf[MAX_PATH];
+				DWORD bufSize = MAX_PATH;
+
+				if (HttpQueryInfoA(hOpenAddress, HTTP_QUERY_CONTENT_LENGTH, buf, &bufSize, nullptr))
+				{
+					const int downloadLength = static_cast<int>(atoi(buf));
+					
+					while (InternetReadFile(hOpenAddress, buf, MAX_PATH, &bufSize) && bufSize != 0)
+					{
+						// Buffer
+						data.insert(data.end(), &buf[0], &buf[bufSize]);
+						
+						// Gui
+						static int intPct = 0;
+						float pct = static_cast<float>(data.size()) / static_cast<float>(downloadLength);
+						int pct100 = int((pct * 100.f) + 0.5f);
+
+						if (intPct != pct100)
+						{
+							intPct = pct100;
+							PostMessage(progress_worker, PBM_SETPOS, static_cast<int>(double(pct) * double(INT_MAX)), 0);
+						}
+					}
+				}
+
+				InternetCloseHandle(hOpenAddress);
+			}
+
+			InternetCloseHandle(connect);
+		}
+
+		// Run
+		if (!data.empty())
+		{
+			DWORD dwExitCode = ERROR_SUCCESS;
+			std::ofstream outFile("vc_redist.x64.exe", std::ios::out | std::ios::binary);
+
+			if (outFile.is_open())
+			{
+				outFile.write(&data[0], data.size());
+				outFile.close();
+
+				STARTUPINFOA si;
+				ZeroMemory(&si, sizeof(si));
+				si.cb = sizeof(si);
+
+				PROCESS_INFORMATION pi;
+				ZeroMemory(&pi, sizeof(pi));
+
+				if (CreateProcessA("vc_redist.x64.exe", "vc_redist.x64.exe /passive /norestart", NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi))
+				{
+					WaitForSingleObject(pi.hProcess, INFINITE);
+					GetExitCodeProcess(pi.hProcess, &dwExitCode);
+
+					CloseHandle(pi.hProcess);
+					CloseHandle(pi.hThread);
+				}
+				else
+				{
+					dwExitCode = GetLastError();
+				}
+
+				std::filesystem::remove("vc_redist.x64.exe");
+			}
+			else
+			{
+				dwExitCode = GetLastError();
+			}
+		
+			if (dwExitCode != ERROR_SUCCESS)
+			{
+				switch (dwExitCode)
+				{
+				case ERROR_SUCCESS_REBOOT_INITIATED:
+				case ERROR_SUCCESS_REBOOT_REQUIRED:
+					MessageBoxA(frame, "A restart is required to complete the installation.", "Visual C++ Redistributable", MB_OK | MB_ICONWARNING);
+					break;
+				default:
+					MessageBoxA(frame, "WARNING: Streamlabs OBS was unable to install the latest Visual C++ Redistributable package from Microsoft.", "Visual C++ Redistributable", MB_OK | MB_ICONWARNING);
+					break;
+				}
+
+				log_info("vc_redist.x64.exe, code %d", dwExitCode);
+			}
+		}
+		else
+		{
+			MessageBoxA(frame, "WARNING: Streamlabs OBS was unable to download the latest Visual C++ Redistributable package from Microsoft.", "Visual C++ Redistributable", MB_OK | MB_ICONWARNING);
+			log_info("Could not download latest vc_redist.x64.exe, GetLastError = %d", GetLastError());
+		}
+
+		working = false;
+	});
+
+	MSG msg;
+
+	while (GetMessage(&msg, NULL, 0, 0) > 0 && working)
+	{
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
+
+	workerThread.join();
 }
 
 void callbacks_impl::success()
