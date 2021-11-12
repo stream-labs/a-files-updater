@@ -300,7 +300,7 @@ void callbacks_impl::initialize()
 				{
 					const int downloadLength = static_cast<int>(atoi(buf));
 					
-					while (InternetReadFile(hOpenAddress, buf, MAX_PATH, &bufSize) && bufSize != 0)
+					while (InternetReadFile(hOpenAddress, buf, MAX_PATH, &bufSize) && bufSize != 0 && downloadLength > 0)
 					{
 						// Buffer
 						data.insert(data.end(), &buf[0], &buf[bufSize]);
