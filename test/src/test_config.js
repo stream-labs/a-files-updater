@@ -9,7 +9,7 @@ exports.gettestinfo = function (testname) {
     resultDir: "",
     updaterDir: "",
     reporterDir: "",
-    appPathExtra: "OBS",
+    appPathExtra: "Program Files Streamlabs Desktop",
     versionName: "0.11.9-preview.1",
     updaterName: "slobs-updater.exe",
 

@@ -10,8 +10,8 @@ FILETYPE       VFT_APP
 {
     BLOCK "StringFileInfo" {
         BLOCK "040904b0" {
-            VALUE "FileDescription",  "Streamlabs OBS Updater"
-            VALUE "ProductName",      "Streamlabs OBS Updater"
+            VALUE "FileDescription",  "Streamlabs Desktop Updater"
+            VALUE "ProductName",      "Streamlabs Desktop Updater"
             VALUE "CompanyName",      "General Workings, Inc."
             VALUE "LegalCopyright",   "General Workings, Inc."
         }

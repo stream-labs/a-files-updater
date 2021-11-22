@@ -197,7 +197,7 @@ bool su_parse_command_line( int argc, char **argv, struct update_parameters *par
 		"Show user modal message boxes");
 
 	struct arg_lit* restart_arg = arg_lit0(NULL, "restart-after-fail",
-		"Start SLOBS after update fail with option to skip update");
+		"Start Streamlabs Desktop after update fail with option to skip update");
 
 	struct arg_end *end_arg = arg_end(255);
 
@@ -301,10 +301,12 @@ bool su_parse_command_line( int argc, char **argv, struct update_parameters *par
 
 	params->app_dir = fetch_path( app_dir_arg->sval[0], strlen(app_dir_arg->sval[0]) );
 
-	if(params->app_dir.u8string().find("OBS") != std::string::npos)
-	{
-		params->enable_removing_old_files = true;
-		log_warn("App path does contain \"OBS\" substring. Updater be able to remove files from old versions.");
+	if (params->app_dir.u8string().find("Program Files") != std::string::npos) {
+		if (params->app_dir.u8string().find("Streamlabs OBS") != std::string::npos ||
+		   params->app_dir.u8string().find("Streamlabs Desktop") != std::string::npos) {
+			params->enable_removing_old_files = true;
+			log_warn("The path does look like a default install path. Updater be able to remove files from old versions.");
+		}
 	}
 		
 	params->exec.assign(std::string("\"") + std::string(exec_arg->sval[0]) + std::string("\""));
