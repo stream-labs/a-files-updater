@@ -46,14 +46,14 @@ const size_t file_buffer_size = 4096;
 #include "utils.hpp"
 #include "file-updater.h"
 
-const std::string failed_to_revert_message = "The automatic update failed to perform successfully.\nPlease install the latest version of Streamlabs OBS from https://streamlabs.com/";
+const std::string failed_to_revert_message = "The automatic update failed to perform successfully.\nPlease install the latest version of Streamlabs Desktop from https://streamlabs.com/";
 const std::string failed_to_update_message = "Failed to move files.\nPlease make sure the application files are not in use and try again.";
 const std::string failed_connect_to_server_message = "Failed to connect to update server.";
 const std::string update_was_canceled_message = "Update was canceled.";
 const std::string blocked_file_message = "Failed to move files.\nSome files may be blocked by other program. Please restart your PC and try to update again.";
-const std::string locked_file_message = "Failed to move files.\nSome files could not be updated. Please download SLOBS installer from our site and run full installation.";
-const std::string failed_boost_file_operation_message = "Failed to move files.\nSome files could not be updated. Please download SLOBS installer from our site and run full installation.";
-const std::string restart_or_install_message = "Streamlabs OBS encountered an issue while downloading the update. \nPlease restart the application to finish updating. \nIf the issue persists, please download a new installer from www.streamlabs.com.";
+const std::string locked_file_message = "Failed to move files.\nSome files could not be updated. Please download Streamlabs Desktop installer from our site and run full installation.";
+const std::string failed_boost_file_operation_message = "Failed to move files.\nSome files could not be updated. Please download Streamlabs Desktop installer from our site and run full installation.";
+const std::string restart_or_install_message = "Streamlabs Desktop encountered an issue while downloading the update. \nPlease restart the application to finish updating. \nIf the issue persists, please download a new installer from www.streamlabs.com.";
 
 /*##############################################
  *#
@@ -805,7 +805,7 @@ void update_client::handle_manifest_result(manifest_request<manifest_body> *requ
 	wait_for_blockers.expires_from_now(boost::posix_time::seconds(3));
 	wait_for_blockers.async_wait(boost::bind(&update_client::process_manifest_results, this));
 
-	/* let time for SLOBS process to quit and make files available for update */
+	/* let time for Streamlabs Desktop process to quit and make files available for update */
 	handle_pids();
 };
 

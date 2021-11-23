@@ -4,7 +4,7 @@
      processorArchitecture="amd64"
      name="slobs-updater"
      type="win32"/>
-  <description>The Streamlabs OBS updater tool</description>
+  <description>The Streamlabs Desktop updater tool</description>
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>
       <requestedPrivileges>

@@ -173,7 +173,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	frame = CreateWindowEx(
 		WS_EX_CLIENTEDGE,
 		TEXT("UpdaterFrame"),
-		TEXT("Streamlabs OBS Updater"),
+		TEXT("Streamlabs Desktop Updater"),
 		WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU,
 		(screen_width - width) / 2,
 		(screen_height - height) / 2,
@@ -391,7 +391,7 @@ void callbacks_impl::blocker_start()
 {
 	ShowWindow(progress_worker, SW_HIDE);
 
-	SetWindowTextW(progress_label, L"The following programs are preventing Streamlabs OBS from updating :");
+	SetWindowTextW(progress_label, L"The following programs are preventing Streamlabs Desktop from updating :");
 	SetWindowTextW(blockers_list, L"");
 
 	SetWindowPos(frame, 0, 0, 0, width, height + ui_basic_height + ui_padding, SWP_NOMOVE | SWP_NOREPOSITION | SWP_ASYNCWINDOWPOS);
@@ -596,7 +596,7 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 		if (!update_completed)
 		{
 			ShowInfo(L"The application has finished updating.\n"
-				"Please manually start Streamlabs OBS.");
+				"Please manually start Streamlabs Desktop.");
 			save_exit_error("Failed to autorestart");
 			handle_exit();
 		}
