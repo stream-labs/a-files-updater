@@ -15,7 +15,7 @@ strategy:
       BUILD_TYPE: Release 
 
 pool:
-  vmImage: 'Default'
+  name: 'Default'
 
 variables:
   ZLIB_DIST_NAME: zlib-1.2.11-static-mt
