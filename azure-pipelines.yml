@@ -15,7 +15,7 @@ strategy:
       BUILD_TYPE: Release 
 
 pool:
-  name: 'Default'
+  vmImage: 'windows-2019'
 
 variables:
   ZLIB_DIST_NAME: zlib-1.2.11-static-mt
@@ -47,7 +47,6 @@ steps:
   displayName: 'Install dependencies'
 
 - script: |
-    call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
     cmake -H. -B"%BUILD_DIR%" -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -DBOOST_ROOT="%BOOST_ROOT%" -DOPENSSL_ROOT_DIR="%OPENSSL_ROOT%" -DZLIB_ROOT="%ZLIB_ROOT%" -DUSE_STREAMLABS_RESOURCE=ON -DSENTRY_PROJECT_ID="1390326" -DSENTRY_PROJECT_KEY="7492ebea21f54618a550163938dc164d"
   env:
     SENTRY_PROJECT_ID: $(updaterSentryProjectID)
@@ -55,7 +54,6 @@ steps:
   displayName: 'Configure updater'
 
 - script: |
-    call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
     'cmake --build "%BUILD_DIR%" --config %BUILD_TYPE%'
   displayName: 'Build updater'
 
