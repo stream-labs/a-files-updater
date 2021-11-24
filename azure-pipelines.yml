@@ -48,6 +48,7 @@ steps:
 
 - script: |
     call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+    cmake --version
     cmake -H. -B"%BUILD_DIR%" -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -DBOOST_ROOT="%BOOST_ROOT%" -DOPENSSL_ROOT_DIR="%OPENSSL_ROOT%" -DZLIB_ROOT="%ZLIB_ROOT%" -DUSE_STREAMLABS_RESOURCE=ON -DSENTRY_PROJECT_ID="1390326" -DSENTRY_PROJECT_KEY="7492ebea21f54618a550163938dc164d"
   env:
     SENTRY_PROJECT_ID: $(updaterSentryProjectID)
@@ -56,7 +57,7 @@ steps:
 
 - script: |
     call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-    'cmake --build "%BUILD_DIR%" --config %BUILD_TYPE%'
+    cmake --build "%BUILD_DIR%" --config %BUILD_TYPE%
   displayName: 'Build updater'
 
 - script: |

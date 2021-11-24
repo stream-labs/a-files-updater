@@ -1,5 +1,6 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.17)
 cmake_policy(SET CMP0074 NEW)
+cmake_policy(SET CMP0076 NEW)
 
 project(slobs-updater)
 
