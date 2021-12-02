@@ -74,7 +74,7 @@ struct update_client {
 	updater_callbacks       *updater_events{ nullptr };
 	pid_callbacks           *pid_events{ nullptr };
 	blocker_callbacks       *blocker_events{ nullptr };
-	install_callbacks		*installer_events{ nullptr };
+	install_callbacks       *installer_events{ nullptr };
 
 	int                      active_workers{ 0 };
 	std::atomic_size_t       active_pids{ 0 };

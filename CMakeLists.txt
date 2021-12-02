@@ -103,12 +103,6 @@ target_compile_definitions(slobs-updater
 		-D_SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING 
 )
 
-find_program(WIN_MT "mt.exe")
-
-
-if (NOT WIN_MT)
-	message(FATAL_ERROR "Failed to find mt.exe to embed manifest")
-endif ()
 cppcheck_add_project(slobs-updater)
 
 add_custom_command(
