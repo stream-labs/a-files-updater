@@ -54,6 +54,10 @@ struct update_client {
 	void set_pid_events(pid_callbacks *cbs) { pid_events = cbs; }
 	
 	void set_blocker_events(blocker_callbacks *cbs) { blocker_events = cbs; }
+	
+	void set_installer_events(install_callbacks* cbs) { installer_events = cbs; }
+
+	void register_install_package(const std::string& packageName, const std::string& url, const std::string& startParams) { install_packages[packageName] = { url, startParams }; }
 
 	void do_stuff();
 	void flush();
@@ -70,6 +74,7 @@ struct update_client {
 	updater_callbacks       *updater_events{ nullptr };
 	pid_callbacks           *pid_events{ nullptr };
 	blocker_callbacks       *blocker_events{ nullptr };
+	install_callbacks		*installer_events{ nullptr };
 
 	int                      active_workers{ 0 };
 	std::atomic_size_t       active_pids{ 0 };
@@ -102,6 +107,10 @@ struct update_client {
 	void check_resolve_timeout_callback_err(const boost::system::error_code& error);
 	std::mutex               handle_error_mutex;
 
+private:
+	// [packageName] = { url, params }
+	std::map<std::string, std::pair<std::string, std::string>> install_packages;
+
 public:
 	void handle_network_error(const boost::system::error_code &error, const std::string& str);
 	void handle_file_download_error(file_request<http::dynamic_body> *request_ctx, const boost::system::error_code &error, const std::string & str);
@@ -121,6 +130,7 @@ public:
 	void start_downloading_files();
 	void handle_file_result(file_request<http::dynamic_body> *request_ctx, update_file_t *file_ctx, int index);
 	void next_manifest_entry(int index);
+	void install_package(const std::string& packageName, std::string url, const std::string& startParams);
 
 	//wait for slobs close
 	void handle_pids();

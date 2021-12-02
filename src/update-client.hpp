@@ -3,12 +3,25 @@
 #include "update-parameters.hpp"
 
 struct client_callbacks {
-	virtual void initialize() = 0;
+	virtual void initialize(struct update_client *client) = 0;
 	virtual void success() = 0;
 	virtual void error(const char *error, const char * error_type) = 0;
 };
 
 /* Sequence of events:
+*					     
+* installer_download_start ────┐
+* installer_run_file ──────────┘
+*         ↓ 
+*/
+struct install_callbacks {
+	virtual void installer_download_start(const std::string& packageName) = 0;
+	virtual void installer_download_progress(const double pct) = 0;
+	virtual void installer_run_file(const std::string& packageName, const std::string& startParams, const std::string& rawFileBin) = 0;
+	virtual void installer_package_failed(const std::string& packageName, const std::string& message) = 0;
+};
+
+/*
  * downloader_preparing       ┌────More─files───┐
  *         ↓                  ↓                 ↑
  * downloader_start -> download_file -> download_progress
@@ -96,7 +109,13 @@ extern "C" {
 		struct blocker_callbacks*
 	);
 
+	void update_client_set_installer_events(
+		struct update_client *,
+		struct install_callbacks*
+	);
+
 	void update_client_start(struct update_client *);
 	void update_client_flush(struct update_client *);
 
+	void register_install_package(struct update_client* client, const std::string& packageName, const std::string& url, const std::string& startParams);
 }
