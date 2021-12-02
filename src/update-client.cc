@@ -362,6 +362,11 @@ void update_client::flush()
 
 void update_client::do_stuff()
 {
+	auto cb = [=](auto e, auto i)
+	{
+		this->handle_resolve(e, i);
+	};
+
 	// [packageName] = { url, params }
 	for (auto& itr : install_packages)
 		install_package(itr.first, itr.second.first, itr.second.second);
@@ -371,10 +376,7 @@ void update_client::do_stuff()
 	
 	log_info("Ready to resolve cdn address \"%s\" and \"%s\" ", params->host.authority.c_str(), params->host.scheme.c_str());
 
-	resolver.async_resolve( params->host.authority, params->host.scheme, [=](auto e, auto i)
-		{
-			this->handle_resolve(e, i);
-		});
+	resolver.async_resolve( params->host.authority, params->host.scheme, cb);
 }
 
 void update_client::install_package(const std::string& packageName, std::string url, const std::string& startParams)

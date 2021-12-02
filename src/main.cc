@@ -655,15 +655,15 @@ LSTATUS GetStringRegKey(HKEY baseKey, const std::wstring& path, const std::wstri
 	if (ret != ERROR_SUCCESS)
 		return ret;
 
-    WCHAR szBuffer[512];
-    DWORD dwBufferSize = sizeof(szBuffer);
-    
-	ret = RegQueryValueExW(hKey, strValueName.c_str(), 0, NULL, (LPBYTE)szBuffer, &dwBufferSize);
-    
-	if (ret == ERROR_SUCCESS)
-        strValue = szBuffer;
+	WCHAR szBuffer[512];
+	DWORD dwBufferSize = sizeof(szBuffer);
 
-    return ret;
+	ret = RegQueryValueExW(hKey, strValueName.c_str(), 0, NULL, (LPBYTE)szBuffer, &dwBufferSize);
+
+	if (ret == ERROR_SUCCESS)
+		strValue = szBuffer;
+
+	return ret;
 }
 
 BOOL HasInstalled_VC_redistx64()
@@ -726,6 +726,7 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 	auto client_deleter = [](struct update_client *client) {
 		destroy_update_client(client);
 	};
+
 
 	std::unique_ptr<struct update_client, decltype(client_deleter)>
 		client(create_update_client(&params), client_deleter);
