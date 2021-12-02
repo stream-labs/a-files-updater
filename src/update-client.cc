@@ -14,6 +14,7 @@
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/traits.hpp>
 #include <boost/exception/all.hpp>
+#include <boost/algorithm/string/replace.hpp>
 
 #include <fmt/format.h>
 #include <aclapi.h>
@@ -366,7 +367,9 @@ void update_client::do_stuff()
 		this->handle_resolve(e, i);
 	};
 
-	client_events->initialize();
+	// [packageName] = { url, params }
+	for (auto& itr : install_packages)
+		install_package(itr.first, itr.second.first, itr.second.second);
 
 	domain_resolve_timeout.expires_from_now(boost::posix_time::seconds(10));
 	check_resolve_timeout_callback_err({});
@@ -374,6 +377,119 @@ void update_client::do_stuff()
 	log_info("Ready to resolve cdn address \"%s\" and \"%s\" ", params->host.authority.c_str(), params->host.scheme.c_str());
 
 	resolver.async_resolve( params->host.authority, params->host.scheme, cb);
+}
+
+void update_client::install_package(const std::string& packageName, std::string url, const std::string& startParams)
+{
+	installer_events->installer_download_start(packageName);	
+
+	boost::system::error_code error;
+	boost::asio::io_service io_service;
+
+	// Deduce domain from url
+	std::string domainName;
+	boost::replace_all(url, "https://", "");
+	boost::replace_all(url, "http://", "");
+
+	for (size_t itr = 0; itr < url.size(); ++itr)
+	{
+		if (url[itr] == '/' || url[itr] == '\\')
+			break;
+
+		domainName.push_back(url[itr]);
+	}
+
+	// Resolve domain to IP
+	tcp::resolver local_resolver(io_service);
+	tcp::resolver::iterator endpoint_iterator = local_resolver.resolve(tcp::resolver::query{ domainName, "https" }, error);
+
+	if (error.failed())
+	{
+		installer_events->installer_package_failed(packageName, "HTTP " + error.message());
+		return;
+	}
+
+	// Try connect each endpoint until success
+	ssl::stream<tcp::socket> local_ssl_socket(io_ctx, ssl_context);	
+	
+	do
+	{
+		local_ssl_socket.lowest_layer().close();
+		local_ssl_socket.lowest_layer().connect(*endpoint_iterator++, error);
+	}	
+	while (error && endpoint_iterator != tcp::resolver::iterator{});
+
+	if (error.failed())
+	{
+		installer_events->installer_package_failed(packageName, "HTTP " + error.message());
+		return;
+	}
+
+	// Handshake
+	local_ssl_socket.handshake(ssl::stream_base::handshake_type::client, error);
+
+	if (error.failed())
+	{
+		installer_events->installer_package_failed(packageName, "HTTP " + error.message());
+		return;
+	}
+
+	// Send the first request
+	http::request<http::empty_body> local_request;
+	local_request = { http::verb::get, "https://" + url, 11};
+	local_request.set(http::field::host, domainName);
+	local_request.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+	http::write(local_ssl_socket, local_request, error);
+	
+	if (error.failed())
+	{
+		installer_events->installer_package_failed(packageName, "HTTP " + error.message());
+		return;
+	}
+
+	// Check that response is OK
+	beast::multi_buffer local_response_buf;
+	http::response_parser<http::dynamic_body> local_response_parser;
+	local_response_parser.body_limit(std::numeric_limits<unsigned long long>::max());
+	http::read_header(local_ssl_socket, local_response_buf, local_response_parser, error);
+	
+	if (error.failed())
+	{
+		installer_events->installer_package_failed(packageName, "HTTP " + error.message());
+		return;
+	}
+
+	if (local_response_parser.get().result_int() != 200)
+	{
+		installer_events->installer_package_failed(packageName, "HTTP Status Code " + std::to_string(local_response_parser.get().result_int()));
+		return;
+	}
+
+	size_t content_length = 0;
+	try { content_length = local_response_parser.content_length().value(); } catch (...) { }
+
+	if (content_length == 0)
+		return;
+
+	size_t amountRead = 0;
+
+	do
+	{
+		local_response_buf.clear();
+		amountRead += http::read_some(local_ssl_socket, local_response_buf, local_response_parser, error);
+		installer_events->installer_download_progress(double(amountRead) / double(content_length));
+
+	} while (amountRead < content_length);
+		
+	try
+	{
+		installer_events->installer_run_file(packageName, startParams, beast::buffers_to_string(local_response_parser.get().body().data()));
+	}
+	catch (...) 
+	{ 
+		// local_response_parser throws
+		installer_events->installer_package_failed(packageName, "Unknown Error");
+	}
 }
 
 void update_client::set_endpoint_fail(const std::string& used_cdn_node_address)
@@ -1106,6 +1222,16 @@ extern "C" {
 	void update_client_set_blocker_events(struct update_client *client, struct blocker_callbacks *events)
 	{
 		client->set_blocker_events(events);
+	}
+
+	void update_client_set_installer_events(struct update_client *client, struct install_callbacks *events)
+	{
+		client->set_installer_events(events);
+	}
+
+	void register_install_package(struct update_client *client, const std::string& packageName, const std::string& url, const std::string& startParams)
+	{
+		client->register_install_package(packageName, url, startParams);
 	}
 
 	void update_client_start(struct update_client *client)
