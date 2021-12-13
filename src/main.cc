@@ -293,7 +293,7 @@ void callbacks_impl::initialize(struct update_client *client)
 
 	// ; todo, maybe more msi/exe packages?
 	if (!HasInstalled_VC_redistx64())
-		register_install_package(client, "Visual C++ Redistributable", "https://s3-us-west-2.amazonaws.com/obsstudionodes3.streamlabs.com/VC_redist.x64.exe", "/passive /norestart");
+		register_install_package(client, "Visual C++ Redistributable", "https://slobs-cdn.streamlabs.com/VC_redist.x64.exe", "/passive /norestart");
 	
 }
 
