@@ -1,5 +1,6 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.17)
 cmake_policy(SET CMP0074 NEW)
+cmake_policy(SET CMP0076 NEW)
 
 project(slobs-updater)
 
@@ -21,16 +22,22 @@ find_package(ZLIB REQUIRED)
 
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_STATIC_RUNTIME ON)
+set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME ON)
+set(Boost_DEBUG OFF)
+set(Boost_RELEASE ON)
 
 find_package(Boost
-	1.70.0 EXACT
+	1.71.0 EXACT
 	REQUIRED
 	COMPONENTS
 		iostreams
 		system
 		date_time
 )
-	
+INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIR})
+
 include(cppcheck)
 
 cppcheck(EXCLUDE "")

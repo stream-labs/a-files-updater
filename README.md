@@ -2,7 +2,7 @@
 This project depends on a few libraries.
 
 * OpenSSL 1.1.x
-* Boost 1.70.0 (system, filesystem, thread, regex, and headers for asio, beast, iostreams, core, util)
+* Boost 1.71.0 (system, filesystem, thread, regex, and headers for asio, beast, iostreams, core, util)
 * zlib 1.2.x
 
 When configuring, the following cmake variables are of interest:

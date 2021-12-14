@@ -15,12 +15,12 @@ strategy:
       BUILD_TYPE: Release 
 
 pool:
-  vmImage: 'vs2017-win2016'
+  vmImage: 'windows-2019'
 
 variables:
   ZLIB_DIST_NAME: zlib-1.2.11-static-mt
   OPENSSL_DIST_NAME: openssl-1.1.1c-x64
-  BOOST_DIST_NAME: boost-vc141-1_70_0-bin
+  BOOST_DIST_NAME: boost-vc142-1_71_0-bin
   DEPS_DIST_URI: https://s3-us-west-2.amazonaws.com/streamlabs-obs-updater-deps
   DEPS_LOCAL_PATH: $(Build.SourcesDirectory)\slobs-updater-deps
   ZLIB_ROOT: $(DEPS_LOCAL_PATH)\$(ZLIB_DIST_NAME)
@@ -35,13 +35,7 @@ steps:
 - checkout: self
   fetchDepth: 10
 
-- task: NuGetToolInstaller@0
-  displayName: 'Install NuGet'
-  inputs:
-    versionSpec: '5.1.0'
-
 - script: |
-    nuget install secure-file -ExcludeVersion
     mkdir "%DEPS_LOCAL_PATH%"
     curl -kLO "%DEPS_DIST_URI%/%ZLIB_DIST_NAME%.7z" -f --retry 5
     curl -kLO "%DEPS_DIST_URI%/%OPENSSL_DIST_NAME%.7z" -f --retry 5
@@ -53,14 +47,16 @@ steps:
   displayName: 'Install dependencies'
 
 - script: |
-    call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-    cmake -H. -B"%BUILD_DIR%" -G "Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -DBOOST_ROOT="%BOOST_ROOT%" -DOPENSSL_ROOT_DIR="%OPENSSL_ROOT%" -DZLIB_ROOT="%ZLIB_ROOT%" -DUSE_STREAMLABS_RESOURCE=ON -DSENTRY_PROJECT_ID="1390326" -DSENTRY_PROJECT_KEY="7492ebea21f54618a550163938dc164d"
+    call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+    cmake -H. -B"%BUILD_DIR%" -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -DBOOST_ROOT="%BOOST_ROOT%" -DOPENSSL_ROOT_DIR="%OPENSSL_ROOT%" -DZLIB_ROOT="%ZLIB_ROOT%" -DUSE_STREAMLABS_RESOURCE=ON -DSENTRY_PROJECT_ID="1390326" -DSENTRY_PROJECT_KEY="7492ebea21f54618a550163938dc164d"
   env:
     SENTRY_PROJECT_ID: $(updaterSentryProjectID)
     SENTRY_PROJECT_KEY: $(updaterSentryProjectKey)
   displayName: 'Configure updater'
 
-- script: 'cmake --build "%BUILD_DIR%" --config %BUILD_TYPE%'
+- script: |
+    call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+    cmake --build "%BUILD_DIR%" --config %BUILD_TYPE%
   displayName: 'Build updater'
 
 - script: |
