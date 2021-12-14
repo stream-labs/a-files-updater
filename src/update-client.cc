@@ -424,6 +424,11 @@ void update_client::install_package(const std::string& packageName, std::string 
 		installer_events->installer_package_failed(packageName, "HTTP " + error.message());
 		return;
 	}
+	
+	// Timeout - Not 3 seconds to get everything, the max duration to go without back/forth activity
+	int32_t timeout = 3000;
+	::setsockopt(local_ssl_socket.lowest_layer().native_handle(), SOL_SOCKET, SO_SNDTIMEO, (const char *)&timeout, sizeof(timeout));
+	::setsockopt(local_ssl_socket.lowest_layer().native_handle(), SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout, sizeof(timeout));
 
 	// Handshake
 	local_ssl_socket.handshake(ssl::stream_base::handshake_type::client, error);
@@ -471,15 +476,27 @@ void update_client::install_package(const std::string& packageName, std::string 
 	if (content_length == 0)
 		return;
 
-	size_t amountRead = 0;
-
 	do
 	{
-		local_response_buf.clear();
-		amountRead += http::read_some(local_ssl_socket, local_response_buf, local_response_parser, error);
-		installer_events->installer_download_progress(double(amountRead) / double(content_length));
+		try
+		{
+			http::read_some(local_ssl_socket, local_response_buf, local_response_parser, error);
+		}
+		catch (const boost::system::system_error& ex) 
+		{ 
+			installer_events->installer_package_failed(packageName, "HTTP " + ex.code().message());
+			return;
+		}
 
-	} while (amountRead < content_length);
+		installer_events->installer_download_progress(double(local_response_parser.get().body().size()) / double(content_length));
+	} 
+	while (!error.failed() && !local_response_parser.is_done());
+		
+	if (error.failed())
+	{
+		installer_events->installer_package_failed(packageName, "HTTP " + error.message());
+		return;
+	}
 		
 	try
 	{
