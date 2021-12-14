@@ -479,7 +479,10 @@ void callbacks_impl::installer_run_file(const std::string& packageName, const st
 		case ERROR_SUCCESS_REBOOT_INITIATED:
 		case ERROR_SUCCESS_REBOOT_REQUIRED:
 			if (!notify_restart && (notify_restart = true))
-				MessageBoxA(frame, "A restart is required to complete the update.", "Package Installation", MB_OK | MB_ICONWARNING);
+			{
+				// Silenced for now, needs to be raised again when the package(s) are factually required to run the application
+				//MessageBoxA(frame, "A restart is required to complete the update.", "Package Installation", MB_OK | MB_ICONWARNING);
+			}
 			break;
 		default:
 			installer_package_failed(packageName, "");
