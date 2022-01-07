@@ -401,11 +401,11 @@ void update_client::install_package(const std::string& packageName, std::string 
 
 	// Resolve domain to IP
 	tcp::resolver local_resolver(io_service);
-	tcp::resolver::iterator endpoint_iterator = local_resolver.resolve(tcp::resolver::query{ domainName, "https" }, error);
+	tcp::resolver::iterator endpoint_iterator = local_resolver.resolve(tcp::resolver::query{ domainName, "443",  }, error);
 
 	if (error.failed())
 	{
-		installer_events->installer_package_failed(packageName, "HTTP " + error.message());
+		installer_events->installer_package_failed(packageName, "HTTP(1) " + error.message());
 		return;
 	}
 
@@ -421,7 +421,7 @@ void update_client::install_package(const std::string& packageName, std::string 
 
 	if (error.failed())
 	{
-		installer_events->installer_package_failed(packageName, "HTTP " + error.message());
+		installer_events->installer_package_failed(packageName, "HTTP(2) " + error.message());
 		return;
 	}
 	
@@ -435,7 +435,7 @@ void update_client::install_package(const std::string& packageName, std::string 
 
 	if (error.failed())
 	{
-		installer_events->installer_package_failed(packageName, "HTTP " + error.message());
+		installer_events->installer_package_failed(packageName, "HTTP(3) " + error.message());
 		return;
 	}
 
@@ -448,7 +448,7 @@ void update_client::install_package(const std::string& packageName, std::string 
 	
 	if (error.failed())
 	{
-		installer_events->installer_package_failed(packageName, "HTTP " + error.message());
+		installer_events->installer_package_failed(packageName, "HTTP(4) " + error.message());
 		return;
 	}
 
@@ -460,7 +460,7 @@ void update_client::install_package(const std::string& packageName, std::string 
 	
 	if (error.failed())
 	{
-		installer_events->installer_package_failed(packageName, "HTTP " + error.message());
+		installer_events->installer_package_failed(packageName, "HTTP(5) " + error.message());
 		return;
 	}
 
@@ -484,7 +484,7 @@ void update_client::install_package(const std::string& packageName, std::string 
 		}
 		catch (const boost::system::system_error& ex) 
 		{ 
-			installer_events->installer_package_failed(packageName, "HTTP " + ex.code().message());
+			installer_events->installer_package_failed(packageName, "HTTP(6) " + ex.code().message());
 			return;
 		}
 
@@ -494,7 +494,7 @@ void update_client::install_package(const std::string& packageName, std::string 
 		
 	if (error.failed())
 	{
-		installer_events->installer_package_failed(packageName, "HTTP " + error.message());
+		installer_events->installer_package_failed(packageName, "HTTP(7) " + error.message());
 		return;
 	}
 		
