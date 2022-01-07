@@ -16,6 +16,9 @@ static bool validate_https_uri(struct uri_components *components)
 		return false;
 	}
 
+	if (!components->scheme.empty())
+		components->scheme = "443";
+
 	return !components->scheme.empty() && !components->authority.empty();
 }
 
