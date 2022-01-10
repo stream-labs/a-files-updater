@@ -1012,7 +1012,7 @@ void update_client::next_manifest_entry(int index)
 
 			if (this->active_workers == 0)
 			{
-				this->downloader_events->downloader_complete();
+				this->downloader_events->downloader_complete(!update_download_aborted);
 				if (update_download_aborted)
 				{
 					handle_network_error(download_abort_error, download_abort_message);

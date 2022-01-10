@@ -38,7 +38,7 @@ struct downloader_callbacks {
 	virtual void download_progress(int thread_index, size_t consumed, size_t accum) = 0;
 
 	virtual void download_worker_finished(int thread_index) = 0;
-	virtual void downloader_complete() = 0;
+	virtual void downloader_complete(const bool) = 0;
 };
 
 /* Sequence of events:
