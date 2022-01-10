@@ -101,6 +101,7 @@ struct callbacks_impl :
 	bool should_cancel{ false };
 	bool should_kill_blockers{ false };
 	bool notify_restart{ false };
+	bool finished_downloading { false };
 	LPCWSTR label_format{ L"Downloading {} of {} - {:.2f} MB/s" };
 
 	callbacks_impl(const callbacks_impl&) = delete;
@@ -120,7 +121,7 @@ struct callbacks_impl :
 	void download_file(int thread_index, std::string &relative_path, size_t size);
 	void download_progress(int thread_index, size_t consumed, size_t accum) final;
 	void download_worker_finished(int thread_index) final { }
-	void downloader_complete() final;
+	void downloader_complete(const bool success) final;
 	static void bandwidth_tick(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime);
 	
 	void installer_download_start(const std::string& packageName) final;
@@ -493,9 +494,10 @@ void callbacks_impl::installer_run_file(const std::string& packageName, const st
 	}
 }
 
-void callbacks_impl::downloader_complete()
+void callbacks_impl::downloader_complete(const bool success)
 {
 	KillTimer(frame, 1);
+	finished_downloading = success;
 }
 
 void callbacks_impl::blocker_start()
@@ -762,17 +764,27 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 	update_client_flush(client.get());
 
 	/* Don't attempt start if application failed to update */
-	if (cb_impl.should_start || params.restart_on_fail)
+	if (cb_impl.should_start || params.restart_on_fail || !cb_impl.finished_downloading)
 	{
-		if( params.restart_on_fail )
+		if( params.restart_on_fail || !cb_impl.finished_downloading)
 			update_completed = StartApplication(params.exec_no_update.c_str(), params.exec_cwd.c_str());
 		else 
 			update_completed = StartApplication(params.exec.c_str(), params.exec_cwd.c_str());
 
+		// If failed to launch desktop app...
 		if (!update_completed)
 		{
-			ShowInfo(L"The application has finished updating.\n"
-				"Please manually start Streamlabs Desktop.");
+			if (cb_impl.finished_downloading)
+			{
+				ShowInfo(L"The application has finished updating.\n"
+					"Please manually start Streamlabs Desktop.");
+			}
+			else
+			{
+				ShowError(L"There was an issue launching the application.\n"
+					"Please start Streamlabs Desktop and try again.");
+			}
+
 			save_exit_error("Failed to autorestart");
 			handle_exit();
 		}

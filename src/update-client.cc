@@ -54,7 +54,7 @@ const std::string update_was_canceled_message = "Update was canceled.";
 const std::string blocked_file_message = "Failed to move files.\nSome files may be blocked by other program. Please restart your PC and try to update again.";
 const std::string locked_file_message = "Failed to move files.\nSome files could not be updated. Please download Streamlabs Desktop installer from our site and run full installation.";
 const std::string failed_boost_file_operation_message = "Failed to move files.\nSome files could not be updated. Please download Streamlabs Desktop installer from our site and run full installation.";
-const std::string restart_or_install_message = "Streamlabs Desktop encountered an issue while downloading the update. \nPlease restart the application to finish updating. \nIf the issue persists, please download a new installer from www.streamlabs.com.";
+const std::string restart_or_install_message = "Streamlabs Desktop was unable to download the update and will launch the current version instead.\n\nThe update will try again later. If this issue persists then please download a new installer from www.streamlabs.com";
 
 /*##############################################
  *#
@@ -1012,7 +1012,7 @@ void update_client::next_manifest_entry(int index)
 
 			if (this->active_workers == 0)
 			{
-				this->downloader_events->downloader_complete();
+				this->downloader_events->downloader_complete(!update_download_aborted);
 				if (update_download_aborted)
 				{
 					handle_network_error(download_abort_error, download_abort_message);
