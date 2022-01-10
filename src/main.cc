@@ -766,9 +766,6 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 	/* Don't attempt start if application failed to update */
 	if (cb_impl.should_start || params.restart_on_fail || !cb_impl.finished_downloading)
 	{
-		if (!cb_impl.finished_downloading)
-			ShowInfo(L"The application failed to download the update and will launch with the current version instead.");
-
 		if( params.restart_on_fail || !cb_impl.finished_downloading)
 			update_completed = StartApplication(params.exec_no_update.c_str(), params.exec_cwd.c_str());
 		else 
