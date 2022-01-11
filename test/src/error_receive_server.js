@@ -44,7 +44,7 @@ exports.start_crash_report_server = function (testinfo) {
             req.on('end', function () {
                 //console.log("Body: " + body);
                 filepath = path.join(testinfo.reporterDir, "crash_report.json")
-                fse.outputFileSync(filepath);
+                fse.outputFileSync(filepath, '');
                 var stream = fs.createWriteStream(filepath);
 
                 stream.write(body);
