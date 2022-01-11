@@ -211,7 +211,7 @@ fs::path prepare_file_path(const fs::path &base, const std::string &target)
 	}
 	catch (...)
 	{
-		log_error("Creating a file path failed");
+		log_error("Creating a file path failed for %s", target.c_str());
 		file_path = "";
 	}
 
