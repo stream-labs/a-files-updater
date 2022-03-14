@@ -186,16 +186,15 @@ BOOL StartApplication(const char *lpCommandLine, const char *lpWorkingDir)
 	return bSuccess;
 }
 
-fs::path prepare_file_path(const fs::path &base, const fs::path &target)
+fs::path prepare_file_path(const fs::path &base, const std::string &target)
 {
 	fs::path file_path = "";
 	try
 	{
 		file_path = base;
-		file_path /= target;
-	
-		std::string un_urled_path = unfixup_uri(file_path.string());
-		file_path = fs::u8path(un_urled_path.c_str());
+
+		std::string un_urled_path = unfixup_uri(target);
+		file_path /= fs::u8path(un_urled_path.c_str());
 
 		file_path.make_preferred();
 		file_path.replace_extension();
@@ -204,8 +203,15 @@ fs::path prepare_file_path(const fs::path &base, const fs::path &target)
 
 		fs::remove(file_path);
 	}
+	catch(std::filesystem::filesystem_error const& ex)
+	{
+		log_error("Creating a file path failed. Error %s", ex.what());
+		log_error("Info: %s and %s", base.string().c_str(), target.c_str());
+		file_path = "";
+	}
 	catch (...)
 	{
+		log_error("Creating a file path failed for %s", target.c_str());
 		file_path = "";
 	}
 

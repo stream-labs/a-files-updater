@@ -32,7 +32,7 @@ BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory);
 
 LPWSTR ConvertToUtf16(const char *from, int *from_size);
 
-fs::path prepare_file_path(const fs::path &base, const fs::path &target);
+fs::path prepare_file_path(const fs::path &base, const std::string &target);
 std::string unfixup_uri(const std::string &source);
 std::string fixup_uri(const std::string &source);
 std::string encimpl(std::string::value_type v);
