@@ -20,7 +20,7 @@ let self_blocking_process=[];
 async function generate_file(filedir, filename, filecontentextended = "", emptyfile = false, hugefile = false) {
   return new Promise((resolve, reject) => {
     const filepath = path.join(filedir, filename)
-    fse.outputFileSync(filepath);
+    fse.outputFileSync(filepath, '');
 
     var stream = fs.createWriteStream(filepath);
     if (!emptyfile) {
@@ -52,7 +52,7 @@ async function generate_file(filedir, filename, filecontentextended = "", emptyf
 
 function generate_file_sync(filedir, filename, filecontentextended = "", emptyfile = false, hugefile = false) {
   const filepath = path.join(filedir, filename)
-  fse.outputFileSync(filepath);
+  fse.outputFileSync(filepath, '');
 
   var stream = fs.openSync(filepath);
   if (!emptyfile) {
@@ -112,7 +112,7 @@ function filewalker(dir, done) {
 function generate_manifest(testinfo) {
   return new Promise((resolve, reject) => {
     const filepath = path.join(testinfo.serverDir, testinfo.versionName + ".sha256")
-    fse.outputFileSync(filepath);
+    fse.outputFileSync(filepath, '');
 
     filewalker(testinfo.serverDir, function (err, data) {
       if (err) {
