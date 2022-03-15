@@ -30,7 +30,7 @@ std::string last_error_type = "";
 #if !defined(SENTRY_PROJECT_KEY) or !defined(SENTRY_PROJECT_ID)
 #error "sentry project info not provided"
 #endif
-const std::string api_path_minidump = "/api/" SENTRY_PROJECT_ID "/minidump/?sentry_key=" SENTRY_PROJECT_KEY;
+const std::string api_path_minidump = "/api/" SENTRY_PROJECT_ID "/minidump/";
 const std::string api_path_store = "/api/" SENTRY_PROJECT_ID "/store/";
 
 const bool send_manual_backtrace = false;
@@ -222,7 +222,7 @@ int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump
 			request_stream << "Connection: close" << NEWLINE;
 			request_stream << "X-Sentry-Auth: Sentry sentry_version=5,sentry_client=slobs_updater/";
 			request_stream << "1.0.0" << ",sentry_timestamp=" << get_timestamp();
-			request_stream << ",sentry_key=" << "7492ebea21f54618a550163938dc164d";
+			request_stream << ",sentry_key=" << SENTRY_PROJECT_KEY;
 			request_stream << ",sentry_secret=" << "654ed1db5d93495284f66f3d6d195790";
 			request_stream << NEWLINE;
 
@@ -290,7 +290,7 @@ int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump
 			request_stream << "Connection: close" << NEWLINE;
 			request_stream << "X-Sentry-Auth: Sentry sentry_version=5,sentry_client=slobs_updater/";
 			request_stream << "1.0.0" << ",sentry_timestamp=" << get_timestamp();
-			request_stream << ",sentry_key=" << "7492ebea21f54618a550163938dc164d";
+			request_stream << ",sentry_key=" << SENTRY_PROJECT_KEY;
 			request_stream << ",sentry_secret=" << "654ed1db5d93495284f66f3d6d195790";
 			request_stream << NEWLINE;
 			request_stream << "Content-Type: application/json" << NEWLINE;
