@@ -766,13 +766,14 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 	/* Don't attempt start if application failed to update */
 	if (cb_impl.should_start || params.restart_on_fail || !cb_impl.finished_downloading)
 	{
+		bool app_started = false;
 		if( params.restart_on_fail || !cb_impl.finished_downloading)
-			update_completed = StartApplication(params.exec_no_update.c_str(), params.exec_cwd.c_str());
+			app_started = StartApplication(params.exec_no_update.c_str(), params.exec_cwd.c_str());
 		else 
-			update_completed = StartApplication(params.exec.c_str(), params.exec_cwd.c_str());
+			app_started = StartApplication(params.exec.c_str(), params.exec_cwd.c_str());
 
 		// If failed to launch desktop app...
-		if (!update_completed)
+		if (!app_started)
 		{
 			if (cb_impl.finished_downloading)
 			{
@@ -785,10 +786,12 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 					"Please start Streamlabs Desktop and try again.");
 			}
 
-			save_exit_error("Failed to autorestart");
+			if (cb_impl.should_start)
+				save_exit_error("Failed to autorestart");
 			handle_exit();
-		}
-	}  else {
+		} else if (!cb_impl.should_start)
+			handle_exit();
+	} else {
 		handle_exit();
 
 		return 1;

@@ -157,7 +157,8 @@ function generate_manifest(testinfo) {
 async function put_file_blocking(testinfo, use_blocking_program, update_subdirpath, need_to_launch, blocker_number) {
   if (testinfo.selfBlockingFile || testinfo.selfLockingFile) {
     let pathInResources = path.join(__dirname, "..", "resources", use_blocking_program);
-    let pathInTest = path.join(update_subdirpath, selfblockingfile_name+blocker_number+".exe");
+    const blocker_name = selfblockingfile_name+blocker_number+".exe";
+    let pathInTest = path.join(update_subdirpath, blocker_name);
     fse.copySync(pathInResources, pathInTest);
 
     let arg1 = "";
@@ -173,14 +174,24 @@ async function put_file_blocking(testinfo, use_blocking_program, update_subdirpa
     let blocker_to_launch = blocker_number;
 
     while (need_to_launch && blocker_to_launch > 0) {
-      let new_blocking_process = require('child_process').spawn(pathInTest, [
+      let new_blocking_process = require('child_process').spawn(blocker_name, [
         arg1, arg2
       ], {
+          cwd: update_subdirpath,
           detached: true,
           shell: true
         });
+      new_blocking_process.stdout.on('data', function(data) {
+        console.log(data.toString());
+      });
+      new_blocking_process.stderr.on('data', function(data) {
+        console.log(data.toString());
+      });
+      new_blocking_process.on('close', exitCode => {
+        console.log('Blocker process closed pid:', new_blocking_process.pid);
+      });
       if(testinfo.more_log_output)
-        console.log("Blocker process pid = " + new_blocking_process.pid);
+        console.log("Blocker process pid = " + new_blocking_process.pid + " " + pathInTest);
 
       self_blocking_process.push(new_blocking_process);
       if (testinfo.pidWaiting) {
