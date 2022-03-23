@@ -392,7 +392,7 @@ void handle_exit() noexcept
 }
 
 
-void save_exit_error(const char* error_type) noexcept
+void save_exit_error(const std::string & error_type) noexcept
 {
 	last_error_type = error_type;
 }

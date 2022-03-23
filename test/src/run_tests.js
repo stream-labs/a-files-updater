@@ -26,7 +26,8 @@ async function run_tests() {
         // testinfo.selfBlockersCount = 5;
         // testinfo.selfBlockingFile = true;
         // testinfo.selfLockingFile = true;
-        // testinfo.runAsInteractive = 1;
+        testinfo.runAsInteractive = 1;
+        testinfo.wrong_arguments = true;
         //testinfo.expectedResult = "filesnotchanged"
         //testinfo.manifestGenerated = false;
         //testinfo.let_5sec = true;

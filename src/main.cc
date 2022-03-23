@@ -10,7 +10,7 @@
 
 #include "cli-parser.hpp"
 #include "update-client.hpp"
-#include "logger/log.h" 
+#include "logger/log.h"
 #include "crash-reporter.hpp"
 #include "utils.hpp"
 #include <atomic>
@@ -36,11 +36,17 @@ const int ui_basic_height = 40;
 
 bool update_completed = false;
 
-void ShowError(LPCWSTR lpMsg)
+const std::string update_failed_message = "The automatic update failed to perform successfully.\nPlease install the latest version of Streamlabs Desktop from https://streamlabs.com/";
+
+void ShowError(const std::string & message)
 {
-	if (params.interactive)
-	{
-		MessageBoxW(NULL, lpMsg, TEXT("Error while updating"), MB_ICONEXCLAMATION | MB_OK);
+	int message_sz = -1;
+	LPCWSTR lpMsg = ConvertToUtf16(message.c_str(), &message_sz);
+	if (lpMsg) {
+		if (params.interactive) {
+			MessageBoxW(NULL, lpMsg, TEXT("Error while updating"), MB_ICONEXCLAMATION | MB_OK);
+		}
+		delete [] lpMsg;
 	}
 }
 
@@ -96,7 +102,7 @@ struct callbacks_impl :
 	size_t total_consumed_last_tick{ 0 };
 	std::list<double>  last_bandwidths;
 	std::atomic<double> last_calculated_bandwidth{ 0.0 };
-	LPWSTR error_buf{ nullptr };
+	std::string error_buf{};
 	bool should_start{ false };
 	bool should_cancel{ false };
 	bool should_kill_blockers{ false };
@@ -114,7 +120,7 @@ struct callbacks_impl :
 
 	void initialize(struct update_client *client) final;
 	void success() final;
-	void error(const char* error, const char * error_type) final;
+	void error(const std::string & error, const std::string & error_type) final;
 
 	void downloader_preparing() final;
 	void downloader_start(int num_threads, size_t num_files_) final;
@@ -167,7 +173,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 
 	if (!RegisterClassEx(&wc))
 	{
-		ShowError(L"Window registration failed!");
+		ShowError(update_failed_message);
 		LogLastError(L"RegisterClassEx");
 
 		throw std::runtime_error("window registration failed");
@@ -178,7 +184,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	screen_height = GetSystemMetrics(SM_CYSCREEN);
 
 	/* FIXME: This feels a little dirty */
-	auto do_fail = [this](LPCWSTR user_msg, LPCWSTR context_msg) {
+	auto do_fail = [this](const std::string & user_msg, LPCWSTR context_msg) {
 		if (this->frame) DestroyWindow(this->frame);
 		ShowError(user_msg);
 		LogLastError(context_msg);
@@ -201,7 +207,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 
 	if (!frame)
 	{
-		do_fail(L"Failed to create window!", L"CreateWindowEx");
+		do_fail(update_failed_message, L"CreateWindowEx");
 	}
 
 	GetClientRect(frame, &rcParent);
@@ -223,7 +229,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 
 	if (!progress_worker)
 	{
-		do_fail(L"Failed to create progress worker!", L"CreateWindow");
+		do_fail(update_failed_message, L"CreateWindow");
 	}
 	
 	progress_label = CreateWindow(
@@ -238,14 +244,14 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 
 	if (!progress_label)
 	{
-		do_fail(L"Failed to create progress label!", L"CreateWindow");
+		do_fail(update_failed_message, L"CreateWindow");
 	}
 
 	success = SetWindowSubclass(progress_label, ProgressLabelWndProc, CLS_PROGRESS_LABEL, (DWORD_PTR)this);
 
 	if (!success)
 	{
-		do_fail(L"Failed to subclass progress label!", L"SetWindowSubclass");
+		do_fail(update_failed_message, L"SetWindowSubclass");
 	}
 
 	blockers_list = CreateWindow(
@@ -260,7 +266,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 
 	if (!success)
 	{
-		do_fail(L"Failed to subclass blockers list!", L"SetWindowSubclass");
+		do_fail(update_failed_message, L"SetWindowSubclass");
 	}
 
 	kill_button = CreateWindow(
@@ -304,12 +310,9 @@ void callbacks_impl::success()
 	PostMessage(frame, CUSTOM_CLOSE_MSG, NULL, NULL);
 }
 
-void callbacks_impl::error(const char* error, const char* error_type)
+void callbacks_impl::error(const std::string & error, const std::string & error_type)
 {
-	int error_sz = -1;
 
-	this->error_buf = ConvertToUtf16(error, &error_sz);
-	
 	save_exit_error(error_type);
 
 	PostMessage(frame, CUSTOM_ERROR_MSG, NULL, NULL);
@@ -607,8 +610,7 @@ LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		auto ctx = reinterpret_cast<callbacks_impl *>(user_data);
 
 		ShowError(ctx->error_buf);
-		delete[] ctx->error_buf;
-		ctx->error_buf = nullptr;
+		ctx->error_buf = "";
 				
 		DestroyWindow(hwnd);
 
@@ -723,8 +725,8 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 
 	if (!update_completed)
 	{
-		ShowError(L"Failed to parse cli arguments!");
-		save_exit_error("Failed parising arguments");
+		ShowError(update_failed_message);
+		save_exit_error("Failed parsing arguments");
 		handle_exit();
 		return 0;
 	}
@@ -782,7 +784,7 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 			}
 			else
 			{
-				ShowError(L"There was an issue launching the application.\n"
+				ShowError("There was an issue launching the application.\n"
 					"Please start Streamlabs Desktop and try again.");
 			}
 

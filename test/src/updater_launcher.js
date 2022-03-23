@@ -26,7 +26,8 @@ exports.start_updater = async function (testinfo) {
   
   if(testinfo.more_log_output)
     console.log(`SPAWN: args :\n${updaterArgs}`);
-
+  if(testinfo.wrong_arguments)
+    updaterArgs.splice(0,updaterArgs.length);
   const app_spawned = cp.spawn(`${updaterPath}`, updaterArgs, {
     cwd: testinfo.updaterDir,
     detached: false,
