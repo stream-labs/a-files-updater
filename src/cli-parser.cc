@@ -130,7 +130,7 @@ static fs::path fetch_default_temp_dir()
 	std::error_code ec{};
 	fs::path temp_dir = fs::temp_directory_path(ec);
 
-	if(!ec)
+	if (!ec)
 	{
 		temp_dir /= "slobs-updater";
 		
@@ -144,7 +144,7 @@ static fs::path fetch_default_temp_dir()
 
 		temp_dir /= buf;
 
-		fs::create_directories(temp_dir);
+		fs::create_directories(temp_dir, ec);
 	} else {
 		log_info("Failed to get temporary directory from system: %d %s", ec.value(), ec.message().c_str());
 
@@ -155,6 +155,8 @@ static fs::path fetch_default_temp_dir()
 
 bool su_parse_command_line( int argc, char **argv, struct update_parameters *params) 
 {
+	std::error_code ec{};
+
 	const char * current_locale = std::setlocale(LC_ALL, nullptr);
 	if (current_locale == nullptr || std::strlen(current_locale) == 0)
 	{
@@ -329,12 +331,12 @@ bool su_parse_command_line( int argc, char **argv, struct update_parameters *par
 		success = false;
 	}
 
-	if (!params->app_dir.empty() && !fs::exists(params->app_dir)) {
+	if (!params->app_dir.empty() && !fs::exists(params->app_dir, ec)) {
 		log_fatal("Application directory doesn't exist");
 		success = false;
 	}
 
-	if (!params->temp_dir.empty() && fs::exists(params->temp_dir)) {
+	if (!params->temp_dir.empty() && fs::exists(params->temp_dir, ec)) {
 		if (force_arg->count == 0) {
 			log_fatal("Temporary directory already exists.");
 			success = false;
@@ -358,7 +360,7 @@ bool su_parse_command_line( int argc, char **argv, struct update_parameters *par
 
 	if (!success) goto parse_error;
 
-	fs::create_directory(params->temp_dir);
+	fs::create_directory(params->temp_dir, ec);
 
 	success = true;
 

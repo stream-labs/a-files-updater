@@ -312,7 +312,7 @@ void callbacks_impl::success()
 
 void callbacks_impl::error(const std::string & error, const std::string & error_type)
 {
-
+	this->error_buf = error;
 	save_exit_error(error_type);
 
 	PostMessage(frame, CUSTOM_ERROR_MSG, NULL, NULL);
@@ -474,7 +474,8 @@ void callbacks_impl::installer_run_file(const std::string& packageName, const st
 		}
 	}
 
-	std::filesystem::remove(filename);
+	std::error_code ec;
+	fs::remove(filename, ec);
 
 	if (dwExitCode != ERROR_SUCCESS)
 	{
@@ -716,12 +717,18 @@ extern "C"
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnused, int nCmdShow) {
 
 	setup_crash_reporting();
-	
+
 	callbacks_impl cb_impl(hInstance, nCmdShow);
 
 	MultiByteCommandLine command_line;
 
 	update_completed = su_parse_command_line(command_line.argc(), command_line.argv(), &params);
+
+	if (!update_completed)
+	{
+		UpdateConfig update_config;
+		update_completed = su_parse_command_line(update_config.argc(), update_config.argv(), &params);
+	}
 
 	if (!update_completed)
 	{
