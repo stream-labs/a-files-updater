@@ -8,6 +8,11 @@
 #include "logger/log.h" 
 #include "checksum-filters.hpp"
 #include <boost/algorithm/string/replace.hpp>
+#include <filesystem>
+
+namespace fs = std::filesystem;
+
+MultiByteCommandLine::MultiByteCommandLine(bool skip_load) {}
 
 MultiByteCommandLine::MultiByteCommandLine()
 {
@@ -43,6 +48,66 @@ MultiByteCommandLine::~MultiByteCommandLine()
 	}
 
 	delete[] m_argv;
+}
+
+UpdateConfig::UpdateConfig() : MultiByteCommandLine(true)
+{
+	std::error_code ec{};
+	fs::path temp_dir = fs::temp_directory_path(ec);
+	if (!ec)
+	{
+		fs::path file_path = temp_dir.append("slobs-updater").append("update.cfg");
+
+		if (fs::exists(file_path, ec))
+		{
+			std::ifstream config_stream(file_path.c_str());
+
+			if (!config_stream.fail())
+			{
+				std::vector<std::string> args;
+				std::string str;
+				while (std::getline(config_stream, str))
+				{
+					if (str.size() > 0)
+						args.push_back(str);
+				}
+
+				config_stream.close();
+
+				m_argc = args.size();
+				if (m_argc)
+				{
+					m_argv = new LPSTR[m_argc];
+					for (int i = 0; i < m_argc; i++)
+					{
+						m_argv[i] = new CHAR[args[i].size() + 1];
+						memcpy(m_argv[i], args[i].c_str(), args[i].size() + 1);
+					}
+				}
+			}
+
+			fs::path back_up_file = file_path;
+			back_up_file.replace_extension("cfg.last");
+
+			if (fs::exists(back_up_file, ec))
+			{
+				fs::remove(back_up_file, ec);
+			}
+			fs::rename(file_path, back_up_file, ec);
+		}
+	}
+
+	if (m_argv == NULL)
+	{
+		m_argc = 1;
+		m_argv = new LPSTR[1];
+		m_argv[0] = new CHAR[1];
+		m_argv[0][0] = 0x00;
+	}
+}
+
+UpdateConfig::~UpdateConfig()
+{
 }
 
 LPWSTR ConvertToUtf16(const char *from, int *from_size)
@@ -203,7 +268,7 @@ fs::path prepare_file_path(const fs::path &base, const std::string &target)
 
 		fs::remove(file_path);
 	}
-	catch(std::filesystem::filesystem_error const& ex)
+	catch(fs::filesystem_error const& ex)
 	{
 		log_error("Creating a file path failed. Error %s", ex.what());
 		log_error("Info: %s and %s", base.string().c_str(), target.c_str());

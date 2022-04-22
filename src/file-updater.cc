@@ -200,10 +200,10 @@ bool FileUpdater::backup()
 			fs::path old_file_path(m_old_files_dir);
 			old_file_path /= file_name_part;
 
-			fs::create_directories(old_file_path.parent_path());
-			fs::create_directories(to_path.parent_path());
+			fs::create_directories(old_file_path.parent_path(), ec);
+			fs::create_directories(to_path.parent_path(), ec);
 
-			if (fs::exists(to_path))
+			if (fs::exists(to_path, ec))
 			{
 				fs::rename(to_path, old_file_path, ec);
 				if (ec)

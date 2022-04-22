@@ -5,11 +5,11 @@
 struct client_callbacks {
 	virtual void initialize(struct update_client *client) = 0;
 	virtual void success() = 0;
-	virtual void error(const char *error, const char * error_type) = 0;
+	virtual void error(const std::string & error, const std::string & error_type) = 0;
 };
 
 /* Sequence of events:
-*					     
+*
 * installer_download_start ────┐
 * installer_run_file ──────────┘
 *         ↓ 

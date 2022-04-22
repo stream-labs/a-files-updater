@@ -1,4 +1,5 @@
 const fs = require('fs');
+const os = require('os');
 const fse = require('fs-extra')
 const cp = require('child_process');
 const path = require('path');
@@ -9,12 +10,12 @@ const reporter_server = require('./error_receive_server.js');
 const updater_launcher = require('./updater_launcher.js');
 
 exports.test_update = async function (testinfo) {
-  if(testinfo.more_log_output)
+  if (testinfo.more_log_output)
     console.log("--- Test files will be generated.");
 
   await generate_files.generate_test_files(testinfo)
-  
-  if(testinfo.more_log_output)
+
+  if (testinfo.more_log_output)
     console.log("--- Test server will be started.");
 
   if (testinfo.serverStarted) {
@@ -25,23 +26,29 @@ exports.test_update = async function (testinfo) {
   if (testinfo.skipUpdaterLaunch) {
     return 0;
   }
-  
-  if(testinfo.more_log_output)
+
+  if (testinfo.more_log_output)
     console.log("--- Ready to start updater.");
   try {
     let launched = await updater_launcher.start_updater(testinfo)
     let ret = 0;
 
+    if (testinfo.file_arguments) {
+      if (fs.existsSync(testinfo.updateCfg)) {
+        console.log("=== Test " + testinfo.number + " result: Warning. Config file left in temp folder " + testinfo.updateCfg);
+      } else if (!fs.existsSync(testinfo.updateCfgBak)) {
+        console.log("=== Test " + testinfo.number + " result: Warning. No used config file inside temp folder " + testinfo.updateCfgBak);
+      }
+    }
     if (!generate_files.check_results(testinfo)) {
       ret = 1;
-      console.log("=== Test "+testinfo.number+" result: after updater files not as expected");
+      console.log("=== Test " + testinfo.number + " result: after updater files not as expected");
     } else {
-      if( testinfo.register_unnecesary_request > 0)
-      {
+      if (testinfo.register_unnecesary_request > 0) {
         ret = 1;
-        console.log("=== Test "+testinfo.number+" result: unchanged files requested from server");
+        console.log("=== Test " + testinfo.number + " result: unchanged files requested from server");
       } else {
-        console.log("=== Test "+testinfo.number+" result: files as expected");
+        console.log("=== Test " + testinfo.number + " result: files as expected");
       }
     }
 

@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <filesystem>
 #include <unordered_map>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -43,10 +44,12 @@ std::string calculate_files_checksum(fs::path &path);
 /* Because Windows doesn't provide us a Unicode
  * command line by default and the command line
  * it does provide us is in UTF-16LE. */
-struct MultiByteCommandLine
+class MultiByteCommandLine
 {
+public:
 	MultiByteCommandLine();
-	~MultiByteCommandLine();
+	MultiByteCommandLine(bool skip_load);
+	virtual ~MultiByteCommandLine();
 
 	MultiByteCommandLine(const MultiByteCommandLine&) = delete;
 	MultiByteCommandLine(MultiByteCommandLine&&) = delete;
@@ -56,9 +59,22 @@ struct MultiByteCommandLine
 	LPSTR *argv() { return m_argv; };
 	int argc() { return m_argc; };
 
-private:
+protected:
 	int m_argc{ 0 };
 	LPSTR *m_argv{ nullptr };
+};
+
+class  UpdateConfig : public MultiByteCommandLine
+{
+
+public:
+	UpdateConfig();
+	virtual ~UpdateConfig();
+
+	UpdateConfig(const UpdateConfig&) = delete;
+	UpdateConfig(UpdateConfig&&) = delete;
+	UpdateConfig &operator=(const UpdateConfig&) = delete;
+	UpdateConfig &operator=(UpdateConfig&&) = delete;
 };
 
 struct manifest_entry_t
