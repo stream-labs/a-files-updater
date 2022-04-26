@@ -110,6 +110,11 @@ target_compile_definitions(slobs-updater
 		-D_SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING 
 )
 
+# Compare current linked libs with prev
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD 
+	COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_dependencies.cmd $<TARGET_FILE:slobs-updater> ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR}
+)
+
 find_program(WIN_MT "mt.exe")
 
 
