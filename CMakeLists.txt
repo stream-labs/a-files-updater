@@ -110,9 +110,18 @@ target_compile_definitions(slobs-updater
 		-D_SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING 
 )
 
+include(FetchContent)
+
 # Compare current linked libs with prev
+FetchContent_Declare(
+	deps_checker
+	URL "https://raw.githubusercontent.com/stream-labs/obs-studio-node/6c12b7fc616c2c3bb9f874b2af5012a6b0d65376/dependency_checker/check_dependencies.cmd"
+	DOWNLOAD_NO_EXTRACT true
+)
+FetchContent_MakeAvailable(deps_checker)
+
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD 
-	COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_dependencies.cmd $<TARGET_FILE:slobs-updater> ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR}
+	COMMAND ${deps_checker_SOURCE_DIR}/check_dependencies.cmd $<TARGET_FILE:slobs-updater> ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} $<CONFIG>
 )
 
 find_program(WIN_MT "mt.exe")
