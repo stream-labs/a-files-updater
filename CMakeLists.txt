@@ -77,6 +77,7 @@ target_include_directories(slobs-updater
 
 target_link_libraries(slobs-updater
 	comctl32
+	Psapi
 	Boost::boost
 	Boost::iostreams
 	Boost::system

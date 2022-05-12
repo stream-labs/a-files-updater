@@ -7,6 +7,8 @@
 #include <boost/asio/ssl/error.hpp>
 #include <boost/asio/ssl/stream.hpp>
 #include <boost/asio/ssl.hpp>
+#include <tlhelp32.h>
+#include <psapi.h>
 
 #include <memory>
 #include <codecvt>
@@ -55,6 +57,8 @@ int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump
 
 void save_start_timestamp();
 std::string get_command_line() noexcept;
+std::string get_current_dir() noexcept;
+std::string get_parrent_process_path() noexcept;
 
 void handle_exit() noexcept;
 void handle_crash(struct _EXCEPTION_POINTERS* ExceptionInfo, bool callAbort = true) noexcept;
@@ -110,11 +114,89 @@ std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo, std:
 	json_report << "		\"app_logs_listing\": " << get_logs_json() << " , ";
 	if(minidump_result.size())
 		json_report << "		\"minidump_result\": \"" << minidump_result << "\", ";
-	json_report << "		\"console_args\": \"" << get_command_line() << "\" ";
+	json_report << "		\"console_args\": \"" << get_command_line() << "\", ";
+	json_report << "		\"current_dir\": \"" << get_current_dir() << "\", ";
+	json_report << "		\"parent_process\": \"" << get_parrent_process_path() << "\" ";
 	json_report << "	} ";
 	json_report << "}";
 
 	return json_report.str();
+}
+
+std::string get_current_dir() noexcept
+{
+	TCHAR path_buffer[MAX_PATH];
+	DWORD lenght = GetCurrentDirectoryW(MAX_PATH, &path_buffer[0]);
+	if (lenght == 0)
+		return "";
+	std::wstring ret = std::wstring(path_buffer, lenght);
+	return escapeJsonString(std::string(ret.begin(), ret.end()));
+}
+
+std::string get_parrent_process_path() noexcept
+{
+	std::wstring parrent_path;
+	HANDLE hSnapshot;
+	PROCESSENTRY32 pe32;
+	DWORD pid = GetCurrentProcessId();
+	std::vector<DWORD> parents_pids;
+
+	hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+
+	if (hSnapshot != INVALID_HANDLE_VALUE)
+	{
+		DWORD last_ppid = pid;
+		bool found = false;
+		do
+		{
+			found = false;
+			ZeroMemory(&pe32, sizeof(pe32));
+			pe32.dwSize = sizeof(pe32);
+			if (Process32First(hSnapshot, &pe32))
+			{
+				do
+				{
+					if (pe32.th32ProcessID == last_ppid)
+					{
+						last_ppid = pe32.th32ParentProcessID;
+						found = true;
+						parents_pids.push_back(last_ppid);
+						break;
+					}
+				} while (Process32Next(hSnapshot, &pe32));
+			}
+			else
+				break;
+		} while (found);
+		CloseHandle(hSnapshot);
+	}
+
+	if (parents_pids.size() > 0)
+	{
+		for (DWORD ppid : parents_pids)
+		{
+			HANDLE parent_handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, ppid);
+			if (parent_handle)
+			{
+				TCHAR path_buffer[MAX_PATH];
+				DWORD lenght = GetModuleFileNameEx(parent_handle, 0, path_buffer, MAX_PATH);
+				if (lenght)
+				{
+					parrent_path += std::wstring(path_buffer, lenght);
+					parrent_path += L" => ";
+				} else {
+					parrent_path += std::to_wstring(ppid);
+					parrent_path += L" => ";
+				}
+				CloseHandle(parent_handle);
+			} else {
+				parrent_path += std::to_wstring(ppid);
+				parrent_path += L" => ";
+			}
+		}
+	} else
+		parrent_path = L"No parent pid found";
+	return escapeJsonString(std::string(parrent_path.begin(), parrent_path.end()));
 }
 
 std::string create_mini_dump(EXCEPTION_POINTERS* pep) noexcept
