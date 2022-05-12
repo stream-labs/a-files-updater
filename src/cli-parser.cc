@@ -153,9 +153,11 @@ static fs::path fetch_default_temp_dir()
 	return temp_dir;
 }
 
-bool su_parse_command_line( int argc, char **argv, struct update_parameters *params) 
+bool su_parse_command_line(int argc, char **argv, struct update_parameters *params)
 {
 	std::error_code ec{};
+	if (argc == 0 || argv == nullptr)
+		return false;
 
 	const char * current_locale = std::setlocale(LC_ALL, nullptr);
 	if (current_locale == nullptr || std::strlen(current_locale) == 0)

@@ -46,17 +46,27 @@ MultiByteCommandLine::~MultiByteCommandLine()
 	{
 		delete[] m_argv[i];
 	}
-
-	delete[] m_argv;
+	if (m_argv)
+		delete[] m_argv;
 }
 
 UpdateConfig::UpdateConfig() : MultiByteCommandLine(true)
 {
+	DWORD varBufferSize = 128;
+	std::wstring varBuffer;
+	varBuffer.resize(varBufferSize);
+	varBufferSize = GetEnvironmentVariable(L"TEST", &varBuffer[0], varBufferSize);
+	if (!varBufferSize)
+		return;
+
+	varBuffer.resize(varBufferSize);
+
 	std::error_code ec{};
 	fs::path temp_dir = fs::temp_directory_path(ec);
 	if (!ec)
 	{
-		fs::path file_path = temp_dir.append("slobs-updater").append("update.cfg");
+		//fs::path file_path = temp_dir.append("slobs-updater").append("update.cfg");
+		fs::path file_path = fs::path(varBuffer);
 
 		if (fs::exists(file_path, ec))
 		{
@@ -99,10 +109,7 @@ UpdateConfig::UpdateConfig() : MultiByteCommandLine(true)
 
 	if (m_argv == NULL)
 	{
-		m_argc = 1;
-		m_argv = new LPSTR[1];
-		m_argv[0] = new CHAR[1];
-		m_argv[0][0] = 0x00;
+		m_argc = 0;
 	}
 }
 
