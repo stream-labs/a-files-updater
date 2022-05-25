@@ -58,7 +58,7 @@ int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump
 void save_start_timestamp();
 std::string get_command_line() noexcept;
 std::string get_current_dir() noexcept;
-std::string get_parrent_process_path() noexcept;
+std::string get_parrent_process_path(bool only_first_parent) noexcept;
 
 void handle_exit() noexcept;
 void handle_crash(struct _EXCEPTION_POINTERS* ExceptionInfo, bool callAbort = true) noexcept;
@@ -116,7 +116,7 @@ std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo, std:
 		json_report << "		\"minidump_result\": \"" << minidump_result << "\", ";
 	json_report << "		\"console_args\": \"" << get_command_line() << "\", ";
 	json_report << "		\"current_dir\": \"" << get_current_dir() << "\", ";
-	json_report << "		\"parent_process\": \"" << get_parrent_process_path() << "\" ";
+	json_report << "		\"parent_process\": \"" << get_parrent_process_path(false) << "\" ";
 	json_report << "	} ";
 	json_report << "}";
 
@@ -133,7 +133,18 @@ std::string get_current_dir() noexcept
 	return escapeJsonString(std::string(ret.begin(), ret.end()));
 }
 
-std::string get_parrent_process_path() noexcept
+bool is_launched_by_explorer()
+{
+	std::string parent_path = get_parrent_process_path(true);
+
+	const std::string explorer_exe = "explorer.exe";
+	if (parent_path.size() >= explorer_exe.size())
+		return std::equal(explorer_exe.rbegin(), explorer_exe.rend(), parent_path.rbegin());
+
+	return false;
+}
+
+std::string get_parrent_process_path(bool only_first_parent) noexcept
 {
 	std::wstring parrent_path;
 	HANDLE hSnapshot;
@@ -167,7 +178,7 @@ std::string get_parrent_process_path() noexcept
 			}
 			else
 				break;
-		} while (found);
+		} while (found && !only_first_parent);
 		CloseHandle(hSnapshot);
 	}
 
@@ -183,16 +194,18 @@ std::string get_parrent_process_path() noexcept
 				if (lenght)
 				{
 					parrent_path += std::wstring(path_buffer, lenght);
-					parrent_path += L" => ";
 				} else {
 					parrent_path += std::to_wstring(ppid);
-					parrent_path += L" => ";
 				}
 				CloseHandle(parent_handle);
 			} else {
 				parrent_path += std::to_wstring(ppid);
-				parrent_path += L" => ";
 			}
+
+			if (only_first_parent)
+				break;
+
+			parrent_path += L" => ";
 		}
 	} else
 		parrent_path = L"No parent pid found";
