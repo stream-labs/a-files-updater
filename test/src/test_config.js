@@ -9,6 +9,7 @@ exports.gettestinfo = function (testname) {
     initialDir: "",
     resultDir: "",
     updaterDir: "",
+    updaterWorkDir: "",
     reporterDir: "",
     appPathExtra: "Program Files Streamlabs Desktop",
     versionName: "0.11.9-preview.1",
@@ -74,6 +75,7 @@ exports.gettestinfo = function (testname) {
   newinfo.reporterDir = path.join(testfilesDir, "crash_reports")
 
   newinfo.updaterDir = path.join(__dirname, "..", "..", "build", "RelWithDebInfo")
+  newinfo.updaterWorkDir = path.join(testfilesDir, "updaİeł")
   newinfo.updateCfg = path.join(os.tmpdir(), 'slobs-updater', 'update.cfg');
   newinfo.updateCfgBak = path.join(os.tmpdir(), 'slobs-updater', 'update.cfg.last');
 
