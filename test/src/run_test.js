@@ -33,13 +33,6 @@ exports.test_update = async function (testinfo) {
     let launched = await updater_launcher.start_updater(testinfo)
     let ret = 0;
 
-    if (testinfo.file_arguments) {
-      if (fs.existsSync(testinfo.updateCfg)) {
-        console.log("=== Test " + testinfo.number + " result: Warning. Config file left in temp folder " + testinfo.updateCfg);
-      } else if (!fs.existsSync(testinfo.updateCfgBak)) {
-        console.log("=== Test " + testinfo.number + " result: Warning. No used config file inside temp folder " + testinfo.updateCfgBak);
-      }
-    }
     if (!generate_files.check_results(testinfo)) {
       ret = 1;
       console.log("=== Test " + testinfo.number + " result: after updater files not as expected");

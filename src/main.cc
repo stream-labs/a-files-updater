@@ -37,7 +37,9 @@ const int ui_basic_height = 40;
 bool update_completed = false;
 
 const std::string update_failed_message = "The automatic update failed to perform successfully.\nPlease install the latest version of Streamlabs Desktop from https://streamlabs.com/";
-
+const std::string update_run_manually_message = "You have launched the updater for Streamlabs Desktop, which can't work on its own. Please launch the Desktop App and it will check for updates automatically.\nIf you're having issues you can download the latest version from https://streamlabs.com/.";
+const std::string update_cannot_start_app = "The application has finished updating.\nPlease manually start Streamlabs Desktop.";
+const std::string update_cannot_update_or_start = "There was an issue launching the application.\nPlease start Streamlabs Desktop and try again.";
 void ShowError(const std::string & message)
 {
 	int message_sz = -1;
@@ -50,11 +52,15 @@ void ShowError(const std::string & message)
 	}
 }
 
-void ShowInfo(LPCWSTR lpMsg)
+void ShowInfo(const std::string & message)
 {
-	if (params.interactive)
-	{
-		MessageBoxW(NULL, lpMsg, TEXT("Info"), MB_ICONINFORMATION | MB_OK);
+	int message_sz = -1;
+	LPCWSTR lpMsg = ConvertToUtf16(message.c_str(), &message_sz);
+	if (lpMsg) {
+		if (params.interactive) {
+			MessageBoxW(NULL, lpMsg, TEXT("Info"), MB_ICONINFORMATION | MB_OK);
+		}
+		delete [] lpMsg;
 	}
 }
 
@@ -726,14 +732,17 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 
 	if (!update_completed)
 	{
-		UpdateConfig update_config;
-		update_completed = su_parse_command_line(update_config.argc(), update_config.argv(), &params);
-	}
+		if (command_line.argc() == 1 && is_launched_by_explorer())
+		{
+			ShowInfo(update_run_manually_message);
+			save_exit_error("Launched manually");
+		}
+		else
+		{
+			ShowError(update_failed_message);
+			save_exit_error("Failed parsing arguments");
 
-	if (!update_completed)
-	{
-		ShowError(update_failed_message);
-		save_exit_error("Failed parsing arguments");
+		}
 		handle_exit();
 		return 0;
 	}
@@ -786,13 +795,11 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 		{
 			if (cb_impl.finished_downloading)
 			{
-				ShowInfo(L"The application has finished updating.\n"
-					"Please manually start Streamlabs Desktop.");
+				ShowInfo(update_cannot_start_app);
 			}
 			else
 			{
-				ShowError("There was an issue launching the application.\n"
-					"Please start Streamlabs Desktop and try again.");
+				ShowError(update_cannot_update_or_start);
 			}
 
 			if (cb_impl.should_start)

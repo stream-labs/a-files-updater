@@ -64,19 +64,6 @@ protected:
 	LPSTR *m_argv{ nullptr };
 };
 
-class  UpdateConfig : public MultiByteCommandLine
-{
-
-public:
-	UpdateConfig();
-	virtual ~UpdateConfig();
-
-	UpdateConfig(const UpdateConfig&) = delete;
-	UpdateConfig(UpdateConfig&&) = delete;
-	UpdateConfig &operator=(const UpdateConfig&) = delete;
-	UpdateConfig &operator=(UpdateConfig&&) = delete;
-};
-
 struct manifest_entry_t
 {
 	std::string hash_sum;
