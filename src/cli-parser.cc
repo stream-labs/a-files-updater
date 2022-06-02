@@ -3,7 +3,6 @@
 #include "fmt/format.h"
 #include "cli-parser.hpp"
 #include "logger/log.h"
-#include <codecvt>
 #include <clocale>
 
 /* Filesystem is implicitly included from cli-parser.h */

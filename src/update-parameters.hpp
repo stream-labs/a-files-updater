@@ -3,8 +3,6 @@
 #include <string>
 #include <vector>
 
-//#include <boost/filesystem.hpp>
-
 #include "uri-parser.hpp"
 
 #include <filesystem>

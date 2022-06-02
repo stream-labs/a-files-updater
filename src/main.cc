@@ -42,25 +42,21 @@ const std::string update_cannot_start_app = "The application has finished updati
 const std::string update_cannot_update_or_start = "There was an issue launching the application.\nPlease start Streamlabs Desktop and try again.";
 void ShowError(const std::string & message)
 {
-	int message_sz = -1;
-	LPCWSTR lpMsg = ConvertToUtf16(message.c_str(), &message_sz);
-	if (lpMsg) {
+	std::wstring wmessage = ConvertToUtf16WS(message);
+	if (wmessage.size()) {
 		if (params.interactive) {
-			MessageBoxW(NULL, lpMsg, TEXT("Error while updating"), MB_ICONEXCLAMATION | MB_OK);
+			MessageBoxW(NULL, wmessage.c_str(), TEXT("Error while updating"), MB_ICONEXCLAMATION | MB_OK);
 		}
-		delete [] lpMsg;
 	}
 }
 
 void ShowInfo(const std::string & message)
 {
-	int message_sz = -1;
-	LPCWSTR lpMsg = ConvertToUtf16(message.c_str(), &message_sz);
-	if (lpMsg) {
+	std::wstring wmessage = ConvertToUtf16WS(message);
+	if (wmessage.size()) {
 		if (params.interactive) {
-			MessageBoxW(NULL, lpMsg, TEXT("Info"), MB_ICONINFORMATION | MB_OK);
+			MessageBoxW(NULL, wmessage.c_str(), TEXT("Info"), MB_ICONINFORMATION | MB_OK);
 		}
-		delete [] lpMsg;
 	}
 }
 

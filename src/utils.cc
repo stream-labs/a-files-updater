@@ -50,7 +50,43 @@ MultiByteCommandLine::~MultiByteCommandLine()
 		delete[] m_argv;
 }
 
-LPWSTR ConvertToUtf16(const char *from, int *from_size)
+std::string ConvertToUtf8(std::wstring from)
+{
+	int to_size = WideCharToMultiByte(CP_UTF8, 0, from.c_str(), -1, NULL, 0, NULL, NULL);
+
+	std::string ret;
+	ret.resize(to_size);
+
+	int size = WideCharToMultiByte(CP_UTF8, 0, from.c_str(), -1, ret.data(), to_size, NULL, NULL);
+
+	if (size == 0)
+	{
+		LogLastError(L"WideCharToMultiByte");
+		return "";
+	}
+
+	return ret;
+}
+
+std::wstring ConvertToUtf16WS(std::string from)
+{
+	int to_size = MultiByteToWideChar(CP_UTF8, 0, from.c_str(), -1, NULL, 0);
+
+	std::wstring ret;
+	ret.resize(to_size);
+
+	int size = MultiByteToWideChar(CP_UTF8, 0, from.c_str(), -1, ret.data(), to_size);
+
+	if (size == 0)
+	{
+		LogLastError(L"MultiByteToWideChar");
+		return L"";
+	}
+
+	return ret;
+}
+
+LPWSTR ConvertToUtf16LP(const char *from, int *from_size)
 {
 	int to_size = MultiByteToWideChar(CP_UTF8, 0, from, *from_size, NULL, 0);
 
@@ -155,13 +191,13 @@ BOOL StartApplication(const char *lpCommandLine, const char *lpWorkingDir)
 {
 	/* Convert UTF-8 command line back to UTF-16 */
 	int dwCLSize = -1;
-	LPWSTR lpWideCommandLine = ConvertToUtf16(lpCommandLine, &dwCLSize);
+	LPWSTR lpWideCommandLine = ConvertToUtf16LP(lpCommandLine, &dwCLSize);
 	LPWSTR lpWideWorkingDir;
 	BOOL bSuccess = false;
 
 	dwCLSize = -1;
 
-	lpWideWorkingDir = ConvertToUtf16(lpWorkingDir, &dwCLSize);
+	lpWideWorkingDir = ConvertToUtf16LP(lpWorkingDir, &dwCLSize);
 
 	bSuccess = StartApplication(lpWideCommandLine, lpWideWorkingDir);
 	
