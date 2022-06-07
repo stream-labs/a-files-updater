@@ -331,7 +331,7 @@ bool su_parse_command_line(int argc, char **argv, struct update_parameters *para
 		if (is_system_folder(params->app_dir)) {
 			log_fatal("Application directory is a system directory");
 			success = false;
-		} else if (fs::is_directory(params->app_dir, ec))
+		} else if (!fs::is_directory(params->app_dir, ec))
 		{
 			log_fatal("Application directory is not a directory");
 			success = false;
