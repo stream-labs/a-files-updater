@@ -31,7 +31,9 @@ void LogLastError(LPCWSTR lpFunctionName);
 BOOL StartApplication(const char *lpCommandLine, const char *lpWorkingDir);
 BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory);
 
-LPWSTR ConvertToUtf16(const char *from, int *from_size);
+LPWSTR ConvertToUtf16LP(const char *from, int *from_size);
+std::wstring ConvertToUtf16WS(std::string from);
+std::string ConvertToUtf8(std::wstring from);
 
 fs::path prepare_file_path(const fs::path &base, const std::string &target);
 std::string unfixup_uri(const std::string &source);

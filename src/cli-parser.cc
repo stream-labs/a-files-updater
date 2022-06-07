@@ -3,7 +3,6 @@
 #include "fmt/format.h"
 #include "cli-parser.hpp"
 #include "logger/log.h"
-#include <codecvt>
 #include <clocale>
 
 /* Filesystem is implicitly included from cli-parser.h */
@@ -276,7 +275,7 @@ bool su_parse_command_line(int argc, char **argv, struct update_parameters *para
 		}
 	}
 
-	log_path = fs::path(params->temp_dir);
+	log_path = params->temp_dir;
 	log_path /= "slobs-updater.log";
 
 	params->log_file_path = log_path.string();

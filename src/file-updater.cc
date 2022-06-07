@@ -57,7 +57,7 @@ bool FileUpdater::update_entry_with_retries(manifest_map_t::const_iterator &iter
 		ret = update_entry(iter, new_files_dir);
 		if (!ret)
 		{
-			std::wstring wmsg(iter->first.begin(), iter->first.end());
+			std::wstring wmsg = ConvertToUtf16WS(iter->first);
 			wlog_warn(L"Have failed to update file: %s, will retry", wmsg.c_str());
 			Sleep(100 * retries);
 		}
@@ -65,7 +65,7 @@ bool FileUpdater::update_entry_with_retries(manifest_map_t::const_iterator &iter
 
 	if (!ret)
 	{
-		std::wstring wmsg(iter->first.begin(), iter->first.end());
+		std::wstring wmsg = ConvertToUtf16WS(iter->first);
 		wlog_warn(L"Have failed to update file: %s", wmsg.c_str());
 		throw std::runtime_error("Error: failed to update file");
 	}
@@ -98,8 +98,7 @@ bool FileUpdater::update_entry(manifest_map_t::const_iterator &iter, fs::path &n
 
 			if (ec)
 			{
-				std::string msg = ec.message();
-				std::wstring wmsg(msg.begin(), msg.end());
+				std::wstring wmsg = ConvertToUtf16WS(ec.message());
 
 				wlog_debug(L"Failed to move file %s %s, error %s", from_path.c_str(), to_path.c_str(), wmsg.c_str());
 				return false;
@@ -208,8 +207,7 @@ bool FileUpdater::backup()
 				fs::rename(to_path, old_file_path, ec);
 				if (ec)
 				{
-					std::string msg = ec.message();
-					std::wstring wmsg(msg.begin(), msg.end());
+					std::wstring wmsg = ConvertToUtf16WS(ec.message());
 
 					wlog_debug(L"Failed to backup entry %s to %s, error %s", to_path.c_str(), old_file_path.c_str(), wmsg.c_str());
 					return false;

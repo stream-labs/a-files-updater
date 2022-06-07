@@ -4,6 +4,7 @@ const fs = require('fs');
 
 exports.start_updater = async function (testinfo) {
   const updaterPath = path.join(testinfo.updaterDir, testinfo.updaterName)
+  const updaterWorkPath = path.join(testinfo.updaterWorkDir, testinfo.updaterName)
   const updaterPathE = updaterPath.replace(/\\/g, '\\\\') + "test";
   const updateDirE = testinfo.initialDir.replace(/\\/g, '\\\\');
 
@@ -30,8 +31,14 @@ exports.start_updater = async function (testinfo) {
   if (testinfo.wrong_arguments)
     updaterArgs.splice(0, updaterArgs.length);
 
-  const app_spawned = cp.spawn(`${updaterPath}`, updaterArgs, {
-    cwd: testinfo.updaterDir,
+  if (!fs.existsSync(testinfo.updaterWorkDir)){
+    fs.mkdirSync(testinfo.updaterWorkDir);
+  }
+  
+  fs.copyFileSync(updaterPath, updaterWorkPath);
+
+  const app_spawned = cp.spawn(`${updaterWorkPath}`, updaterArgs, {
+    cwd: testinfo.updaterWorkDir,
     detached: false,
     shell: true,
     windowsVerbatimArguments: true

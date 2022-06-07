@@ -9,9 +9,9 @@
 #include <boost/asio/ssl.hpp>
 #include <tlhelp32.h>
 #include <psapi.h>
+#include "utils.hpp"
 
 #include <memory>
-#include <codecvt>
 
 #include "crash-reporter.hpp"
 #include "update-parameters.hpp"
@@ -58,7 +58,7 @@ int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump
 void save_start_timestamp();
 std::string get_command_line() noexcept;
 std::string get_current_dir() noexcept;
-std::string get_parrent_process_path(bool only_first_parent) noexcept;
+std::string get_parent_process_path(bool only_first_parent) noexcept;
 
 void handle_exit() noexcept;
 void handle_crash(struct _EXCEPTION_POINTERS* ExceptionInfo, bool callAbort = true) noexcept;
@@ -116,7 +116,7 @@ std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo, std:
 		json_report << "		\"minidump_result\": \"" << minidump_result << "\", ";
 	json_report << "		\"console_args\": \"" << get_command_line() << "\", ";
 	json_report << "		\"current_dir\": \"" << get_current_dir() << "\", ";
-	json_report << "		\"parent_process\": \"" << get_parrent_process_path(false) << "\" ";
+	json_report << "		\"parent_process\": \"" << get_parent_process_path(false) << "\" ";
 	json_report << "	} ";
 	json_report << "}";
 
@@ -125,17 +125,17 @@ std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo, std:
 
 std::string get_current_dir() noexcept
 {
-	TCHAR path_buffer[MAX_PATH];
+	WCHAR path_buffer[MAX_PATH];
 	DWORD lenght = GetCurrentDirectoryW(MAX_PATH, &path_buffer[0]);
 	if (lenght == 0)
 		return "";
-	std::wstring ret = std::wstring(path_buffer, lenght);
-	return escapeJsonString(std::string(ret.begin(), ret.end()));
+	std::string ret = ConvertToUtf8(std::wstring(path_buffer, lenght));
+	return escapeJsonString(ret);
 }
 
 bool is_launched_by_explorer()
 {
-	std::string parent_path = get_parrent_process_path(true);
+	std::string parent_path = get_parent_process_path(true);
 
 	const std::string explorer_exe = "explorer.exe";
 	if (parent_path.size() >= explorer_exe.size())
@@ -144,9 +144,9 @@ bool is_launched_by_explorer()
 	return false;
 }
 
-std::string get_parrent_process_path(bool only_first_parent) noexcept
+std::string get_parent_process_path(bool only_first_parent) noexcept
 {
-	std::wstring parrent_path;
+	std::wstring parent_path;
 	HANDLE hSnapshot;
 	PROCESSENTRY32 pe32;
 	DWORD pid = GetCurrentProcessId();
@@ -189,27 +189,27 @@ std::string get_parrent_process_path(bool only_first_parent) noexcept
 			HANDLE parent_handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, ppid);
 			if (parent_handle)
 			{
-				TCHAR path_buffer[MAX_PATH];
+				WCHAR path_buffer[MAX_PATH];
 				DWORD lenght = GetModuleFileNameEx(parent_handle, 0, path_buffer, MAX_PATH);
 				if (lenght)
 				{
-					parrent_path += std::wstring(path_buffer, lenght);
+					parent_path += std::wstring(path_buffer, lenght);
 				} else {
-					parrent_path += std::to_wstring(ppid);
+					parent_path += std::to_wstring(ppid);
 				}
 				CloseHandle(parent_handle);
 			} else {
-				parrent_path += std::to_wstring(ppid);
+				parent_path += std::to_wstring(ppid);
 			}
 
 			if (only_first_parent)
 				break;
 
-			parrent_path += L" => ";
+			parent_path += L" => ";
 		}
 	} else
-		parrent_path = L"No parent pid found";
-	return escapeJsonString(std::string(parrent_path.begin(), parrent_path.end()));
+		parent_path = L"No parent pid found";
+	return escapeJsonString(ConvertToUtf8(parent_path));
 }
 
 std::string create_mini_dump(EXCEPTION_POINTERS* pep) noexcept
@@ -618,12 +618,7 @@ std::string get_command_line() noexcept
 	if (lpCommandLine != nullptr)
 	{
 		std::wstring ws_args = std::wstring(lpCommandLine);
-
-		using convert_type = std::codecvt_utf8<wchar_t>;
-		std::wstring_convert<convert_type, wchar_t> converter;
-		ret = converter.to_bytes(ws_args);
-
-		ret = escapeJsonString(ret);
+		ret = escapeJsonString(ConvertToUtf8(ws_args));
 	}
 	return ret;
 }

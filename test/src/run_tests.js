@@ -4,7 +4,7 @@ const test_config = require('./test_config.js');
 const fse = require('fs-extra')
 const path = require('path');
 
-const run_one_test = false;
+const run_one_test = true;
 
 async function run_tests() {
     let testinfo;
@@ -20,23 +20,23 @@ async function run_tests() {
         testinfo.more_log_output = true;
         //testinfo.serverUrl = "https://outlook.live.com";
         //testinfo.let_15sec = true;
-        testinfo.let_block_one_file = true;
+        //testinfo.let_block_one_file = true;
         //testinfo.morebigfiles = true;
         //testinfo.expectedResult = "filesnotchanged"
         // testinfo.selfBlockersCount = 5;
         // testinfo.selfBlockingFile = true;
         // testinfo.selfLockingFile = true;
         testinfo.runAsInteractive = 1;
-        testinfo.wrong_arguments = true;
+        //testinfo.wrong_arguments = true;
         //testinfo.expectedResult = "filesnotchanged"
         //testinfo.manifestGenerated = false;
         //testinfo.let_5sec = true;
-        //testinfo.morebigfiles = true;
+        testinfo.morebigfiles = true;
         //testinfo.selfBlockersCount = 5;
         //testinfo.selfBlockingFile = true;
         //testinfo.pidWaiting = true;
         //testinfo.selfBlockingFile = true;
-        testinfo.let_drop = true;
+        //testinfo.let_drop = true;
         //testinfo.let_404 = true;
         //testinfo.max_trouble = 500;
         //testinfo.expected_change_for_trouble = 50;
