@@ -45,6 +45,7 @@ exports.gettestinfo = function (testname) {
     let_block_one_file: false,
     block_file_number: 10,
     wrong_arguments: false,
+    systemFolder: false,
 
     //sentry emulator
     reporterHost: "localhost",

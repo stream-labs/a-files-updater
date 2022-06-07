@@ -4,6 +4,7 @@
 #include "cli-parser.hpp"
 #include "logger/log.h"
 #include <clocale>
+#include "utils.hpp"
 
 /* Filesystem is implicitly included from cli-parser.h */
 namespace fs = std::filesystem;
@@ -167,8 +168,6 @@ bool su_parse_command_line(int argc, char **argv, struct update_parameters *para
 	bool success = true;
 	fs::path log_path;
 
-	const char *invalid_fn_str = "Invalid path given for %s";
-
 	struct arg_lit *help_arg = arg_lit0("h", "help",
 		"Print information about this program");
 
@@ -323,21 +322,26 @@ bool su_parse_command_line(int argc, char **argv, struct update_parameters *para
 	}
 
 	if (params->app_dir.empty()) {
-		log_fatal(invalid_fn_str, "app_dir");
+		log_fatal("Invalid path given for app_dir");
 		success = false;
+	} else if (!fs::exists(params->app_dir, ec)) {
+		log_fatal("Application directory doesn't exist");
+		success = false;
+	} else {
+		if (is_system_folder(params->app_dir)) {
+			log_fatal("Application directory is a system directory");
+			success = false;
+		} else if (fs::is_directory(params->app_dir, ec))
+		{
+			log_fatal("Application directory is not a directory");
+			success = false;
+		}
 	}
 
 	if (params->temp_dir.empty()) {
-		log_fatal(invalid_fn_str, "temp_dir");
+		log_fatal("Invalid path given for temp_dir");
 		success = false;
-	}
-
-	if (!params->app_dir.empty() && !fs::exists(params->app_dir, ec)) {
-		log_fatal("Application directory doesn't exist");
-		success = false;
-	}
-
-	if (!params->temp_dir.empty() && fs::exists(params->temp_dir, ec)) {
+	} else if (fs::exists(params->temp_dir, ec)) {
 		if (force_arg->count == 0) {
 			log_fatal("Temporary directory already exists.");
 			success = false;

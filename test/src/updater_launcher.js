@@ -6,7 +6,13 @@ exports.start_updater = async function (testinfo) {
   const updaterPath = path.join(testinfo.updaterDir, testinfo.updaterName)
   const updaterWorkPath = path.join(testinfo.updaterWorkDir, testinfo.updaterName)
   const updaterPathE = updaterPath.replace(/\\/g, '\\\\') + "test";
-  const updateDirE = testinfo.initialDir.replace(/\\/g, '\\\\');
+  
+  let updateDirE;
+  if (testinfo.systemFolder) {
+    updateDirE = "A:\\";
+  } else {
+    updateDirE = testinfo.initialDir.replace(/\\/g, '\\\\'); 
+  }
 
   const updaterArgs = [
     '--base-url', `"${testinfo.serverUrl}"`,

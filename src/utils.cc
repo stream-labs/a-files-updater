@@ -106,6 +106,12 @@ LPWSTR ConvertToUtf16LP(const char *from, int *from_size)
 	return to;
 }
 
+bool is_system_folder(const fs::path &path)
+{
+	DWORD fileAttributes = GetFileAttributes(path.c_str());
+	return fileAttributes & FILE_ATTRIBUTE_SYSTEM;
+}
+
 void LogLastError(LPCWSTR lpFunctionName)
 {
 	DWORD  dwError = GetLastError();

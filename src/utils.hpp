@@ -36,6 +36,7 @@ std::wstring ConvertToUtf16WS(std::string from);
 std::string ConvertToUtf8(std::wstring from);
 
 fs::path prepare_file_path(const fs::path &base, const std::string &target);
+bool is_system_folder(const fs::path &path);
 std::string unfixup_uri(const std::string &source);
 std::string fixup_uri(const std::string &source);
 std::string encimpl(std::string::value_type v);
