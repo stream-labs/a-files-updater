@@ -29,7 +29,7 @@ set(Boost_DEBUG OFF)
 set(Boost_RELEASE ON)
 
 find_package(Boost
-	1.71.0 EXACT
+	1.79.0 EXACT
 	REQUIRED
 	COMPONENTS
 		iostreams

@@ -20,7 +20,7 @@ pool:
 variables:
   ZLIB_DIST_NAME: zlib-1.2.11-static-mt
   OPENSSL_DIST_NAME: openssl-1.1.1c-x64
-  BOOST_DIST_NAME: boost-vc142-1_71_0-bin
+  BOOST_DIST_NAME: boost-vc143-1_79_0-bin
   DEPS_DIST_URI: https://s3-us-west-2.amazonaws.com/streamlabs-obs-updater-deps
   DEPS_LOCAL_PATH: $(Build.SourcesDirectory)\slobs-updater-deps
   ZLIB_ROOT: $(DEPS_LOCAL_PATH)\$(ZLIB_DIST_NAME)
