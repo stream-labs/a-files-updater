@@ -38,6 +38,7 @@ bool update_completed = false;
 
 const std::string update_failed_message = "The automatic update failed to perform successfully.\nPlease install the latest version of Streamlabs Desktop from https://streamlabs.com/";
 const std::string update_run_manually_message = "You have launched the updater for Streamlabs Desktop, which can't work on its own. Please launch the Desktop App and it will check for updates automatically.\nIf you're having issues you can download the latest version from https://streamlabs.com/.";
+const std::string update_system_folder_message = "Streamlabs Desktop installed in a system folder. Automatic updated has been disabled to prevent changes to a system folder. \nPlease install the latest version of Streamlabs Desktop from https://streamlabs.com/";
 const std::string update_cannot_start_app = "The application has finished updating.\nPlease manually start Streamlabs Desktop.";
 const std::string update_cannot_update_or_start = "There was an issue launching the application.\nPlease start Streamlabs Desktop and try again.";
 void ShowError(const std::string & message)
@@ -732,12 +733,12 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 		{
 			ShowInfo(update_run_manually_message);
 			save_exit_error("Launched manually");
-		}
-		else
-		{
+		} else if (is_system_folder(params.app_dir)) {
+			ShowInfo(update_system_folder_message);
+			save_exit_error("App installed in a system folder. Skip update.");
+		} else {
 			ShowError(update_failed_message);
 			save_exit_error("Failed parsing arguments");
-
 		}
 		handle_exit();
 		return 0;

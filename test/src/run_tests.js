@@ -26,6 +26,7 @@ async function run_tests() {
         // testinfo.selfBlockersCount = 5;
         // testinfo.selfBlockingFile = true;
         // testinfo.selfLockingFile = true;
+        testinfo.systemFolder = true;
         testinfo.runAsInteractive = 1;
         //testinfo.wrong_arguments = true;
         //testinfo.expectedResult = "filesnotchanged"
@@ -198,6 +199,14 @@ async function run_tests() {
         testinfo = test_config.gettestinfo(" //bad update - wrong file in manifest. files have to not change  ");
         testinfo.expectedResult = "filesnotchanged"
         testinfo.manifestWrongFile = true;
+        test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //skip update - app installed in a system folder(disk root, windows etc). files have to not change  ");
+        testinfo.expectedResult = "filesnotchanged"
+        testinfo.systemFolder = true;
         test_result = await run_test.test_update(testinfo);
         if (test_result != 0) {
             failed_test_names.push(testinfo.testName);
