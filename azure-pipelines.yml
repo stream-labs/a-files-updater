@@ -15,7 +15,7 @@ strategy:
       BUILD_TYPE: Release 
 
 pool:
-  vmImage: 'windows-2019'
+  vmImage: 'windows-2022'
 
 variables:
   ZLIB_DIST_NAME: zlib-1.2.11-static-mt
