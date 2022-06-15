@@ -46,13 +46,17 @@ steps:
     set PATH=%DEPS_LOCAL_PATH%;%PATH%
   displayName: 'Install dependencies'
 
-- script: cmake -H. -B"%BUILD_DIR%" -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -DBOOST_ROOT="%BOOST_ROOT%" -DOPENSSL_ROOT_DIR="%OPENSSL_ROOT%" -DZLIB_ROOT="%ZLIB_ROOT%" -DUSE_STREAMLABS_RESOURCE=ON -DSENTRY_PROJECT_ID="1390326" -DSENTRY_PROJECT_KEY="7492ebea21f54618a550163938dc164d"
+- script: |
+    call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+    cmake -H. -B"%BUILD_DIR%" -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -DBOOST_ROOT="%BOOST_ROOT%" -DOPENSSL_ROOT_DIR="%OPENSSL_ROOT%" -DZLIB_ROOT="%ZLIB_ROOT%" -DUSE_STREAMLABS_RESOURCE=ON -DSENTRY_PROJECT_ID="1390326" -DSENTRY_PROJECT_KEY="7492ebea21f54618a550163938dc164d"
   env:
     SENTRY_PROJECT_ID: $(updaterSentryProjectID)
     SENTRY_PROJECT_KEY: $(updaterSentryProjectKey)
   displayName: 'Configure updater'
 
-- script: cmake --build "%BUILD_DIR%" --config %BUILD_TYPE%
+- script: |
+    call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+    cmake --build "%BUILD_DIR%" --config %BUILD_TYPE%
   displayName: 'Build updater'
 
 - script: |
