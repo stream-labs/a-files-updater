@@ -52,11 +52,9 @@ jobs:
       - name: Download binary deps
         run: ./ci/download_deps.bat
       - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@v1
+        uses: microsoft/setup-msbuild@v1.1
       - name: Configure
-        run: |
-          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat" |
-          cmake -H"${{ github.workspace }}" -B"${{env.BUILD_DIRECTORY}}" -G"Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIGURATION}} -A x64  -DBOOST_ROOT="%BOOST_ROOT%" -DOPENSSL_ROOT_DIR="%OPENSSL_ROOT%" -DZLIB_ROOT="%ZLIB_ROOT%" -DUSE_STREAMLABS_RESOURCE=ON -DSENTRY_PROJECT_ID="1390326" -DSENTRY_PROJECT_KEY="7492ebea21f54618a550163938dc164d"
+        run: cmake -H"${{ github.workspace }}" -B"${{env.BUILD_DIRECTORY}}" -G"Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIGURATION}} -A x64  -DBOOST_ROOT="%BOOST_ROOT%" -DOPENSSL_ROOT_DIR="%OPENSSL_ROOT%" -DZLIB_ROOT="%ZLIB_ROOT%" -DUSE_STREAMLABS_RESOURCE=ON -DSENTRY_PROJECT_ID="1390326" -DSENTRY_PROJECT_KEY="7492ebea21f54618a550163938dc164d"
         env:
           INSTALL_PACKAGE_PATH: "${{env.BUILD_DIRECTORY}}/${{env.DISTRIBUTE_DIRECTORY}}/${{env.PACKAGE_DIRECTORY}}"
           ZLIB_ROOT: ${{env.DEPS_LOCAL_PATH}}\${{env.ZLIB_DIST_NAME}}
