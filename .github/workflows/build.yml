@@ -44,6 +44,7 @@ jobs:
           GITHUB_CONTEXT: ${{ toJson(github) }}
         run: echo "$GITHUB_CONTEXT"
       - name: Print system context
+        shell: cmd
         run: set
       - name: Get the version
         id: get_version
