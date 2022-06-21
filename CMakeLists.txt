@@ -135,3 +135,8 @@ add_custom_command(
 		-manifest "${slobs-updater_SOURCE_DIR}/resources/slobs-updater.exe.manifest"
 		-outputresource:"$<TARGET_FILE:slobs-updater>"
 )
+
+# Install
+install(FILES $<TARGET_PDB_FILE:slobs-updater> DESTINATION ${CMAKE_INSTALL_PREFIX} OPTIONAL)
+
+install(FILES $<TARGET_FILE:slobs-updater> DESTINATION ${CMAKE_INSTALL_PREFIX})
