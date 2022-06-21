@@ -63,7 +63,7 @@ jobs:
       - name: Configure
         shell: cmd
         run: |
-          call "%ProgramFiles%\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" 
+          call "c:/Program Files/Microsoft Visual Studio/2022/Community/VC/Auxiliary/Build/vcvars64.bat" 
           cmake -H"${{ github.workspace }}" -B"${{env.BUILD_DIRECTORY}}" -G"Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIGURATION}} -A x64  -DBOOST_ROOT="%BOOST_ROOT%" -DOPENSSL_ROOT_DIR="%OPENSSL_ROOT%" -DZLIB_ROOT="%ZLIB_ROOT%" -DUSE_STREAMLABS_RESOURCE=ON -DSENTRY_PROJECT_ID="1390326" -DSENTRY_PROJECT_KEY="7492ebea21f54618a550163938dc164d"
         env:
           INSTALL_PACKAGE_PATH: "${{env.BUILD_DIRECTORY}}/${{env.DISTRIBUTE_DIRECTORY}}/${{env.PACKAGE_DIRECTORY}}"
