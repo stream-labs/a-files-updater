@@ -39,13 +39,6 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Show GitHub context
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-        run: echo "$GITHUB_CONTEXT"
-      - name: Print system context
-        shell: cmd
-        run: set
       - name: Get the version
         id: get_version
         run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
@@ -70,7 +63,6 @@ jobs:
           ZLIB_ROOT: ${{env.DEPS_LOCAL_PATH}}\${{env.ZLIB_DIST_NAME}}
           OPENSSL_ROOT: ${{env.DEPS_LOCAL_PATH}}\${{env.OPENSSL_DIST_NAME}}
           BOOST_ROOT: ${{env.DEPS_LOCAL_PATH}}\${{env.BOOST_DIST_NAME}}
-          
       - name: Build
         run: cmake --build "${{env.BUILD_DIRECTORY}}" --target install --config ${{env.BUILD_CONFIGURATION}}
       - name: Cache build
