@@ -64,7 +64,7 @@ std::string ConvertToUtf8(std::wstring from)
 		LogLastError(L"WideCharToMultiByte");
 		return "";
 	}
-
+	ret.resize(strlen(ret.c_str())); //important to end string at 0
 	return ret;
 }
 

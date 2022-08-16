@@ -130,7 +130,8 @@ std::string get_current_dir() noexcept
 	if (lenght == 0)
 		return "";
 	std::string ret = ConvertToUtf8(std::wstring(path_buffer, lenght));
-	return escapeJsonString(ret);
+	ret = escapeJsonString(ret);
+	return ret;
 }
 
 bool is_launched_by_explorer()
@@ -209,7 +210,9 @@ std::string get_parent_process_path(bool only_first_parent) noexcept
 		}
 	} else
 		parent_path = L"No parent pid found";
-	return escapeJsonString(ConvertToUtf8(parent_path));
+	std::string ret = ConvertToUtf8(parent_path);
+	ret = escapeJsonString(ret);
+	return ret;
 }
 
 std::string create_mini_dump(EXCEPTION_POINTERS* pep) noexcept
