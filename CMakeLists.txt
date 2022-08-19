@@ -29,7 +29,7 @@ set(Boost_DEBUG OFF)
 set(Boost_RELEASE ON)
 
 find_package(Boost
-	1.71.0 EXACT
+	1.79.0 EXACT
 	REQUIRED
 	COMPONENTS
 		iostreams
@@ -135,3 +135,8 @@ add_custom_command(
 		-manifest "${slobs-updater_SOURCE_DIR}/resources/slobs-updater.exe.manifest"
 		-outputresource:"$<TARGET_FILE:slobs-updater>"
 )
+
+# Install
+install(FILES $<TARGET_PDB_FILE:slobs-updater> DESTINATION ${CMAKE_INSTALL_PREFIX} OPTIONAL)
+
+install(FILES $<TARGET_FILE:slobs-updater> DESTINATION ${CMAKE_INSTALL_PREFIX})
