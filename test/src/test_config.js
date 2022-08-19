@@ -75,7 +75,7 @@ exports.gettestinfo = function (testname) {
   newinfo.resultDir = path.join(testfilesDir, "result")
   newinfo.reporterDir = path.join(testfilesDir, "crash_reports")
 
-  newinfo.updaterDir = path.join(__dirname, "..", "..", "build", "RelWithDebInfo")
+  newinfo.updaterDir = path.join(__dirname, "..", "..", "build", "distribute","a-file-updater")
   newinfo.updaterWorkDir = path.join(testfilesDir, "updaİeł")
   newinfo.updateCfg = path.join(os.tmpdir(), 'slobs-updater', 'update.cfg');
   newinfo.updateCfgBak = path.join(os.tmpdir(), 'slobs-updater', 'update.cfg.last');
