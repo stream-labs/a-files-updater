@@ -140,7 +140,8 @@ bool is_launched_by_explorer()
 
 	const std::string explorer_exe = "explorer.exe";
 	if (parent_path.size() >= explorer_exe.size())
-		return std::equal(explorer_exe.rbegin(), explorer_exe.rend(), parent_path.rbegin());
+		return std::equal(explorer_exe.rbegin(), explorer_exe.rend(), parent_path.rbegin(),
+			[](char a, char b) { return tolower(a) == tolower(b); });
 
 	return false;
 }
