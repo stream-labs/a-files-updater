@@ -17,18 +17,8 @@ on:
     branches: [ "master" ]
 
 env:
-  PACKAGE_DIRECTORY: a-file-updater
-  PACKAGE_NAME: slobs_updater
-  BUILD_CONFIGURATION: RelWithDebInfo
-  BUILD_DIRECTORY: "build"
-  DISTRIBUTE_DIRECTORY: "distribute"
   RELEASE_BUCKET: "obs-studio-deployment"
-  ELECTRON_VERSION: "v13.4.0"
-  ZLIB_DIST_NAME: zlib-1.2.11-static-mt
-  OPENSSL_DIST_NAME: openssl-1.1.1c-x64
-  BOOST_DIST_NAME: boost-vc143-1_79_0-bin
-  DEPS_DIST_URI: https://s3-us-west-2.amazonaws.com/streamlabs-obs-updater-deps
-  DEPS_LOCAL_PATH: ${{github.workspace}}\slobs-updater-deps
+  DEPS_LOCAL_PATH: ${{github.workspace}}/build/deps
 
 permissions:
   contents: read
@@ -57,18 +47,16 @@ jobs:
         shell: cmd
         run: |
           call "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Auxiliary/Build/vcvars64.bat" 
-          cmake -H"${{ github.workspace }}" -B"${{env.BUILD_DIRECTORY}}" -G"Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIGURATION}} -A x64  -DBOOST_ROOT="%BOOST_ROOT%" -DOPENSSL_ROOT_DIR="%OPENSSL_ROOT%" -DZLIB_ROOT="%ZLIB_ROOT%" -DUSE_STREAMLABS_RESOURCE=ON -DSENTRY_PROJECT_ID="1390326" -DSENTRY_PROJECT_KEY="7492ebea21f54618a550163938dc164d" -DCMAKE_INSTALL_PREFIX="${{env.INSTALL_PACKAGE_PATH}}"
-        env:
-          INSTALL_PACKAGE_PATH: "${{env.BUILD_DIRECTORY}}/${{env.DISTRIBUTE_DIRECTORY}}/${{env.PACKAGE_DIRECTORY}}"
-          ZLIB_ROOT: ${{env.DEPS_LOCAL_PATH}}\${{env.ZLIB_DIST_NAME}}
-          OPENSSL_ROOT: ${{env.DEPS_LOCAL_PATH}}\${{env.OPENSSL_DIST_NAME}}
-          BOOST_ROOT: ${{env.DEPS_LOCAL_PATH}}\${{env.BOOST_DIST_NAME}}
+          cmake -H"${{ github.workspace }}" -B"build" -G"Visual Studio 17 2022" ^
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo -A x64 ^
+          -DCMAKE_DEPS_DIR=${{env.DEPS_LOCAL_PATH}} ^
+          -DCMAKE_INSTALL_PREFIX="build/distribute/a-file-updater"
       - name: Build
-        run: cmake --build "${{env.BUILD_DIRECTORY}}" --target install --config ${{env.BUILD_CONFIGURATION}}
+        run: cmake --build "build" --target install --config RelWithDebInfo
       - name: Cache build
         uses: actions/cache@v3
         with:
-          path: ${{env.BUILD_DIRECTORY}}
+          path: build
           key: ${{ runner.os }}-build-${{ github.sha }}
 
   upload_debug_symbols:
@@ -81,7 +69,7 @@ jobs:
         id: cache-check
         uses: actions/cache@v3
         with:
-          path: ${{env.BUILD_DIRECTORY}}
+          path: build
           key: ${{ runner.os }}-build-${{ github.sha }}
       - name: Check cache
         if: steps.cache-check.outputs.cache-hit != 'true'
@@ -93,7 +81,7 @@ jobs:
           repository: stream-labs/symsrv-scripts
           path: symsrv-scripts
       - name: Run symbol server scripts
-        run: ./symsrv-scripts/main.bat "${{ github.workspace }}/symsrv-scripts" ".\main.ps1 -localSourceDir '${{ github.workspace }}' -repo_userId 'stream-labs' -repo_name '${{env.PACKAGE_NAME}}' -repo_branch '${{ github.sha }}'"
+        run: ./symsrv-scripts/main.bat "${{ github.workspace }}/symsrv-scripts" ".\main.ps1 -localSourceDir '${{ github.workspace }}' -repo_userId 'stream-labs' -repo_name 'slobs_updater' -repo_branch '${{ github.sha }}'"
         env:
           AWS_SYMB_ACCESS_KEY_ID: ${{secrets.AWS_SYMB_ACCESS_KEY_ID}}
           AWS_SYMB_SECRET_ACCESS_KEY: ${{secrets.AWS_SYMB_SECRET_ACCESS_KEY}}
@@ -113,16 +101,16 @@ jobs:
         id: cache-check
         uses: actions/cache@v3
         with:
-          path: ${{env.BUILD_DIRECTORY}}
+          path: build
           key: ${{ runner.os }}-build-${{ github.sha }}
       - name: Check cache
         if: steps.cache-check.outputs.cache-hit != 'true'
         run: exit 1
       - name: Tar artifact for deployment
-        run: tar -cvzf ${{env.TARGET_ARTIFACT}}.tar.gz -C ${{env.INSTALL_DISTRIBUTE_PATH}} ${{env.PACKAGE_DIRECTORY}}
+        run: tar -cvzf ${{env.TARGET_ARTIFACT}}.tar.gz -C ${{env.INSTALL_DISTRIBUTE_PATH}} a-file-updater
         env:
-          TARGET_ARTIFACT: ${{env.PACKAGE_NAME}}-${{ steps.get_version.outputs.VERSION }}-win64
-          INSTALL_DISTRIBUTE_PATH: "${{env.BUILD_DIRECTORY}}/${{env.DISTRIBUTE_DIRECTORY}}"
+          TARGET_ARTIFACT: slobs_updater-${{ steps.get_version.outputs.VERSION }}-win64
+          INSTALL_DISTRIBUTE_PATH: "build/distribute"
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -132,4 +120,4 @@ jobs:
       - name: Deploy
         run: aws s3 cp ${{env.TARGET_ARTIFACT}}.tar.gz s3://${{env.RELEASE_BUCKET}} --acl public-read
         env:
-          TARGET_ARTIFACT: ${{env.PACKAGE_NAME}}-${{ steps.get_version.outputs.VERSION }}-win64
+          TARGET_ARTIFACT: slobs_updater-${{ steps.get_version.outputs.VERSION }}-win64

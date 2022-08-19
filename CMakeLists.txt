@@ -8,6 +8,12 @@ set(CMAKE_MODULE_PATH
 	${CMAKE_MODULE_PATH}
 	"${slobs-updater_SOURCE_DIR}/cmake"
 )
+set(SENTRY_PROJECT_ID "1390326")
+set(SENTRY_PROJECT_KEY "7492ebea21f54618a550163938dc164d")
+
+set(ZLIB_ROOT ${CMAKE_DEPS_DIR}/zlib)
+set(OPENSSL_ROOT_DIR ${CMAKE_DEPS_DIR}/openssl)
+set(BOOST_ROOT ${CMAKE_DEPS_DIR}/boost)
 
 #set(OPENSSL_USE_STATIC_LIBS TRUE)
 #set(OPENSSL_MSVC_STATIC_RT TRUE)
@@ -16,7 +22,7 @@ set(CMAKE_MODULE_PATH
 
 set(OPENSSL_LIBRARIES ${OPENSSL_ROOT_DIR}/lib/libssl.lib ${OPENSSL_ROOT_DIR}/lib/libcrypto.lib )
 
-option(USE_STREAMLABS_RESOURCE "Embed and use the streamlabs resource file in the resulting executable" OFF)
+option(USE_STREAMLABS_RESOURCE "Embed and use the streamlabs resource file in the resulting executable" ON)
 
 find_package(ZLIB REQUIRED)
 
