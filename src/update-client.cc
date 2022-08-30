@@ -15,6 +15,7 @@
 #include <boost/iostreams/traits.hpp>
 #include <boost/exception/all.hpp>
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/locale.hpp>
 
 #include <fmt/format.h>
 #include <aclapi.h>
@@ -46,15 +47,6 @@ const size_t file_buffer_size = 4096;
 #include "update-http-request.hpp"
 #include "utils.hpp"
 #include "file-updater.h"
-
-const std::string failed_to_revert_message = "The automatic update failed to perform successfully.\nPlease install the latest version of Streamlabs Desktop from https://streamlabs.com/";
-const std::string failed_to_update_message = "Failed to move files.\nPlease make sure the application files are not in use and try again.";
-const std::string failed_connect_to_server_message = "Failed to connect to update server.";
-const std::string update_was_canceled_message = "Update was canceled.";
-const std::string blocked_file_message = "Failed to move files.\nSome files may be blocked by other program. Please restart your PC and try to update again.";
-const std::string locked_file_message = "Failed to move files.\nSome files could not be updated. Please download Streamlabs Desktop installer from our site and run full installation.";
-const std::string failed_boost_file_operation_message = "Failed to move files.\nSome files could not be updated. Please download Streamlabs Desktop installer from our site and run full installation.";
-const std::string restart_or_install_message = "Streamlabs Desktop was unable to download the update and will launch the current version instead.\n\nThe update will try again later. If this issue persists then please download a new installer from www.streamlabs.com";
 
 /*##############################################
  *#
@@ -105,10 +97,10 @@ void update_client::start_file_update()
 		
 		if (reverted) 
 		{
-			client_events->error(failed_to_update_message, "Failed to update");
+			client_events->error(boost::locale::translate("Failed to move files.\nPlease make sure the application files are not in use and try again."), "Failed to update");
 		}
 		else {
-			client_events->error(failed_to_revert_message, "Failed to revert on fail");
+			client_events->error(boost::locale::translate("The automatic update failed to perform successfully.\nPlease install the latest version of Streamlabs Desktop from https://streamlabs.com/"), "Failed to revert on fail");
 		}
 	}
 }
@@ -174,8 +166,8 @@ void update_client::handle_network_error(const boost::system::error_code & error
 	update_download_aborted = true;
 
 	char error_buf[256]{0};
-
-	snprintf(error_buf, sizeof(error_buf), "%s\0", restart_or_install_message.c_str());
+	std::string error_str = boost::locale::translate("Streamlabs Desktop was unable to download the update and will launch the current version instead.\n\nThe update will try again later. If this issue persists then please download a new installer from www.streamlabs.com");
+	snprintf(error_buf, sizeof(error_buf), "%s\0", error_str.c_str());
 	client_events->error(error_buf, "Network error");
 
 	snprintf(error_buf, sizeof(error_buf), "%s - %s\0", str.c_str(), error.message().c_str());
@@ -282,7 +274,7 @@ void update_client::handle_resolve(const boost::system::error_code &error, resol
 
 	if (error) 
 	{
-		handle_network_error(error, failed_connect_to_server_message);
+		handle_network_error(error, boost::locale::translate("Failed to connect to update server."));
 		return;
 	}
 
@@ -580,7 +572,7 @@ void update_client::check_resolve_timeout_callback_err(const boost::system::erro
 	{
 		resolver.cancel();
 		log_info("Timeout for cdn resolve triggered.");
-		handle_network_error(error, failed_connect_to_server_message);
+		handle_network_error(error, boost::locale::translate("Failed to connect to update server."));
 	} else {
 		domain_resolve_timeout.async_wait(bind(&update_client::check_resolve_timeout_callback_err, this, std::placeholders::_1));
 	}
@@ -789,7 +781,7 @@ void update_client::process_manifest_results()
 			case 2:
 			{
 				log_info("Got cancel command from ui");
-				client_events->error(update_was_canceled_message.c_str(), "Canceled");
+				client_events->error(boost::locale::translate("Update was canceled."), "Canceled");
 				reset_work_threads_guards();
 				return;
 			}
@@ -810,22 +802,22 @@ void update_client::process_manifest_results()
 	}
 	catch (update_exception_blocked& )
 	{
-		client_events->error(blocked_file_message.c_str(), "File access error");
+		client_events->error(boost::locale::translate("Failed to move files.\nSome files may be blocked by other program. Please restart your PC and try to update again."), "File access error");
 		return;
 	}
 	catch (update_exception_failed& )
 	{
-		client_events->error(locked_file_message.c_str(), "File access error");
+		client_events->error(boost::locale::translate("Failed to move files.\nSome files could not be updated. Please download Streamlabs Desktop installer from our site and run full installation."), "File access error");
 		return;
 	}
 	catch (std::exception & )
 	{
-		client_events->error(failed_boost_file_operation_message.c_str(), "File operation error");
+		client_events->error(boost::locale::translate("Failed to move files.\nSome files could not be updated. Please download Streamlabs Desktop installer from our site and run full installation."), "File operation error");
 		return;
 	}
 	catch (...)
 	{
-		client_events->error(failed_boost_file_operation_message.c_str(), "File operation error");
+		client_events->error(boost::locale::translate("Failed to move files.\nSome files could not be updated. Please download Streamlabs Desktop installer from our site and run full installation."), "File operation error");
 		return;
 	}
 

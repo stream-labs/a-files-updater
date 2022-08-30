@@ -18,6 +18,7 @@
 #include <fstream>
 
 #include <boost/algorithm/string.hpp>
+#include <boost/locale.hpp>
 
 namespace fs = std::filesystem;
 namespace chrono = std::chrono;
@@ -36,11 +37,11 @@ const int ui_basic_height = 40;
 
 bool update_completed = false;
 
-const std::string update_failed_message = "The automatic update failed to perform successfully.\nPlease install the latest version of Streamlabs Desktop from https://streamlabs.com/";
-const std::string update_run_manually_message = "You have launched the updater for Streamlabs Desktop, which can't work on its own. Please launch the Desktop App and it will check for updates automatically.\nIf you're having issues you can download the latest version from https://streamlabs.com/.";
-const std::string update_system_folder_message = "Streamlabs Desktop installed in a system folder. Automatic updated has been disabled to prevent changes to a system folder. \nPlease install the latest version of Streamlabs Desktop from https://streamlabs.com/";
-const std::string update_cannot_start_app = "The application has finished updating.\nPlease manually start Streamlabs Desktop.";
-const std::string update_cannot_update_or_start = "There was an issue launching the application.\nPlease start Streamlabs Desktop and try again.";
+std::string getDefaultErrorMessage()
+{
+	return boost::locale::translate("The automatic update failed to perform successfully.\nPlease install the latest version of Streamlabs Desktop from https://streamlabs.com/");
+}
+
 void ShowError(const std::string & message)
 {
 	std::wstring wmessage = ConvertToUtf16WS(message);
@@ -176,7 +177,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 
 	if (!RegisterClassEx(&wc))
 	{
-		ShowError(update_failed_message);
+		ShowError(getDefaultErrorMessage());
 		LogLastError(L"RegisterClassEx");
 
 		throw std::runtime_error("window registration failed");
@@ -210,7 +211,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 
 	if (!frame)
 	{
-		do_fail(update_failed_message, L"CreateWindowEx");
+		do_fail(getDefaultErrorMessage(), L"CreateWindowEx");
 	}
 
 	GetClientRect(frame, &rcParent);
@@ -232,12 +233,17 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 
 	if (!progress_worker)
 	{
-		do_fail(update_failed_message, L"CreateWindow");
+		do_fail(getDefaultErrorMessage(), L"CreateWindow");
 	}
 	
+	std::wstring checking_packages_label = ConvertToUtf16WS(boost::locale::translate("Checking packages..."));
+	std::wstring blockers_list_label = ConvertToUtf16WS(boost::locale::translate("Blockers list"));
+	std::wstring stop_all_label = ConvertToUtf16WS(boost::locale::translate("Stop all"));
+	std::wstring cancel_label = ConvertToUtf16WS(boost::locale::translate("Cancel"));
+
 	progress_label = CreateWindow(
 		WC_STATIC,
-		TEXT("Checking packages..."),
+		checking_packages_label.c_str(),
 		WS_CHILD | WS_VISIBLE | SS_CENTER | SS_CENTERIMAGE,
 		x_pos, ui_padding,
 		x_size, ui_basic_height,
@@ -247,19 +253,19 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 
 	if (!progress_label)
 	{
-		do_fail(update_failed_message, L"CreateWindow");
+		do_fail(getDefaultErrorMessage(), L"CreateWindow");
 	}
 
 	success = SetWindowSubclass(progress_label, ProgressLabelWndProc, CLS_PROGRESS_LABEL, (DWORD_PTR)this);
 
 	if (!success)
 	{
-		do_fail(update_failed_message, L"SetWindowSubclass");
+		do_fail(getDefaultErrorMessage(), L"SetWindowSubclass");
 	}
 
 	blockers_list = CreateWindow(
 		WC_EDIT, 
-		L"Blockers list",
+		blockers_list_label.c_str(),
 		WS_CHILD | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_WANTRETURN | ES_AUTOVSCROLL | WS_BORDER  | ES_READONLY ,
 		x_pos, y_pos, x_size, ui_basic_height * 2,
 		frame,
@@ -269,12 +275,12 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 
 	if (!success)
 	{
-		do_fail(update_failed_message, L"SetWindowSubclass");
+		do_fail(getDefaultErrorMessage(), L"SetWindowSubclass");
 	}
 
 	kill_button = CreateWindow(
 		WC_BUTTON,
-		L"Stop all",
+		stop_all_label.c_str(),
 		WS_TABSTOP | WS_CHILD | BS_DEFPUSHBUTTON,
 		x_size + ui_padding - 100, rcParent.bottom - rcParent.top , 100, ui_basic_height,
 		frame,
@@ -282,7 +288,7 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 
 	cancel_button = CreateWindow(
 		WC_BUTTON,
-		L"Cancel",
+		cancel_label.c_str(),
 		WS_TABSTOP | WS_CHILD | BS_DEFPUSHBUTTON,
 		x_size + ui_padding - 100 - ui_padding - 100, rcParent.bottom - rcParent.top , 100, ui_basic_height,
 		frame,
@@ -326,7 +332,8 @@ void callbacks_impl::downloader_preparing()
 	LONG_PTR data = GetWindowLongPtr(frame, GWLP_USERDATA);
 	auto ctx = reinterpret_cast<callbacks_impl*>(data);
 
-	SetWindowTextW(ctx->progress_label, L"Checking local files...");
+	std::wstring checking_label = ConvertToUtf16WS(boost::locale::translate("Checking local files..."));
+	SetWindowTextW(ctx->progress_label, checking_label.c_str());
 }
 
 void callbacks_impl::downloader_start(int num_threads, size_t num_files_)
@@ -412,7 +419,8 @@ void callbacks_impl::installer_download_start(const std::string& packageName)
 {
 	package_dl_pct100 = 0;
 	installer_download_progress(0);
-	SetWindowTextW(progress_label, (L"Downloading " + fmt::to_wstring(packageName) + L"...").c_str());
+	std::wstring downloading_label = ConvertToUtf16WS(boost::locale::translate("Downloading"));
+	SetWindowTextW(progress_label, (downloading_label + fmt::to_wstring(packageName) + L"...").c_str());
 }
 	
 void callbacks_impl::installer_download_progress(const double percent)
@@ -511,7 +519,8 @@ void callbacks_impl::blocker_start()
 {
 	ShowWindow(progress_worker, SW_HIDE);
 
-	SetWindowTextW(progress_label, L"The following programs are preventing Streamlabs Desktop from updating :");
+	std::wstring blocking_app_label = ConvertToUtf16WS(boost::locale::translate("The following programs are preventing Streamlabs Desktop from updating :"));
+	SetWindowTextW(progress_label, blocking_app_label.c_str());
 	SetWindowTextW(blockers_list, L"");
 
 	SetWindowPos(frame, 0, 0, 0, width, height + ui_basic_height + ui_padding, SWP_NOMOVE | SWP_NOREPOSITION | SWP_ASYNCWINDOWPOS);
@@ -556,7 +565,8 @@ void callbacks_impl::blocker_wait_complete()
 
 void callbacks_impl::updater_start()
 {
-	SetWindowTextW(progress_label, L"Copying files...");
+	std::wstring copying_label = ConvertToUtf16WS(boost::locale::translate("Copying files..."));
+	SetWindowTextW(progress_label, copying_label.c_str());
 }
 
 LRESULT CALLBACK ProgressLabelWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR  uIdSubclass, DWORD_PTR dwRefData)
@@ -716,8 +726,14 @@ BOOL HasInstalled_VC_redistx64()
 	return FALSE;
 }
 
-extern "C"
-int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnused, int nCmdShow) {
+extern "C" int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnused, int nCmdShow) 
+{
+	setlocale(LC_ALL,"ru-RU");
+
+	boost::locale::generator gen;
+    gen.add_messages_path("locale");
+    gen.add_messages_domain("messages");
+    std::locale::global(gen("ru_RU.UTF-8"));
 
 	setup_crash_reporting();
 
@@ -731,13 +747,13 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 	{
 		if (command_line.argc() == 1 && is_launched_by_explorer())
 		{
-			ShowInfo(update_run_manually_message);
+			ShowInfo(boost::locale::translate("You have launched the updater for Streamlabs Desktop, which can't work on its own. Please launch the Desktop App and it will check for updates automatically.\nIf you're having issues you can download the latest version from https://streamlabs.com/."));
 			save_exit_error("Launched manually");
 		} else if (is_system_folder(params.app_dir)) {
-			ShowInfo(update_system_folder_message);
+			ShowInfo(boost::locale::translate("Streamlabs Desktop installed in a system folder. Automatic updated has been disabled to prevent changes to a system folder. \nPlease install the latest version of Streamlabs Desktop from https://streamlabs.com/"));
 			save_exit_error("App installed in a system folder. Skip update.");
 		} else {
-			ShowError(update_failed_message);
+			ShowError(getDefaultErrorMessage());
 			save_exit_error("Failed parsing arguments");
 		}
 		handle_exit();
@@ -792,11 +808,11 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 		{
 			if (cb_impl.finished_downloading)
 			{
-				ShowInfo(update_cannot_start_app);
+				ShowInfo(boost::locale::translate("The application has finished updating.\nPlease manually start Streamlabs Desktop."));
 			}
 			else
 			{
-				ShowError(update_cannot_update_or_start);
+				ShowError(boost::locale::translate("There was an issue launching the application.\nPlease start Streamlabs Desktop and try again."));
 			}
 
 			if (cb_impl.should_start)
