@@ -44,6 +44,8 @@ std::string urlencode(const std::string& url);
 
 std::string calculate_files_checksum(fs::path &path);
 
+void setup_locale();
+
 /* Because Windows doesn't provide us a Unicode
  * command line by default and the command line
  * it does provide us is in UTF-16LE. */

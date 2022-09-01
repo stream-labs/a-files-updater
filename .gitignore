@@ -5,3 +5,5 @@ test/testfiles
 /.vscode
 /build*
 .vs/
+
+*messages.mo
