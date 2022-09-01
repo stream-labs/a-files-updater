@@ -728,21 +728,21 @@ BOOL HasInstalled_VC_redistx64()
 
 void exit_on_init_fail(MultiByteCommandLine &command_line)
 {
-		if (command_line.argc() == 1 && is_launched_by_explorer())
-		{
-			ShowInfo(boost::locale::translate("You have launched the updater for Streamlabs Desktop, which can't work on its own. Please launch the Desktop App and it will check for updates automatically.\nIf you're having issues you can download the latest version from https://streamlabs.com/."));
-			save_exit_error("Launched manually");
-		} else if (is_system_folder(params.app_dir)) {
-			ShowInfo(boost::locale::translate("Streamlabs Desktop installed in a system folder. Automatic updated has been disabled to prevent changes to a system folder. \nPlease install the latest version of Streamlabs Desktop from https://streamlabs.com/"));
-			save_exit_error("App installed in a system folder. Skip update.");
-		} else {
-			ShowError(getDefaultErrorMessage());
-			save_exit_error("Failed parsing arguments");
-		}
-		handle_exit();
+	if (command_line.argc() == 1 && is_launched_by_explorer())
+	{
+		ShowInfo(boost::locale::translate("You have launched the updater for Streamlabs Desktop, which can't work on its own. Please launch the Desktop App and it will check for updates automatically.\nIf you're having issues you can download the latest version from https://streamlabs.com/."));
+		save_exit_error("Launched manually");
+	} else if (is_system_folder(params.app_dir)) {
+		ShowInfo(boost::locale::translate("Streamlabs Desktop installed in a system folder. Automatic updated has been disabled to prevent changes to a system folder. \nPlease install the latest version of Streamlabs Desktop from https://streamlabs.com/"));
+		save_exit_error("App installed in a system folder. Skip update.");
+	} else {
+		ShowError(getDefaultErrorMessage());
+		save_exit_error("Failed parsing arguments");
+	}
+	handle_exit();
 }
 
-extern "C" int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnused, int nCmdShow) 
+extern "C" int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnused, int nCmdShow)
 {
 	setup_locale();
 
@@ -760,10 +760,10 @@ extern "C" int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpC
 		return 0;
 	}
 
-	auto client_deleter = [](struct update_client *client) {
+	auto client_deleter = [](struct update_client *client)
+	{
 		destroy_update_client(client);
 	};
-
 
 	std::unique_ptr<struct update_client, decltype(client_deleter)>
 		client(create_update_client(&params), client_deleter);
@@ -774,7 +774,7 @@ extern "C" int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpC
 	update_client_set_pid_events(client.get(), &cb_impl);
 	update_client_set_blocker_events(client.get(), &cb_impl);
 	update_client_set_installer_events(client.get(), &cb_impl);
-	
+
 	cb_impl.initialize(client.get());
 
 	std::thread workerThread([&]()
@@ -798,9 +798,9 @@ extern "C" int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpC
 	if (cb_impl.should_start || params.restart_on_fail || !cb_impl.finished_downloading)
 	{
 		bool app_started = false;
-		if( params.restart_on_fail || !cb_impl.finished_downloading)
+		if (params.restart_on_fail || !cb_impl.finished_downloading)
 			app_started = StartApplication(params.exec_no_update.c_str(), params.exec_cwd.c_str());
-		else 
+		else
 			app_started = StartApplication(params.exec.c_str(), params.exec_cwd.c_str());
 
 		// If failed to launch desktop app...
