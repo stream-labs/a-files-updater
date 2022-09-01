@@ -148,5 +148,3 @@ add_custom_command(
 install(FILES $<TARGET_PDB_FILE:slobs-updater> DESTINATION ${CMAKE_INSTALL_PREFIX} OPTIONAL)
 
 install(FILES $<TARGET_FILE:slobs-updater> DESTINATION ${CMAKE_INSTALL_PREFIX})
-
-#install(DIRECTORY locale/ DESTINATION locale FILES_MATCHING PATTERN "*.mo")
