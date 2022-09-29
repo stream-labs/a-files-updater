@@ -1,13 +1,12 @@
-# Hungarian translations for PACKAGE package.
-# Copyright (C) 2022 THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the PACKAGE package.
-# <EMAIL@ADDRESS>, 2022.
+# Hungarian translations for a-file-updater package.
+# Copyright (C) 2016-2022 by Streamlabs (General Workings Inc)
+# This file is distributed under the same license as the a-file-updater package.
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-08-29 21:57-0700\n"
+"POT-Creation-Date: 2022-09-29 11:34-0700\n"
 "PO-Revision-Date: 2022-08-29 21:43-0700\n"
 "Last-Translator: <EMAIL@ADDRESS>\n"
 "Language-Team: Hungarian\n"
@@ -57,7 +56,7 @@ msgstr ""
 msgid "Copying files..."
 msgstr ""
 
-#: src\main.cc:750
+#: src\main.cc:733
 msgid ""
 "You have launched the updater for Streamlabs Desktop, which can't work on "
 "its own. Please launch the Desktop App and it will check for updates "
@@ -66,7 +65,7 @@ msgid ""
 "streamlabs.com/."
 msgstr ""
 
-#: src\main.cc:753
+#: src\main.cc:736
 msgid ""
 "Streamlabs Desktop installed in a system folder. Automatic updated has been "
 "disabled to prevent changes to a system folder. \n"
