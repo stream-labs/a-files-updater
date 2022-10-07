@@ -5,7 +5,6 @@
 #include <functional>
 #include <numeric>
 
-
 #include <fmt/format.h>
 
 #include "cli-parser.hpp"
@@ -36,12 +35,15 @@ const int ui_basic_height = 40;
 
 bool update_completed = false;
 
-const std::string update_failed_message = "The automatic update failed to perform successfully.\nPlease install the latest version of Streamlabs Desktop from https://streamlabs.com/";
-const std::string update_run_manually_message = "You have launched the updater for Streamlabs Desktop, which can't work on its own. Please launch the Desktop App and it will check for updates automatically.\nIf you're having issues you can download the latest version from https://streamlabs.com/.";
-const std::string update_system_folder_message = "Streamlabs Desktop installed in a system folder. Automatic updated has been disabled to prevent changes to a system folder. \nPlease install the latest version of Streamlabs Desktop from https://streamlabs.com/";
+const std::string update_failed_message =
+	"The automatic update failed to perform successfully.\nPlease install the latest version of Streamlabs Desktop from https://streamlabs.com/";
+const std::string update_run_manually_message =
+	"You have launched the updater for Streamlabs Desktop, which can't work on its own. Please launch the Desktop App and it will check for updates automatically.\nIf you're having issues you can download the latest version from https://streamlabs.com/.";
+const std::string update_system_folder_message =
+	"Streamlabs Desktop installed in a system folder. Automatic updated has been disabled to prevent changes to a system folder. \nPlease install the latest version of Streamlabs Desktop from https://streamlabs.com/";
 const std::string update_cannot_start_app = "The application has finished updating.\nPlease manually start Streamlabs Desktop.";
 const std::string update_cannot_update_or_start = "There was an issue launching the application.\nPlease start Streamlabs Desktop and try again.";
-void ShowError(const std::string & message)
+void ShowError(const std::string &message)
 {
 	std::wstring wmessage = ConvertToUtf16WS(message);
 	if (wmessage.size()) {
@@ -51,7 +53,7 @@ void ShowError(const std::string & message)
 	}
 }
 
-void ShowInfo(const std::string & message)
+void ShowInfo(const std::string &message)
 {
 	std::wstring wmessage = ConvertToUtf16WS(message);
 	if (wmessage.size()) {
@@ -66,91 +68,82 @@ struct bandwidth_chunk {
 	size_t chunk_size;
 };
 
-
 static LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-static LRESULT CALLBACK ProgressLabelWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR  uIdSubclass, DWORD_PTR dwRefData);
-static LRESULT CALLBACK BlockersListWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR  uIdSubclass, DWORD_PTR dwRefData);
+static LRESULT CALLBACK ProgressLabelWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
+static LRESULT CALLBACK BlockersListWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData);
 
 static BOOL HasInstalled_VC_redistx64();
 
-struct callbacks_impl :
-	public
-	install_callbacks,
-	client_callbacks,
-	downloader_callbacks,
-	updater_callbacks,
-	pid_callbacks,
-	blocker_callbacks
-{
-	int screen_width{ 0 };
-	int screen_height{ 0 };
-	int width{ 500 };
-	int height{ ui_basic_height*4+ui_padding*2 };
+struct callbacks_impl : public install_callbacks, client_callbacks, downloader_callbacks, updater_callbacks, pid_callbacks, blocker_callbacks {
+	int screen_width{0};
+	int screen_height{0};
+	int width{500};
+	int height{ui_basic_height * 4 + ui_padding * 2};
 
-	HWND frame{ NULL }; /* Toplevel window */
-	HWND progress_worker{ NULL };
-	HWND progress_label{ NULL };
-	HWND blockers_list{ NULL };
-	HWND kill_button{ NULL };
-	HWND cancel_button{ NULL };
+	HWND frame{NULL}; /* Toplevel window */
+	HWND progress_worker{NULL};
+	HWND progress_label{NULL};
+	HWND blockers_list{NULL};
+	HWND kill_button{NULL};
+	HWND cancel_button{NULL};
 
-	std::atomic_uint files_done{ 0 };
-	std::vector<size_t> file_sizes{ 0 };
-	size_t num_files{ 0 };
-	int num_workers{ 0 };
-	int package_dl_pct100{ 0 };
+	std::atomic_uint files_done{0};
+	std::vector<size_t> file_sizes{0};
+	size_t num_files{0};
+	int num_workers{0};
+	int package_dl_pct100{0};
 	high_resolution_clock::time_point start_time;
-	size_t total_consumed{ 0 };
-	size_t total_consumed_last_tick{ 0 };
-	std::list<double>  last_bandwidths;
-	std::atomic<double> last_calculated_bandwidth{ 0.0 };
+	size_t total_consumed{0};
+	size_t total_consumed_last_tick{0};
+	std::list<double> last_bandwidths;
+	std::atomic<double> last_calculated_bandwidth{0.0};
 	std::string error_buf{};
-	bool should_start{ false };
-	bool should_cancel{ false };
-	bool should_kill_blockers{ false };
-	bool notify_restart{ false };
-	bool finished_downloading { false };
-	LPCWSTR label_format{ L"Downloading {} of {} - {:.2f} MB/s" };
+	bool should_start{false};
+	bool should_cancel{false};
+	bool should_kill_blockers{false};
+	bool notify_restart{false};
+	bool finished_downloading{false};
+	LPCWSTR label_format{L"Downloading {} of {} - {:.2f} MB/s"};
 
-	callbacks_impl(const callbacks_impl&) = delete;
-	callbacks_impl(const callbacks_impl&&) = delete;
-	callbacks_impl &operator=(const callbacks_impl&) = delete;
-	callbacks_impl &operator=(callbacks_impl&&) = delete;
+	callbacks_impl(const callbacks_impl &) = delete;
+	callbacks_impl(const callbacks_impl &&) = delete;
+	callbacks_impl &operator=(const callbacks_impl &) = delete;
+	callbacks_impl &operator=(callbacks_impl &&) = delete;
 
 	explicit callbacks_impl(HINSTANCE hInstance, int nCmdShow);
 	~callbacks_impl();
 
 	void initialize(struct update_client *client) final;
 	void success() final;
-	void error(const std::string & error, const std::string & error_type) final;
+	void error(const std::string &error, const std::string &error_type) final;
 
 	void downloader_preparing() final;
 	void downloader_start(int num_threads, size_t num_files_) final;
 	void download_file(int thread_index, std::string &relative_path, size_t size);
 	void download_progress(int thread_index, size_t consumed, size_t accum) final;
-	void download_worker_finished(int thread_index) final { }
+	void download_worker_finished(int thread_index) final {}
 	void downloader_complete(const bool success) final;
 	static void bandwidth_tick(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime);
-	
-	void installer_download_start(const std::string& packageName) final;
-	void installer_download_progress(const double pct) final;
-	void installer_run_file(const std::string& packageName, const std::string& startParams, const std::string& rawFileBin) final;
-	void installer_package_failed(const std::string& packageName, const std::string& message) final;
 
-	void pid_start() final { }
-	void pid_waiting_for(uint64_t pid) final { }
-	void pid_wait_finished(uint64_t pid) final { }
-	void pid_wait_complete() final { }
+	void installer_download_start(const std::string &packageName) final;
+	void installer_download_progress(const double pct) final;
+	void installer_run_file(const std::string &packageName, const std::string &startParams, const std::string &rawFileBin) final;
+	void installer_package_failed(const std::string &packageName, const std::string &message) final;
+
+	void pid_start() final {}
+	void pid_waiting_for(uint64_t pid) final {}
+	void pid_wait_finished(uint64_t pid) final {}
+	void pid_wait_complete() final {}
 
 	void blocker_start() final;
 	int blocker_waiting_for(const std::wstring &processes_list, bool list_changed) final;
 	void blocker_wait_complete() final;
 
 	void updater_start() final;
-	void update_file(std::string &filename) final { }
-	void update_finished(std::string &filename) final { }
-	void updater_complete() final { }
+	void update_file(std::string &filename) final {}
+	void update_finished(std::string &filename) final {}
+	void updater_complete() final {}
 };
 
 callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
@@ -169,13 +162,13 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	wc.hInstance = hInstance;
 	wc.hIcon = app_icon;
 	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wc.hbrBackground = CreateSolidBrush(RGB(23, 36, 45));;
+	wc.hbrBackground = CreateSolidBrush(RGB(23, 36, 45));
+	;
 	wc.lpszMenuName = NULL;
 	wc.lpszClassName = TEXT("UpdaterFrame");
 	wc.hIconSm = app_icon;
 
-	if (!RegisterClassEx(&wc))
-	{
+	if (!RegisterClassEx(&wc)) {
 		ShowError(update_failed_message);
 		LogLastError(L"RegisterClassEx");
 
@@ -187,29 +180,20 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	screen_height = GetSystemMetrics(SM_CYSCREEN);
 
 	/* FIXME: This feels a little dirty */
-	auto do_fail = [this](const std::string & user_msg, LPCWSTR context_msg) {
-		if (this->frame) DestroyWindow(this->frame);
+	auto do_fail = [this](const std::string &user_msg, LPCWSTR context_msg) {
+		if (this->frame)
+			DestroyWindow(this->frame);
 		ShowError(user_msg);
 		LogLastError(context_msg);
 		throw std::runtime_error("");
 	};
 
-	frame = CreateWindowEx(
-		WS_EX_CLIENTEDGE,
-		TEXT("UpdaterFrame"),
-		TEXT("Streamlabs Desktop Updater"),
-		WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU,
-		(screen_width - width) / 2,
-		(screen_height - height) / 2,
-		width, height,
-		NULL, NULL,
-		hInstance, NULL
-	);
+	frame = CreateWindowEx(WS_EX_CLIENTEDGE, TEXT("UpdaterFrame"), TEXT("Streamlabs Desktop Updater"), WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU, (screen_width - width) / 2,
+			       (screen_height - height) / 2, width, height, NULL, NULL, hInstance, NULL);
 
 	SetWindowLongPtr(frame, GWLP_USERDATA, (LONG_PTR)this);
 
-	if (!frame)
-	{
+	if (!frame) {
 		do_fail(update_failed_message, L"CreateWindowEx");
 	}
 
@@ -220,81 +204,45 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	int x_size = (rcParent.right - rcParent.left) - (x_pos * 2);
 	int y_pos = ((rcParent.bottom - rcParent.top) / 2) - (y_size / 2);
 
-	progress_worker = CreateWindow(
-		PROGRESS_CLASS,
-		TEXT("ProgressWorker"),
-		WS_CHILD | WS_VISIBLE | PBS_SMOOTH,
-		x_pos, y_pos,
-		x_size, y_size,
-		frame, NULL,
-		NULL, NULL
-	);
+	progress_worker = CreateWindow(PROGRESS_CLASS, TEXT("ProgressWorker"), WS_CHILD | WS_VISIBLE | PBS_SMOOTH, x_pos, y_pos, x_size, y_size, frame, NULL, NULL, NULL);
 
-	if (!progress_worker)
-	{
+	if (!progress_worker) {
 		do_fail(update_failed_message, L"CreateWindow");
 	}
-	
-	progress_label = CreateWindow(
-		WC_STATIC,
-		TEXT("Checking packages..."),
-		WS_CHILD | WS_VISIBLE | SS_CENTER | SS_CENTERIMAGE,
-		x_pos, ui_padding,
-		x_size, ui_basic_height,
-		frame, NULL,
-		NULL, NULL
-	);
 
-	if (!progress_label)
-	{
+	progress_label = CreateWindow(WC_STATIC, TEXT("Checking packages..."), WS_CHILD | WS_VISIBLE | SS_CENTER | SS_CENTERIMAGE, x_pos, ui_padding, x_size, ui_basic_height,
+				      frame, NULL, NULL, NULL);
+
+	if (!progress_label) {
 		do_fail(update_failed_message, L"CreateWindow");
 	}
 
 	success = SetWindowSubclass(progress_label, ProgressLabelWndProc, CLS_PROGRESS_LABEL, (DWORD_PTR)this);
 
-	if (!success)
-	{
+	if (!success) {
 		do_fail(update_failed_message, L"SetWindowSubclass");
 	}
 
-	blockers_list = CreateWindow(
-		WC_EDIT, 
-		L"Blockers list",
-		WS_CHILD | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_WANTRETURN | ES_AUTOVSCROLL | WS_BORDER  | ES_READONLY ,
-		x_pos, y_pos, x_size, ui_basic_height * 2,
-		frame,
-		NULL, NULL, NULL);
+	blockers_list = CreateWindow(WC_EDIT, L"Blockers list", WS_CHILD | WS_VSCROLL | ES_LEFT | ES_MULTILINE | ES_WANTRETURN | ES_AUTOVSCROLL | WS_BORDER | ES_READONLY, x_pos,
+				     y_pos, x_size, ui_basic_height * 2, frame, NULL, NULL, NULL);
 
 	success = SetWindowSubclass(blockers_list, BlockersListWndProc, CLS_BLOCKERS_LIST, (DWORD_PTR)this);
 
-	if (!success)
-	{
+	if (!success) {
 		do_fail(update_failed_message, L"SetWindowSubclass");
 	}
 
-	kill_button = CreateWindow(
-		WC_BUTTON,
-		L"Stop all",
-		WS_TABSTOP | WS_CHILD | BS_DEFPUSHBUTTON,
-		x_size + ui_padding - 100, rcParent.bottom - rcParent.top , 100, ui_basic_height,
-		frame,
-		NULL, NULL, NULL);
+	kill_button = CreateWindow(WC_BUTTON, L"Stop all", WS_TABSTOP | WS_CHILD | BS_DEFPUSHBUTTON, x_size + ui_padding - 100, rcParent.bottom - rcParent.top, 100,
+				   ui_basic_height, frame, NULL, NULL, NULL);
 
-	cancel_button = CreateWindow(
-		WC_BUTTON,
-		L"Cancel",
-		WS_TABSTOP | WS_CHILD | BS_DEFPUSHBUTTON,
-		x_size + ui_padding - 100 - ui_padding - 100, rcParent.bottom - rcParent.top , 100, ui_basic_height,
-		frame,
-		NULL, NULL, NULL);
+	cancel_button = CreateWindow(WC_BUTTON, L"Cancel", WS_TABSTOP | WS_CHILD | BS_DEFPUSHBUTTON, x_size + ui_padding - 100 - ui_padding - 100, rcParent.bottom - rcParent.top,
+				     100, ui_basic_height, frame, NULL, NULL, NULL);
 
 	SendMessage(progress_worker, PBM_SETBARCOLOR, 0, RGB(49, 195, 162));
 	SendMessage(progress_worker, PBM_SETRANGE32, 0, INT_MAX);
 }
 
-callbacks_impl::~callbacks_impl()
-{
-}
+callbacks_impl::~callbacks_impl() {}
 
 void callbacks_impl::initialize(struct update_client *client)
 {
@@ -304,7 +252,6 @@ void callbacks_impl::initialize(struct update_client *client)
 	// ; todo, maybe more msi/exe packages?
 	if (!HasInstalled_VC_redistx64())
 		register_install_package(client, "Visual C++ Redistributable", "https://slobs-cdn.streamlabs.com/VC_redist.x64.exe", "/passive /norestart");
-	
 }
 
 void callbacks_impl::success()
@@ -313,7 +260,7 @@ void callbacks_impl::success()
 	PostMessage(frame, CUSTOM_CLOSE_MSG, NULL, NULL);
 }
 
-void callbacks_impl::error(const std::string & error, const std::string & error_type)
+void callbacks_impl::error(const std::string &error, const std::string &error_type)
 {
 	this->error_buf = error;
 	save_exit_error(error_type);
@@ -324,7 +271,7 @@ void callbacks_impl::error(const std::string & error, const std::string & error_
 void callbacks_impl::downloader_preparing()
 {
 	LONG_PTR data = GetWindowLongPtr(frame, GWLP_USERDATA);
-	auto ctx = reinterpret_cast<callbacks_impl*>(data);
+	auto ctx = reinterpret_cast<callbacks_impl *>(data);
 
 	SetWindowTextW(ctx->progress_label, L"Checking local files...");
 }
@@ -356,17 +303,14 @@ void callbacks_impl::bandwidth_tick(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWOR
 	double bandwidth = (double)(ctx->total_consumed - ctx->total_consumed_last_tick);
 	ctx->total_consumed_last_tick = ctx->total_consumed;
 
-
 	ctx->last_bandwidths.push_back(bandwidth);
-	while (ctx->last_bandwidths.size() > max_bandwidth_in_average)
-	{
+	while (ctx->last_bandwidths.size() > max_bandwidth_in_average) {
 		ctx->last_bandwidths.pop_front();
 	}
 
 	double average_bandwidth = std::accumulate(ctx->last_bandwidths.begin(), ctx->last_bandwidths.end(), 0.0);
 	//std::for_each(ctx->last_bandwidths.begin(), ctx->last_bandwidths.end(), [&average_bandwidth](double &n) { average_bandwidth+=n; });
-	if (ctx->last_bandwidths.size() > 0)
-	{
+	if (ctx->last_bandwidths.size() > 0) {
 		average_bandwidth /= ctx->last_bandwidths.size();
 	}
 
@@ -392,8 +336,7 @@ void callbacks_impl::download_progress(int thread_index, size_t consumed, size_t
 	 * progress the bar based on files_done + remainder of
 	 * all in-progress files done. */
 
-	if (accum != file_sizes[thread_index])
-	{
+	if (accum != file_sizes[thread_index]) {
 		return;
 	}
 
@@ -407,72 +350,66 @@ void callbacks_impl::download_progress(int thread_index, size_t consumed, size_t
 	PostMessage(progress_worker, PBM_SETPOS, pos, 0);
 	SetWindowTextW(progress_label, label.c_str());
 }
-	
-void callbacks_impl::installer_download_start(const std::string& packageName)
+
+void callbacks_impl::installer_download_start(const std::string &packageName)
 {
 	package_dl_pct100 = 0;
 	installer_download_progress(0);
 	SetWindowTextW(progress_label, (L"Downloading " + fmt::to_wstring(packageName) + L"...").c_str());
 }
-	
+
 void callbacks_impl::installer_download_progress(const double percent)
 {
 	// Too many PostMessage per/sec overwhelm gui refresh rate
 	int pct100 = int(percent * 100.0);
-	
-	if (pct100 > package_dl_pct100)
-	{
+
+	if (pct100 > package_dl_pct100) {
 		package_dl_pct100 = pct100;
 		PostMessage(progress_worker, PBM_SETPOS, static_cast<int>(percent * double(INT_MAX)), 0);
 	}
 }
-	
-void callbacks_impl::installer_package_failed(const std::string& packageName, const std::string& message)
+
+void callbacks_impl::installer_package_failed(const std::string &packageName, const std::string &message)
 {
 	if (message.empty())
-		MessageBoxA(frame, ("WARNING: Streamlabs Desktop was unable to download/install the required '" + packageName + "' package.").c_str(), "Package Installation", MB_OK | MB_ICONWARNING);
+		MessageBoxA(frame, ("WARNING: Streamlabs Desktop was unable to download/install the required '" + packageName + "' package.").c_str(), "Package Installation",
+			    MB_OK | MB_ICONWARNING);
 	else
-		MessageBoxA(frame, ("WARNING: Streamlabs Desktop was unable to download/install the required '" + packageName + "' package.\nError: " + message).c_str(), "Package Installation", MB_OK | MB_ICONWARNING);
-		
+		MessageBoxA(frame, ("WARNING: Streamlabs Desktop was unable to download/install the required '" + packageName + "' package.\nError: " + message).c_str(),
+			    "Package Installation", MB_OK | MB_ICONWARNING);
+
 	log_info(("installer_package_failed, message = " + message).c_str());
 }
-	
-void callbacks_impl::installer_run_file(const std::string& packageName, const std::string& startParams, const std::string& rawFileBin)
+
+void callbacks_impl::installer_run_file(const std::string &packageName, const std::string &startParams, const std::string &rawFileBin)
 {
 	DWORD dwExitCode = ERROR_SUCCESS;
-	
+
 	const std::string filename = "tempstreamlabspackage.exe";
 	std::ofstream outFile(filename, std::ios::out | std::ios::binary);
 
-	if (outFile.is_open())
-	{
+	if (outFile.is_open()) {
 		outFile.write(&rawFileBin[0], rawFileBin.size());
 		outFile.close();
-	}
-	else
-	{
+	} else {
 		dwExitCode = GetLastError();
 	}
 
-	if (dwExitCode == ERROR_SUCCESS)
-	{
+	if (dwExitCode == ERROR_SUCCESS) {
 		STARTUPINFOA si;
 		ZeroMemory(&si, sizeof(si));
 		si.cb = sizeof(si);
-	
+
 		PROCESS_INFORMATION pi;
 		ZeroMemory(&pi, sizeof(pi));
-	
-		if (CreateProcessA(filename.c_str(), LPSTR((filename + " " + startParams).c_str()), NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi))
-		{
+
+		if (CreateProcessA(filename.c_str(), LPSTR((filename + " " + startParams).c_str()), NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi)) {
 			WaitForSingleObject(pi.hProcess, INFINITE);
 			GetExitCodeProcess(pi.hProcess, &dwExitCode);
-	
+
 			CloseHandle(pi.hProcess);
 			CloseHandle(pi.hThread);
-		}
-		else
-		{
+		} else {
 			dwExitCode = GetLastError();
 		}
 	}
@@ -480,14 +417,11 @@ void callbacks_impl::installer_run_file(const std::string& packageName, const st
 	std::error_code ec;
 	fs::remove(filename, ec);
 
-	if (dwExitCode != ERROR_SUCCESS)
-	{
-		switch (dwExitCode)
-		{
+	if (dwExitCode != ERROR_SUCCESS) {
+		switch (dwExitCode) {
 		case ERROR_SUCCESS_REBOOT_INITIATED:
 		case ERROR_SUCCESS_REBOOT_REQUIRED:
-			if (!notify_restart && (notify_restart = true))
-			{
+			if (!notify_restart && (notify_restart = true)) {
 				// Silenced for now, needs to be raised again when the package(s) are factually required to run the application
 				//MessageBoxA(frame, "A restart is required to complete the update.", "Package Installation", MB_OK | MB_ICONWARNING);
 			}
@@ -496,7 +430,7 @@ void callbacks_impl::installer_run_file(const std::string& packageName, const st
 			installer_package_failed(packageName, "");
 			break;
 		}
-	
+
 		log_info("installer_run_file failed with error %d", dwExitCode);
 	}
 }
@@ -521,20 +455,17 @@ void callbacks_impl::blocker_start()
 	ShowWindow(cancel_button, SW_SHOW);
 }
 
-int callbacks_impl::blocker_waiting_for(const std::wstring & processes_list, bool list_changed)
+int callbacks_impl::blocker_waiting_for(const std::wstring &processes_list, bool list_changed)
 {
 	int ret = 0;
-	if (list_changed)
-	{
+	if (list_changed) {
 		SetWindowTextW(blockers_list, processes_list.c_str());
 	}
 
-	if (should_cancel)
-	{
+	if (should_cancel) {
 		should_cancel = false;
 		ret = 2;
-	} else if (should_kill_blockers)
-	{
+	} else if (should_kill_blockers) {
 		should_kill_blockers = false;
 		ret = 1;
 	}
@@ -559,7 +490,7 @@ void callbacks_impl::updater_start()
 	SetWindowTextW(progress_label, L"Copying files...");
 }
 
-LRESULT CALLBACK ProgressLabelWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR  uIdSubclass, DWORD_PTR dwRefData)
+LRESULT CALLBACK ProgressLabelWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
 {
 	switch (msg) {
 	case WM_SETTEXT: {
@@ -570,14 +501,13 @@ LRESULT CALLBACK ProgressLabelWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
 		MapWindowPoints(HWND_DESKTOP, parent, (LPPOINT)&rect, 2);
 
 		RedrawWindow(parent, &rect, NULL, RDW_ERASE | RDW_INVALIDATE);
-	}
-	break;
+	} break;
 	}
 
 	return DefSubclassProc(hwnd, msg, wParam, lParam);
 }
 
-LRESULT CALLBACK BlockersListWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR  uIdSubclass, DWORD_PTR dwRefData)
+LRESULT CALLBACK BlockersListWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
 {
 	switch (msg) {
 	case WM_HSCROLL:
@@ -590,8 +520,7 @@ LRESULT CALLBACK BlockersListWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
 		MapWindowPoints(HWND_DESKTOP, parent, (LPPOINT)&rect, 2);
 
 		RedrawWindow(parent, &rect, NULL, RDW_ERASE | RDW_INVALIDATE);
-	}
-	break;
+	} break;
 	}
 
 	return DefSubclassProc(hwnd, msg, wParam, lParam);
@@ -615,51 +544,44 @@ LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 		ShowError(ctx->error_buf);
 		ctx->error_buf = "";
-				
+
 		DestroyWindow(hwnd);
 
 		break;
 	}
-	case WM_COMMAND:
-	{
+	case WM_COMMAND: {
 		LONG_PTR user_data = GetWindowLongPtr(hwnd, GWLP_USERDATA);
 		auto ctx = reinterpret_cast<callbacks_impl *>(user_data);
 
-		if ((HWND)lParam == ctx->kill_button)
-		{
+		if ((HWND)lParam == ctx->kill_button) {
 			EnableWindow(ctx->kill_button, false);
 			ctx->should_kill_blockers = true;
 			break;
 		}
-		if ((HWND)lParam == ctx->cancel_button)
-		{
+		if ((HWND)lParam == ctx->cancel_button) {
 			EnableWindow(ctx->kill_button, false);
 			EnableWindow(ctx->cancel_button, false);
 			ctx->should_kill_blockers = false;
 			ctx->should_cancel = true;
 			break;
 		}
-	}
-		break;
-	case WM_CTLCOLORSTATIC:
-	{
+	} break;
+	case WM_CTLCOLORSTATIC: {
 		LONG_PTR user_data = GetWindowLongPtr(hwnd, GWLP_USERDATA);
 		auto ctx = reinterpret_cast<callbacks_impl *>(user_data);
 
-		if ((HWND)lParam != ctx->blockers_list)
-		{
+		if ((HWND)lParam != ctx->blockers_list) {
 			SetTextColor((HDC)wParam, RGB(255, 255, 255));
 			SetBkMode((HDC)wParam, TRANSPARENT);
 			return (LRESULT)GetStockObject(HOLLOW_BRUSH);
 		}
-	}
-	break;
+	} break;
 	}
 
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-LSTATUS GetStringRegKey(HKEY baseKey, const std::wstring& path, const std::wstring &strValueName, std::wstring &strValue)
+LSTATUS GetStringRegKey(HKEY baseKey, const std::wstring &path, const std::wstring &strValueName, std::wstring &strValue)
 {
 	HKEY hKey = nullptr;
 	LSTATUS ret = RegOpenKeyExW(baseKey, path.c_str(), 0, KEY_READ, &hKey);
@@ -680,26 +602,24 @@ LSTATUS GetStringRegKey(HKEY baseKey, const std::wstring& path, const std::wstri
 
 BOOL HasInstalled_VC_redistx64()
 {
-	std::wstring version;	
+	std::wstring version;
 	LSTATUS ret = GetStringRegKey(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Classes\\Installer\\Dependencies\\Microsoft.VS.VC_RuntimeAdditionalVSU_amd64,v14", L"Version", version);
 
-	if (ret == ERROR_SUCCESS)
-	{
+	if (ret == ERROR_SUCCESS) {
 		std::vector<std::wstring> versions;
 		boost::split(versions, version, boost::is_any_of("."));
 
 		// "Version"="14.30.30704"
-		if (versions.size() == 3)
-		{
+		if (versions.size() == 3) {
 			if (_wtoi(versions[0].c_str()) < 14)
 				return FALSE;
 
 			if (_wtoi(versions[0].c_str()) > 14)
 				return TRUE;
-			
+
 			if (_wtoi(versions[1].c_str()) < 30)
 				return FALSE;
-			
+
 			if (_wtoi(versions[1].c_str()) > 30)
 				return TRUE;
 
@@ -707,17 +627,15 @@ BOOL HasInstalled_VC_redistx64()
 			if (_wtoi(versions[2].c_str()) >= 30704)
 				return TRUE;
 		}
-	}
-	else
-	{
+	} else {
 		log_error("HasInstalledVcRedist GetStringRegKey, error %d", ret);
 	}
 
 	return FALSE;
 }
 
-extern "C"
-int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnused, int nCmdShow) {
+extern "C" int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnused, int nCmdShow)
+{
 
 	setup_crash_reporting();
 
@@ -727,10 +645,8 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 
 	update_completed = su_parse_command_line(command_line.argc(), command_line.argv(), &params);
 
-	if (!update_completed)
-	{
-		if (command_line.argc() == 1 && is_launched_by_explorer())
-		{
+	if (!update_completed) {
+		if (command_line.argc() == 1 && is_launched_by_explorer()) {
 			ShowInfo(update_run_manually_message);
 			save_exit_error("Launched manually");
 		} else if (is_system_folder(params.app_dir)) {
@@ -744,13 +660,9 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 		return 0;
 	}
 
-	auto client_deleter = [](struct update_client *client) {
-		destroy_update_client(client);
-	};
+	auto client_deleter = [](struct update_client *client) { destroy_update_client(client); };
 
-
-	std::unique_ptr<struct update_client, decltype(client_deleter)>
-		client(create_update_client(&params), client_deleter);
+	std::unique_ptr<struct update_client, decltype(client_deleter)> client(create_update_client(&params), client_deleter);
 
 	update_client_set_client_events(client.get(), &cb_impl);
 	update_client_set_downloader_events(client.get(), &cb_impl);
@@ -758,19 +670,17 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 	update_client_set_pid_events(client.get(), &cb_impl);
 	update_client_set_blocker_events(client.get(), &cb_impl);
 	update_client_set_installer_events(client.get(), &cb_impl);
-	
+
 	cb_impl.initialize(client.get());
 
-	std::thread workerThread([&]()
-		{
-			// Threaded because package installations come first which is blocking from the perspective of the file updater 
-			update_client_start(client.get());
-		});
+	std::thread workerThread([&]() {
+		// Threaded because package installations come first which is blocking from the perspective of the file updater
+		update_client_start(client.get());
+	});
 
 	MSG msg;
 
-	while (GetMessage(&msg, NULL, 0, 0) > 0)
-	{
+	while (GetMessage(&msg, NULL, 0, 0) > 0) {
 		TranslateMessage(&msg);
 		DispatchMessage(&msg);
 	}
@@ -779,23 +689,18 @@ int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnuse
 	update_client_flush(client.get());
 
 	/* Don't attempt start if application failed to update */
-	if (cb_impl.should_start || params.restart_on_fail || !cb_impl.finished_downloading)
-	{
+	if (cb_impl.should_start || params.restart_on_fail || !cb_impl.finished_downloading) {
 		bool app_started = false;
-		if( params.restart_on_fail || !cb_impl.finished_downloading)
+		if (params.restart_on_fail || !cb_impl.finished_downloading)
 			app_started = StartApplication(params.exec_no_update.c_str(), params.exec_cwd.c_str());
-		else 
+		else
 			app_started = StartApplication(params.exec.c_str(), params.exec_cwd.c_str());
 
 		// If failed to launch desktop app...
-		if (!app_started)
-		{
-			if (cb_impl.finished_downloading)
-			{
+		if (!app_started) {
+			if (cb_impl.finished_downloading) {
 				ShowInfo(update_cannot_start_app);
-			}
-			else
-			{
+			} else {
 				ShowError(update_cannot_update_or_start);
 			}
 

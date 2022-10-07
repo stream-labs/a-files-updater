@@ -9,8 +9,4 @@ struct uri_components {
 	std::string fragment;
 };
 
-bool su_parse_uri(
-  const char *uri,
-  size_t length,
-  struct uri_components *components
-);
+bool su_parse_uri(const char *uri, size_t length, struct uri_components *components);
