@@ -23,15 +23,15 @@ enum { LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR, LOG_FATAL };
 
 #define log_trace(...) log_log(LOG_TRACE, __FILE__, __LINE__, __VA_ARGS__)
 #define log_debug(...) log_log(LOG_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
-#define log_info(...)  log_log(LOG_INFO,  __FILE__, __LINE__, __VA_ARGS__)
-#define log_warn(...)  log_log(LOG_WARN,  __FILE__, __LINE__, __VA_ARGS__)
+#define log_info(...) log_log(LOG_INFO, __FILE__, __LINE__, __VA_ARGS__)
+#define log_warn(...) log_log(LOG_WARN, __FILE__, __LINE__, __VA_ARGS__)
 #define log_error(...) log_log(LOG_ERROR, __FILE__, __LINE__, __VA_ARGS__)
 #define log_fatal(...) log_log(LOG_FATAL, __FILE__, __LINE__, __VA_ARGS__)
 
 #define wlog_trace(...) wlog_log(LOG_TRACE, __FILE__, __LINE__, __VA_ARGS__)
 #define wlog_debug(...) wlog_log(LOG_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
-#define wlog_info(...)  wlog_log(LOG_INFO,  __FILE__, __LINE__, __VA_ARGS__)
-#define wlog_warn(...)  wlog_log(LOG_WARN,  __FILE__, __LINE__, __VA_ARGS__)
+#define wlog_info(...) wlog_log(LOG_INFO, __FILE__, __LINE__, __VA_ARGS__)
+#define wlog_warn(...) wlog_log(LOG_WARN, __FILE__, __LINE__, __VA_ARGS__)
 #define wlog_error(...) wlog_log(LOG_ERROR, __FILE__, __LINE__, __VA_ARGS__)
 #define wlog_fatal(...) wlog_log(LOG_FATAL, __FILE__, __LINE__, __VA_ARGS__)
 

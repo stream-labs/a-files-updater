@@ -3,23 +3,21 @@
 
 #pragma comment(lib, "Rstrtmgr.lib")
 
-bool get_blockers_list(fs::path & check_path, blockers_map_t &blockers)
+bool get_blockers_list(fs::path &check_path, blockers_map_t &blockers)
 {
 	bool ret = false;
 
 	DWORD dwSession = 0;
-	WCHAR szSessionKey[CCH_RM_SESSION_KEY + 1] = { 0 };
+	WCHAR szSessionKey[CCH_RM_SESSION_KEY + 1] = {0};
 	DWORD dwError;
 
 	dwError = RmStartSession(&dwSession, 0, szSessionKey);
-	
-	if (dwError == ERROR_SUCCESS)
-	{
+
+	if (dwError == ERROR_SUCCESS) {
 		PCWSTR pszFile = check_path.native().c_str();
 		dwError = RmRegisterResources(dwSession, 1, &pszFile, 0, NULL, 0, NULL);
 
-		if (dwError == ERROR_SUCCESS)
-		{
+		if (dwError == ERROR_SUCCESS) {
 			DWORD dwReason = 0;
 			UINT nProcInfoNeeded;
 			UINT nProcInfo = 1;
@@ -27,10 +25,8 @@ bool get_blockers_list(fs::path & check_path, blockers_map_t &blockers)
 
 			dwError = ERROR_MORE_DATA;
 
-			while (dwError != ERROR_SUCCESS)
-			{
-				if (rgpi != nullptr)
-				{
+			while (dwError != ERROR_SUCCESS) {
+				if (rgpi != nullptr) {
 					delete[] rgpi;
 					rgpi = nullptr;
 				}
@@ -38,58 +34,49 @@ bool get_blockers_list(fs::path & check_path, blockers_map_t &blockers)
 				rgpi = new RM_PROCESS_INFO[nProcInfo];
 				dwError = RmGetList(dwSession, &nProcInfoNeeded, &nProcInfo, rgpi, &dwReason);
 
-				if (dwError != ERROR_MORE_DATA)
-				{
+				if (dwError != ERROR_MORE_DATA) {
 					break;
 				}
 				nProcInfo = nProcInfoNeeded;
 			}
 
-			if (dwError == ERROR_SUCCESS)
-			{
-				for (unsigned int i = 0; i < nProcInfo; i++)
-				{
-					if (0)
-					{
+			if (dwError == ERROR_SUCCESS) {
+				for (unsigned int i = 0; i < nProcInfo; i++) {
+					if (0) {
 						log_debug("%d.ApplicationType = %d\n", i, rgpi[i].ApplicationType);
 						log_debug("%d.strAppName = %ls\n", i, rgpi[i].strAppName);
 						log_debug("%d.Process.dwProcessId = %d\n", i, rgpi[i].Process.dwProcessId);
 					}
 
 					std::unique_lock<std::mutex> ulock(blockers.mtx);
-					blockers.list.insert({ rgpi[i].Process.dwProcessId, rgpi[i] });
+					blockers.list.insert({rgpi[i].Process.dwProcessId, rgpi[i]});
 				}
 
 				ret = true;
-			}
-			else {
-				if (dwError == 5)
-				{
+			} else {
+				if (dwError == 5) {
 					RM_PROCESS_INFO unknown_locker_process;
 					unknown_locker_process.Process.dwProcessId = 0;
-					const WCHAR * unknown_name = L"Unknown Process\0";
-					memcpy( unknown_locker_process.strAppName, unknown_name, 32 );
+					const WCHAR *unknown_name = L"Unknown Process\0";
+					memcpy(unknown_locker_process.strAppName, unknown_name, 32);
 
 					std::unique_lock<std::mutex> ulock(blockers.mtx);
-					blockers.list.insert({ unknown_locker_process.Process.dwProcessId, unknown_locker_process });
+					blockers.list.insert({unknown_locker_process.Process.dwProcessId, unknown_locker_process});
 					ret = true;
 				}
 				log_debug("RmGetList for (%s) returned %d\n", check_path.u8string().c_str(), dwError);
 			}
 
-			if (rgpi != nullptr)
-			{
+			if (rgpi != nullptr) {
 				delete[] rgpi;
 				rgpi = nullptr;
 			}
-		}
-		else {
+		} else {
 			log_debug("RmRegisterResources(%ls) returned %d\n", check_path.u8string().c_str(), dwError);
 		}
 
 		RmEndSession(dwSession);
-	}
-	else {
+	} else {
 		log_error("RmStartSession returned %d\n", dwError);
 	}
 
@@ -121,18 +108,16 @@ bool get_blockers_names(blockers_map_t &blockers)
 	return ret;
 }
 
-bool check_file_updatable(fs::path & check_path, bool check_read, blockers_map_t &blockers)
+bool check_file_updatable(fs::path &check_path, bool check_read, blockers_map_t &blockers)
 {
 	bool ret = true;
 	const std::wstring path_str = check_path.generic_wstring();
-	
+
 	HANDLE hFile = CreateFile(path_str.c_str(), check_read ? GENERIC_READ : GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (hFile == INVALID_HANDLE_VALUE)
-	{
+	if (hFile == INVALID_HANDLE_VALUE) {
 		DWORD errorCode = GetLastError();
 
-		switch (errorCode)
-		{
+		switch (errorCode) {
 		case ERROR_SUCCESS:
 		case ERROR_FILE_NOT_FOUND:
 		case ERROR_PATH_NOT_FOUND:
@@ -140,12 +125,10 @@ bool check_file_updatable(fs::path & check_path, bool check_read, blockers_map_t
 			break;
 		case ERROR_SHARING_VIOLATION:
 		case ERROR_LOCK_VIOLATION:
-			if ( get_blockers_list(check_path, blockers) ) 
-			{
+			if (get_blockers_list(check_path, blockers)) {
 				ret = false;
-			}
-			else {
-				//if fail to get blocking process info we go old way 
+			} else {
+				//if fail to get blocking process info we go old way
 				throw update_exception_blocked();
 			}
 			break;
@@ -154,12 +137,10 @@ bool check_file_updatable(fs::path & check_path, bool check_read, blockers_map_t
 		case ERROR_WRITE_FAULT:
 		case ERROR_OPEN_FAILED:
 		default:
-			//its bad 
+			//its bad
 			throw update_exception_failed();
 		}
-	}
-	else
-	{
+	} else {
 		CloseHandle(hFile);
 	}
 	return ret;
