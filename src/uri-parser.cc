@@ -17,13 +17,9 @@ using std::regex_match;
  * sections of a URI for further validation.
  */
 
-bool su_parse_uri(
-  const char *uri,
-  size_t length,
-  struct uri_components *components
-) {
-	static const regex uri_regex(
-		"^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
+bool su_parse_uri(const char *uri, size_t length, struct uri_components *components)
+{
+	static const regex uri_regex("^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\\?([^#]*))?(#(.*))?");
 
 	cmatch matches;
 
