@@ -43,6 +43,9 @@ fi
 
 find . -type d \( \
     -path ./\*build -o \
+    -path ./src/argtable -o \
+    -path ./src/fmt/fmt -o \
+    -path ./src/iostreams -o \
     -path ./cmake \
 \) -prune -false -type f -o \
     -name '*.h' -or \
