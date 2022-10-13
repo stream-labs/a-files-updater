@@ -10,7 +10,12 @@ public:
 	unsigned char digest[SHA256_DIGEST_LENGTH]{};
 	typedef char char_type;
 
-	struct category : boost::iostreams::output, boost::iostreams::input, boost::iostreams::filter_tag, boost::iostreams::multichar_tag, boost::iostreams::closable_tag {};
+	struct category : boost::iostreams::output,
+			  boost::iostreams::input,
+			  boost::iostreams::filter_tag,
+			  boost::iostreams::multichar_tag,
+			  boost::iostreams::closable_tag {
+	};
 
 	/* FIXME TODO Signal that errors happened somehow */
 	sha256_filter() { SHA256_Init(&hasher); }
