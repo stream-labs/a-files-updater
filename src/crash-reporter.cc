@@ -19,8 +19,7 @@
 using boost::asio::ip::tcp;
 
 #ifdef SENTRY_HOST_NAME
-const std::string host = SENTRY_HOST_NAME
-const std::string protocol = "https";
+const std::string host = SENTRY_HOST_NAME const std::string protocol = "https";
 #else
 const std::string host = "sentry.io";
 const std::string protocol = "https";
@@ -48,12 +47,12 @@ std::time_t app_start_timestamp;
 
 std::string get_uuid() noexcept;
 std::string get_timestamp() noexcept;
-std::string get_logs_json() noexcept; 
+std::string get_logs_json() noexcept;
 
 double get_time_from_start() noexcept;
 
-std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo, std::string minidump_result) noexcept;
-int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump) noexcept;
+std::string prepare_crash_report(struct _EXCEPTION_POINTERS *ExceptionInfo, std::string minidump_result) noexcept;
+int send_crash_to_sentry_sync(const std::string &report_json, bool send_minidump) noexcept;
 
 void save_start_timestamp();
 std::string get_command_line() noexcept;
@@ -61,35 +60,32 @@ std::string get_current_dir() noexcept;
 std::string get_parent_process_path(bool only_first_parent) noexcept;
 
 void handle_exit() noexcept;
-void handle_crash(struct _EXCEPTION_POINTERS* ExceptionInfo, bool callAbort = true) noexcept;
+void handle_crash(struct _EXCEPTION_POINTERS *ExceptionInfo, bool callAbort = true) noexcept;
 
-void print_stacktrace_sym(CONTEXT* ctx, std::ostringstream & report_stream) noexcept; //Prints stack trace based on context record
+void print_stacktrace_sym(CONTEXT *ctx, std::ostringstream &report_stream) noexcept; //Prints stack trace based on context record
 
-std::string create_mini_dump(EXCEPTION_POINTERS* pep) noexcept;
+std::string create_mini_dump(EXCEPTION_POINTERS *pep) noexcept;
 
-std::string escapeJsonString(const std::string& input) noexcept;
+std::string escapeJsonString(const std::string &input) noexcept;
 
 #include "dbghelp.h"
-#pragma comment(lib,"Dbghelp.lib")
+#pragma comment(lib, "Dbghelp.lib")
 
-std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo, std::string minidump_result) noexcept
+std::string prepare_crash_report(struct _EXCEPTION_POINTERS *ExceptionInfo, std::string minidump_result) noexcept
 {
 	std::ostringstream json_report;
 
 	json_report << "{";
 	json_report << "	\"event_id\": \"" << get_uuid() << "\", ";
 	json_report << "	\"timestamp\": \"" << get_timestamp() << "\", ";
-	if (send_manual_backtrace)
-	{
+	if (send_manual_backtrace) {
 		json_report << "	\"exception\": {\"values\":[{";
-		if (ExceptionInfo)
-		{
+		if (ExceptionInfo) {
 			json_report << "		\"type\": \"" << ExceptionInfo->ExceptionRecord->ExceptionCode << "\", ";
 		}
 		json_report << "		\"thread_id\": \"" << std::this_thread::get_id() << "\", ";
 
-		if (ExceptionInfo)
-		{
+		if (ExceptionInfo) {
 			std::string method;
 			json_report << "		\"stacktrace\": { \"frames\" : [";
 			print_stacktrace_sym(ExceptionInfo->ContextRecord, json_report);
@@ -99,20 +95,26 @@ std::string prepare_crash_report(struct _EXCEPTION_POINTERS* ExceptionInfo, std:
 	} else if (!ExceptionInfo && minidump_result.size() == 0) {
 		json_report << "	\"exception\": [{";
 		json_report << "		\"type\": \"" << last_error_type << "\", ";
-		json_report << "		\"value\": \"" << last_error_type << "\" "; 
+		json_report << "		\"value\": \"" << last_error_type << "\" ";
 		json_report << "	}], ";
 	}
 	json_report << "	\"tags\": { ";
 	json_report << "		\"app_build_timestamp\": \"" << __DATE__ << " " << __TIME__ << "\", ";
 	if (!minidump_result.size())
-		json_report << "		\"report_type\": \"" << "catched_error" << "\", ";
-	json_report << "		\"updater_version\": \"" << "v0.0.26" << "\", ";
-	json_report << "		\"os_version\": \"" << "WIN32" << "\" ";
+		json_report << "		\"report_type\": \""
+			    << "catched_error"
+			    << "\", ";
+	json_report << "		\"updater_version\": \""
+		    << "v0.0.26"
+		    << "\", ";
+	json_report << "		\"os_version\": \""
+		    << "WIN32"
+		    << "\" ";
 	json_report << "	}, ";
 	json_report << "	\"extra\": { ";
 	json_report << "		\"app_run_time\": \"" << get_time_from_start() << "\", ";
 	json_report << "		\"app_logs_listing\": " << get_logs_json() << " , ";
-	if(minidump_result.size())
+	if (minidump_result.size())
 		json_report << "		\"minidump_result\": \"" << minidump_result << "\", ";
 	json_report << "		\"console_args\": \"" << get_command_line() << "\", ";
 	json_report << "		\"current_dir\": \"" << get_current_dir() << "\", ";
@@ -140,8 +142,7 @@ bool is_launched_by_explorer()
 
 	const std::string explorer_exe = "explorer.exe";
 	if (parent_path.size() >= explorer_exe.size())
-		return std::equal(explorer_exe.rbegin(), explorer_exe.rend(), parent_path.rbegin(),
-			[](char a, char b) { return tolower(a) == tolower(b); });
+		return std::equal(explorer_exe.rbegin(), explorer_exe.rend(), parent_path.rbegin(), [](char a, char b) { return tolower(a) == tolower(b); });
 
 	return false;
 }
@@ -156,45 +157,35 @@ std::string get_parent_process_path(bool only_first_parent) noexcept
 
 	hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 
-	if (hSnapshot != INVALID_HANDLE_VALUE)
-	{
+	if (hSnapshot != INVALID_HANDLE_VALUE) {
 		DWORD last_ppid = pid;
 		bool found = false;
-		do
-		{
+		do {
 			found = false;
 			ZeroMemory(&pe32, sizeof(pe32));
 			pe32.dwSize = sizeof(pe32);
-			if (Process32First(hSnapshot, &pe32))
-			{
-				do
-				{
-					if (pe32.th32ProcessID == last_ppid)
-					{
+			if (Process32First(hSnapshot, &pe32)) {
+				do {
+					if (pe32.th32ProcessID == last_ppid) {
 						last_ppid = pe32.th32ParentProcessID;
 						found = true;
 						parents_pids.push_back(last_ppid);
 						break;
 					}
 				} while (Process32Next(hSnapshot, &pe32));
-			}
-			else
+			} else
 				break;
 		} while (found && !only_first_parent);
 		CloseHandle(hSnapshot);
 	}
 
-	if (parents_pids.size() > 0)
-	{
-		for (DWORD ppid : parents_pids)
-		{
+	if (parents_pids.size() > 0) {
+		for (DWORD ppid : parents_pids) {
 			HANDLE parent_handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, ppid);
-			if (parent_handle)
-			{
+			if (parent_handle) {
 				WCHAR path_buffer[MAX_PATH];
 				DWORD lenght = GetModuleFileNameEx(parent_handle, 0, path_buffer, MAX_PATH);
-				if (lenght)
-				{
+				if (lenght) {
 					parent_path += std::wstring(path_buffer, lenght);
 				} else {
 					parent_path += std::to_wstring(ppid);
@@ -216,25 +207,24 @@ std::string get_parent_process_path(bool only_first_parent) noexcept
 	return ret;
 }
 
-std::string create_mini_dump(EXCEPTION_POINTERS* pep) noexcept
+std::string create_mini_dump(EXCEPTION_POINTERS *pep) noexcept
 {
 	std::string ret = "successfully";
-	
+
 	HANDLE hFile = CreateFile(minidump_filenamew.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
-	if ((hFile != NULL) && (hFile != INVALID_HANDLE_VALUE))
-	{
+	if ((hFile != NULL) && (hFile != INVALID_HANDLE_VALUE)) {
 		MINIDUMP_EXCEPTION_INFORMATION mdei = {0};
 
 		mdei.ThreadId = GetCurrentThreadId();
 		mdei.ExceptionPointers = pep;
 		mdei.ClientPointers = TRUE;
 
-		const DWORD CD_Flags = MiniDumpWithDataSegs | MiniDumpWithHandleData | MiniDumpScanMemory | MiniDumpWithUnloadedModules | MiniDumpWithIndirectlyReferencedMemory | MiniDumpWithPrivateReadWriteMemory | MiniDumpWithFullMemoryInfo | MiniDumpWithThreadInfo | MiniDumpIgnoreInaccessibleMemory;
+		const DWORD CD_Flags = MiniDumpWithDataSegs | MiniDumpWithHandleData | MiniDumpScanMemory | MiniDumpWithUnloadedModules | MiniDumpWithIndirectlyReferencedMemory |
+				       MiniDumpWithPrivateReadWriteMemory | MiniDumpWithFullMemoryInfo | MiniDumpWithThreadInfo | MiniDumpIgnoreInaccessibleMemory;
 
 		BOOL rv = MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, (MINIDUMP_TYPE)CD_Flags, (pep != 0) ? &mdei : 0, 0, 0);
-		if(!rv)
-		{
+		if (!rv) {
 			ret = "failed to generate minidump: " + std::to_string(GetLastError());
 		}
 
@@ -245,17 +235,15 @@ std::string create_mini_dump(EXCEPTION_POINTERS* pep) noexcept
 	return ret;
 }
 
-int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump = true) noexcept
+int send_crash_to_sentry_sync(const std::string &report_json, bool send_minidump = true) noexcept
 {
-	try
-	{
+	try {
 		boost::asio::ssl::context context(boost::asio::ssl::context::sslv23);
 
 		context.set_default_verify_paths();
 
 		boost::asio::io_service io_service;
 		boost::asio::ssl::stream<boost::asio::ip::tcp::socket> ssl_socket(io_service, context);
-
 
 		tcp::resolver resolver(io_service);
 		tcp::resolver::query query(host, protocol);
@@ -264,21 +252,18 @@ int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump
 
 		tcp::socket socket(io_service);
 		boost::system::error_code error = boost::asio::error::host_not_found;
-		while (error && endpoint_iterator != end)
-		{
+		while (error && endpoint_iterator != end) {
 			ssl_socket.lowest_layer().close();
 			boost::asio::connect(ssl_socket.lowest_layer(), endpoint_iterator, error);
 
-			if (!error)
-			{
+			if (!error) {
 				ssl_socket.set_verify_mode(boost::asio::ssl::verify_none);
 				ssl_socket.handshake(boost::asio::ssl::stream_base::client);
 				break;
 			}
 			endpoint_iterator++;
 		}
-		if (error)
-		{
+		if (error) {
 			throw boost::system::system_error(error);
 		}
 
@@ -291,15 +276,14 @@ int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump
 		if (send_minidump) {
 			try {
 				minidump_file_size = fs::file_size(minidump_filename);
-			}
-			catch (...)
-			{
+			} catch (...) {
 				minidump_file_size = 0;
 			}
 			//Calculate length of entire HTTP request - goes into header
 			long long lengthOfRequest = 0;
 			lengthOfRequest += PREFIX.length() + BOUNDARY.length() + NEWLINE_LENGTH;
-			lengthOfRequest += (std::string("Content-Disposition: form-data; name=\"upload_file_minidump\"; filename=\"") + minidump_filename + std::string("\"")).length();
+			lengthOfRequest +=
+				(std::string("Content-Disposition: form-data; name=\"upload_file_minidump\"; filename=\"") + minidump_filename + std::string("\"")).length();
 			lengthOfRequest += NEWLINE_LENGTH + NEWLINE_LENGTH;
 			lengthOfRequest += minidump_file_size;
 			lengthOfRequest += NEWLINE_LENGTH + PREFIX.length() + BOUNDARY.length() + NEWLINE_LENGTH;
@@ -307,7 +291,7 @@ int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump
 			lengthOfRequest += std::string("Content-Disposition: form-data; name=\"sentry\"").length();
 			lengthOfRequest += NEWLINE_LENGTH + NEWLINE_LENGTH;
 			lengthOfRequest += report_json.size();
-			lengthOfRequest += NEWLINE_LENGTH + PREFIX.length() + BOUNDARY.length() + PREFIX.length() + NEWLINE_LENGTH;// + NEWLINE_LENGTH;
+			lengthOfRequest += NEWLINE_LENGTH + PREFIX.length() + BOUNDARY.length() + PREFIX.length() + NEWLINE_LENGTH; // + NEWLINE_LENGTH;
 
 			boost::asio::streambuf request;
 			std::ostream request_stream(&request);
@@ -320,9 +304,11 @@ int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump
 			request_stream << "Accept-language: 'en-US,en;q=0.9,ru;q=0.8'" << NEWLINE;
 			request_stream << "Connection: close" << NEWLINE;
 			request_stream << "X-Sentry-Auth: Sentry sentry_version=5,sentry_client=slobs_updater/";
-			request_stream << "1.0.0" << ",sentry_timestamp=" << get_timestamp();
+			request_stream << "1.0.0"
+				       << ",sentry_timestamp=" << get_timestamp();
 			request_stream << ",sentry_key=" << SENTRY_PROJECT_KEY;
-			request_stream << ",sentry_secret=" << "654ed1db5d93495284f66f3d6d195790";
+			request_stream << ",sentry_secret="
+				       << "654ed1db5d93495284f66f3d6d195790";
 			request_stream << NEWLINE;
 
 			request_stream << "Content-Length: " << lengthOfRequest << NEWLINE;
@@ -342,21 +328,17 @@ int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump
 			try {
 				std::ifstream is(minidump_filename.c_str(), std::ios::in | std::ios::binary);
 
-				while ((bytes_read = is.read(minidump_buf, minidump_buf_size).gcount()) > 0)
-				{
+				while ((bytes_read = is.read(minidump_buf, minidump_buf_size).gcount()) > 0) {
 					boost::asio::write(ssl_socket, boost::asio::buffer(minidump_buf, bytes_read));
 					total_bytes_sent += bytes_read;
 				}
-			}
-			catch (...) {
+			} catch (...) {
 			}
 
-			if (total_bytes_sent < minidump_file_size)
-			{
+			if (total_bytes_sent < minidump_file_size) {
 				memset(minidump_buf, 0x00, minidump_buf_size);
 				size_t bytes_to_send = 0;
-				while (bytes_to_send = std::min(minidump_buf_size, total_bytes_sent) > 0)
-				{
+				while (bytes_to_send = std::min(minidump_buf_size, total_bytes_sent) > 0) {
 					total_bytes_sent -= bytes_to_send;
 					boost::asio::write(ssl_socket, boost::asio::buffer(minidump_buf, bytes_to_send));
 				}
@@ -376,8 +358,7 @@ int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump
 			request_stream_end << PREFIX;
 			request_stream_end << NEWLINE;
 			boost::asio::write(ssl_socket, request_end);
-		}
-		else {
+		} else {
 			boost::asio::streambuf request;
 			std::ostream request_stream(&request);
 
@@ -388,9 +369,11 @@ int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump
 			request_stream << "Accept-language: 'en-US,en;q=0.9,ru;q=0.8'" << NEWLINE;
 			request_stream << "Connection: close" << NEWLINE;
 			request_stream << "X-Sentry-Auth: Sentry sentry_version=5,sentry_client=slobs_updater/";
-			request_stream << "1.0.0" << ",sentry_timestamp=" << get_timestamp();
+			request_stream << "1.0.0"
+				       << ",sentry_timestamp=" << get_timestamp();
 			request_stream << ",sentry_key=" << SENTRY_PROJECT_KEY;
-			request_stream << ",sentry_secret=" << "654ed1db5d93495284f66f3d6d195790";
+			request_stream << ",sentry_secret="
+				       << "654ed1db5d93495284f66f3d6d195790";
 			request_stream << NEWLINE;
 			request_stream << "Content-Type: application/json" << NEWLINE;
 			request_stream << "Content-Length: " << report_json.length() << NEWLINE;
@@ -401,7 +384,7 @@ int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump
 			boost::asio::write(ssl_socket, request);
 		}
 
-		// Read the response status line. 
+		// Read the response status line.
 		boost::asio::streambuf response;
 		boost::asio::read_until(ssl_socket, response, "\r\n");
 
@@ -415,54 +398,41 @@ int send_crash_to_sentry_sync(const std::string& report_json, bool send_minidump
 		std::string status_message;
 		std::getline(response_stream, status_message);
 
-		if (!response_stream || http_version.substr(0, 5) != "HTTP/")
-		{
-		}
-		else
-		{
+		if (!response_stream || http_version.substr(0, 5) != "HTTP/") {
+		} else {
 			// Read the response headers, which are terminated by a blank line.
 			boost::asio::read_until(ssl_socket, response, "\r\n\r\n");
 
-			// Process the response headers. 
-			// Not much we can do if sentry response with error. 
+			// Process the response headers.
+			// Not much we can do if sentry response with error.
 			// Just read data to make connection finish correctly
 			std::string header;
-			while (std::getline(response_stream, header) && header != "\r\n")
-			{
+			while (std::getline(response_stream, header) && header != "\r\n") {
 			}
 
-			if (response.size() > 0)
-			{
-
+			if (response.size() > 0) {
 			}
 
 			// Read until EOF, checking data as we go.
-			while (boost::asio::read(ssl_socket, response, boost::asio::transfer_at_least(1), error))
-			{
-
+			while (boost::asio::read(ssl_socket, response, boost::asio::transfer_at_least(1), error)) {
 			}
 
-			if (error != boost::asio::error::eof)
-			{
+			if (error != boost::asio::error::eof) {
 				throw boost::system::system_error(error);
 			}
 		}
 
-	}
-	catch (const std::exception& )
-	{
+	} catch (const std::exception &) {
 		//have to ignore exceptions as programm is in reporting exception already
 	}
-
 
 	return 0;
 }
 
-void handle_crash(struct _EXCEPTION_POINTERS* ExceptionInfo, bool callAbort) noexcept
+void handle_crash(struct _EXCEPTION_POINTERS *ExceptionInfo, bool callAbort) noexcept
 {
 	static bool insideCrashMethod = false;
-	if (insideCrashMethod)
-	{
+	if (insideCrashMethod) {
 		abort();
 	}
 	insideCrashMethod = true;
@@ -475,8 +445,7 @@ void handle_crash(struct _EXCEPTION_POINTERS* ExceptionInfo, bool callAbort) noe
 
 	DeleteFile(minidump_filenamew.c_str());
 
-	if (callAbort)
-	{
+	if (callAbort) {
 		abort();
 	}
 
@@ -486,30 +455,29 @@ void handle_crash(struct _EXCEPTION_POINTERS* ExceptionInfo, bool callAbort) noe
 void handle_exit() noexcept
 {
 	std::string report = prepare_crash_report(nullptr, "");
-	
+
 	send_crash_to_sentry_sync(report, false);
 }
 
-
-void save_exit_error(const std::string & error_type) noexcept
+void save_exit_error(const std::string &error_type) noexcept
 {
 	last_error_type = error_type;
 }
 
-void print_stacktrace_sym(CONTEXT* ctx, std::ostringstream & report_stream) noexcept
+void print_stacktrace_sym(CONTEXT *ctx, std::ostringstream &report_stream) noexcept
 {
-	BOOL    result;
-	HANDLE  process;
-	HANDLE  thread;
+	BOOL result;
+	HANDLE process;
+	HANDLE thread;
 	HMODULE hModule;
 
 	STACKFRAME64 stack;
-	ULONG        frame;
-	DWORD64      displacement;
+	ULONG frame;
+	DWORD64 displacement;
 
-	DWORD			disp;
+	DWORD disp;
 	IMAGEHLP_LINE64 *line;
-	const int		MaxNameLen = 256;
+	const int MaxNameLen = 256;
 
 	char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
 	char module[MaxNameLen];
@@ -531,22 +499,21 @@ void print_stacktrace_sym(CONTEXT* ctx, std::ostringstream & report_stream) noex
 
 	SymInitialize(process, NULL, TRUE);
 	bool first_element = true;
-	for (frame = 0; ; frame++)
-	{
+	for (frame = 0;; frame++) {
 		//get next call from stack
-		result = StackWalk64
-		(
+		result = StackWalk64(
 #if defined(_M_AMD64)
 			IMAGE_FILE_MACHINE_AMD64
 #else
 			IMAGE_FILE_MACHINE_I386
 #endif
-			, process, thread, &stack, ctx, NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL);
+			,
+			process, thread, &stack, ctx, NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL);
 
-		if (!result) break;
+		if (!result)
+			break;
 
-		if (!first_element)
-		{
+		if (!first_element) {
 			report_stream << ",";
 		}
 		report_stream << " { ";
@@ -554,43 +521,36 @@ void print_stacktrace_sym(CONTEXT* ctx, std::ostringstream & report_stream) noex
 		//get symbol name for address
 		pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
 		pSymbol->MaxNameLen = MAX_SYM_NAME;
-		if (SymFromAddr(process, (ULONG64)stack.AddrPC.Offset, &displacement, pSymbol))
-		{
+		if (SymFromAddr(process, (ULONG64)stack.AddrPC.Offset, &displacement, pSymbol)) {
 			line = (IMAGEHLP_LINE64 *)malloc(sizeof(IMAGEHLP_LINE64));
 			line->SizeOfStruct = sizeof(IMAGEHLP_LINE64);
 
-
-
 			report_stream << " 	\"function\": \"" << pSymbol->Name << "\", ";
-			report_stream << " 	\"instruction_addr\": \"" << "0x" << std::uppercase << std::setfill('0') << std::setw(12) << std::hex << pSymbol->Address << "\", ";
-			if (SymGetLineFromAddr64(process, stack.AddrPC.Offset, &disp, line))
-			{
+			report_stream << " 	\"instruction_addr\": \""
+				      << "0x" << std::uppercase << std::setfill('0') << std::setw(12) << std::hex << pSymbol->Address << "\", ";
+			if (SymGetLineFromAddr64(process, stack.AddrPC.Offset, &disp, line)) {
 				report_stream << " 	\"lineno\": \"" << line->LineNumber << "\", ";
 				std::string file_name = line->FileName;
 				file_name = escapeJsonString(file_name);
 				report_stream << " 	\"filename\": \"" << file_name << "\", ";
-			}
-			else
-			{
+			} else {
 				//failed to get line number
 			}
 			free(line);
 			line = NULL;
-		}
-		else
-		{
-			report_stream << " 	\"function\": \"" << "unknown" << "\", ";
-			report_stream << " 	\"instruction_addr\": \"" << "0x" << std::uppercase << std::setfill('0') << std::setw(12) << std::hex << (ULONG64)stack.AddrPC.Offset << "\", ";
+		} else {
+			report_stream << " 	\"function\": \""
+				      << "unknown"
+				      << "\", ";
+			report_stream << " 	\"instruction_addr\": \""
+				      << "0x" << std::uppercase << std::setfill('0') << std::setw(12) << std::hex << (ULONG64)stack.AddrPC.Offset << "\", ";
 		}
 
 		hModule = NULL;
 		lstrcpyA(module, "");
-		if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCTSTR)(stack.AddrPC.Offset), &hModule))
-		{
-			if (hModule != NULL)
-			{
-				if (GetModuleFileNameA(hModule, module, MaxNameLen))
-				{
+		if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCTSTR)(stack.AddrPC.Offset), &hModule)) {
+			if (hModule != NULL) {
+				if (GetModuleFileNameA(hModule, module, MaxNameLen)) {
 					std::string module_name = module;
 					module_name = escapeJsonString(module_name);
 					report_stream << " 	\"module\": \"" << module_name << "\" ";
@@ -619,8 +579,7 @@ std::string get_command_line() noexcept
 {
 	std::string ret = "empty";
 	LPWSTR lpCommandLine = GetCommandLine();
-	if (lpCommandLine != nullptr)
-	{
+	if (lpCommandLine != nullptr) {
 		std::wstring ws_args = std::wstring(lpCommandLine);
 		ret = escapeJsonString(ConvertToUtf8(ws_args));
 	}
@@ -633,11 +592,9 @@ void setup_crash_reporting()
 
 	std::set_terminate([]() { handle_crash(nullptr); });
 
-	SetUnhandledExceptionFilter([](struct _EXCEPTION_POINTERS* ExceptionInfo)
-	{
+	SetUnhandledExceptionFilter([](struct _EXCEPTION_POINTERS *ExceptionInfo) {
 		/* don't use if a debugger is present */
-		if (IsDebuggerPresent())
-		{
+		if (IsDebuggerPresent()) {
 			return LONG(EXCEPTION_CONTINUE_SEARCH);
 		}
 
@@ -646,7 +603,6 @@ void setup_crash_reporting()
 		// Unreachable statement
 		return LONG(EXCEPTION_CONTINUE_SEARCH);
 	});
-
 }
 
 std::string get_logs_json() noexcept
@@ -656,32 +612,25 @@ std::string get_logs_json() noexcept
 		std::ifstream logfile(params.log_file_path);
 
 		std::string logline;
-		while (std::getline(logfile, logline))
-		{
+		while (std::getline(logfile, logline)) {
 			last_logs.push_back(std::string("\"") + escapeJsonString(logline) + std::string("\""));
-			if(last_logs.size() > 100) 
-			{
+			if (last_logs.size() > 100) {
 				last_logs.pop_front();
 			}
 		}
 
-	} catch (...)
-	{
-		return std::string(" \"failed to read logs\" "); 
+	} catch (...) {
+		return std::string(" \"failed to read logs\" ");
 	}
 
 	std::ostringstream ss;
 	bool first_line = true;
 
 	ss << " [ ";
-	for (auto const& logline : last_logs)
-	{
-		if (first_line)
-		{
+	for (auto const &logline : last_logs) {
+		if (first_line) {
 			first_line = false;
-		}
-		else
-		{
+		} else {
 			ss << ", \n";
 		}
 
@@ -705,18 +654,14 @@ std::string get_timestamp() noexcept
 
 std::string get_uuid() noexcept
 {
-	char result[33] = { '\0' }; //"fc6d8c0c43fc4630ad850ee518f1b9d0";
+	char result[33] = {'\0'}; //"fc6d8c0c43fc4630ad850ee518f1b9d0";
 	std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
-	for (std::size_t i = 0; i < sizeof(result) - 1; ++i)
-	{
+	for (std::size_t i = 0; i < sizeof(result) - 1; ++i) {
 		const auto r = static_cast<char>(std::rand() % 16);
-		if (r < 10)
-		{
+		if (r < 10) {
 			result[i] = '0' + r;
-		}
-		else
-		{
+		} else {
 			result[i] = 'a' + r - static_cast<char>(10);
 		}
 	}
@@ -724,22 +669,38 @@ std::string get_uuid() noexcept
 	return std::string(result);
 }
 
-std::string escapeJsonString(const std::string& input) noexcept
+std::string escapeJsonString(const std::string &input) noexcept
 {
 	std::ostringstream ss;
-	for (auto iter = input.cbegin(); iter != input.cend(); iter++)
-	{
-		switch (*iter)
-		{
-		case '\\': ss << "\\\\"; break;
-		case '"': ss << "\\\""; break;
-		case '/': ss << "\\/"; break;
-		case '\b': ss << "\\b"; break;
-		case '\f': ss << "\\f"; break;
-		case '\n': ss << "\\n"; break;
-		case '\r': ss << "\\r"; break;
-		case '\t': ss << "\\t"; break;
-		default: ss << *iter; break;
+	for (auto iter = input.cbegin(); iter != input.cend(); iter++) {
+		switch (*iter) {
+		case '\\':
+			ss << "\\\\";
+			break;
+		case '"':
+			ss << "\\\"";
+			break;
+		case '/':
+			ss << "\\/";
+			break;
+		case '\b':
+			ss << "\\b";
+			break;
+		case '\f':
+			ss << "\\f";
+			break;
+		case '\n':
+			ss << "\\n";
+			break;
+		case '\r':
+			ss << "\\r";
+			break;
+		case '\t':
+			ss << "\\t";
+			break;
+		default:
+			ss << *iter;
+			break;
 		}
 	}
 	return ss.str();

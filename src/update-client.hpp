@@ -5,7 +5,7 @@
 struct client_callbacks {
 	virtual void initialize(struct update_client *client) = 0;
 	virtual void success() = 0;
-	virtual void error(const std::string & error, const std::string & error_type) = 0;
+	virtual void error(const std::string &error, const std::string &error_type) = 0;
 };
 
 /* Sequence of events:
@@ -15,10 +15,10 @@ struct client_callbacks {
 *         ↓ 
 */
 struct install_callbacks {
-	virtual void installer_download_start(const std::string& packageName) = 0;
+	virtual void installer_download_start(const std::string &packageName) = 0;
 	virtual void installer_download_progress(const double pct) = 0;
-	virtual void installer_run_file(const std::string& packageName, const std::string& startParams, const std::string& rawFileBin) = 0;
-	virtual void installer_package_failed(const std::string& packageName, const std::string& message) = 0;
+	virtual void installer_run_file(const std::string &packageName, const std::string &startParams, const std::string &rawFileBin) = 0;
+	virtual void installer_package_failed(const std::string &packageName, const std::string &message) = 0;
 };
 
 /*
@@ -79,43 +79,25 @@ struct blocker_callbacks {
 
 extern "C" {
 
-	struct update_client;
+struct update_client;
 
-	struct update_client *create_update_client(struct update_parameters *);
-	void destroy_update_client(struct update_client *);
+struct update_client *create_update_client(struct update_parameters *);
+void destroy_update_client(struct update_client *);
 
-	void update_client_set_client_events(
-		struct update_client *,
-		struct client_callbacks*
-	);
+void update_client_set_client_events(struct update_client *, struct client_callbacks *);
 
-	void update_client_set_downloader_events(
-		struct update_client *,
-		struct downloader_callbacks*
-	);
+void update_client_set_downloader_events(struct update_client *, struct downloader_callbacks *);
 
-	void update_client_set_updater_events(
-		struct update_client *,
-		struct updater_callbacks*
-	);
+void update_client_set_updater_events(struct update_client *, struct updater_callbacks *);
 
-	void update_client_set_pid_events(
-		struct update_client *,
-		struct pid_callbacks*
-	);
+void update_client_set_pid_events(struct update_client *, struct pid_callbacks *);
 
-	void update_client_set_blocker_events(
-		struct update_client *,
-		struct blocker_callbacks*
-	);
+void update_client_set_blocker_events(struct update_client *, struct blocker_callbacks *);
 
-	void update_client_set_installer_events(
-		struct update_client *,
-		struct install_callbacks*
-	);
+void update_client_set_installer_events(struct update_client *, struct install_callbacks *);
 
-	void update_client_start(struct update_client *);
-	void update_client_flush(struct update_client *);
+void update_client_start(struct update_client *);
+void update_client_flush(struct update_client *);
 
-	void register_install_package(struct update_client* client, const std::string& packageName, const std::string& url, const std::string& startParams);
+void register_install_package(struct update_client *client, const std::string &packageName, const std::string &url, const std::string &startParams);
 }

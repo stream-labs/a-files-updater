@@ -9,7 +9,6 @@
 
 namespace fs = std::filesystem;
 
-
 /* We want this to be C compatible eventually */
 struct update_parameters {
 	struct uri_components host;
@@ -29,6 +28,7 @@ struct update_parameters {
 
 	~update_parameters()
 	{
-		if (log_file) fclose(log_file);
+		if (log_file)
+			fclose(log_file);
 	}
 };

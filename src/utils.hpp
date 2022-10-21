@@ -18,7 +18,7 @@ namespace fs = std::filesystem;
  * DestroyWindow for us. */
 #define CUSTOM_CLOSE_MSG (WM_USER + 1)
 
- /* Same as above but this differentiates behavior.
+/* Same as above but this differentiates behavior.
   * It allows us to assume there's an error and to
   * handle that error before closing. */
 #define CUSTOM_ERROR_MSG (WM_USER + 2)
@@ -40,7 +40,7 @@ bool is_system_folder(const fs::path &path);
 std::string unfixup_uri(const std::string &source);
 std::string fixup_uri(const std::string &source);
 std::string encimpl(std::string::value_type v);
-std::string urlencode(const std::string& url);
+std::string urlencode(const std::string &url);
 
 std::string calculate_files_checksum(fs::path &path);
 
@@ -49,35 +49,33 @@ void setup_locale();
 /* Because Windows doesn't provide us a Unicode
  * command line by default and the command line
  * it does provide us is in UTF-16LE. */
-class MultiByteCommandLine
-{
+class MultiByteCommandLine {
 public:
 	MultiByteCommandLine();
 	MultiByteCommandLine(bool skip_load);
 	virtual ~MultiByteCommandLine();
 
-	MultiByteCommandLine(const MultiByteCommandLine&) = delete;
-	MultiByteCommandLine(MultiByteCommandLine&&) = delete;
-	MultiByteCommandLine &operator=(const MultiByteCommandLine&) = delete;
-	MultiByteCommandLine &operator=(MultiByteCommandLine&&) = delete;
+	MultiByteCommandLine(const MultiByteCommandLine &) = delete;
+	MultiByteCommandLine(MultiByteCommandLine &&) = delete;
+	MultiByteCommandLine &operator=(const MultiByteCommandLine &) = delete;
+	MultiByteCommandLine &operator=(MultiByteCommandLine &&) = delete;
 
 	LPSTR *argv() { return m_argv; };
 	int argc() { return m_argc; };
 
 protected:
-	int m_argc{ 0 };
-	LPSTR *m_argv{ nullptr };
+	int m_argc{0};
+	LPSTR *m_argv{nullptr};
 };
 
-struct manifest_entry_t
-{
+struct manifest_entry_t {
 	std::string hash_sum;
 	bool compared_to_local;
 
 	bool remove_at_update;
 	bool skip_update;
 
-	manifest_entry_t(std::string& file_hash_sum) : hash_sum(file_hash_sum), compared_to_local(false), remove_at_update(false), skip_update(false){}
+	manifest_entry_t(std::string &file_hash_sum) : hash_sum(file_hash_sum), compared_to_local(false), remove_at_update(false), skip_update(false) {}
 };
 
 using manifest_map_t = std::unordered_map<std::string, manifest_entry_t>;
