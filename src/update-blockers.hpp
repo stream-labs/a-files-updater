@@ -18,9 +18,11 @@ struct blockers_map_t {
 
 // === Update exceptions
 
-class update_exception_blocked : public std::exception {};
+class update_exception_blocked : public std::exception {
+};
 
-class update_exception_failed : public std::exception {};
+class update_exception_failed : public std::exception {
+};
 
 // === Update blockers check
 

@@ -219,7 +219,8 @@ template<class Body, bool IncludeVersion> void update_http_request<Body, Include
 	if (status_code != 200) {
 		auto target_info = request.target();
 
-		std::string output_str = std::string("Server send status Code: ") + std::to_string(status_code) + " for: " + std::string(target_info.data(), target_info.size());
+		std::string output_str =
+			std::string("Server send status Code: ") + std::to_string(status_code) + " for: " + std::string(target_info.data(), target_info.size());
 
 		handle_download_error(boost::asio::error::basic_errors::connection_aborted, output_str);
 		return;
