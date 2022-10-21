@@ -744,7 +744,11 @@ void exit_on_init_fail(MultiByteCommandLine &command_line)
 
 extern "C" int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLineUnused, int nCmdShow)
 {
-	setup_locale();
+	try {
+		setup_locale();
+	} catch (...) {
+		// translation failed, continue without it
+	}
 
 	setup_crash_reporting();
 
