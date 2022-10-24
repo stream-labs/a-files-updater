@@ -41,6 +41,7 @@ find_package(Boost
 		iostreams
 		system
 		date_time
+		locale
 )
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIR})
 
@@ -86,6 +87,7 @@ target_link_libraries(slobs-updater
 	Psapi
 	Boost::boost
 	Boost::iostreams
+	Boost::locale
 	Boost::system
 	Boost::date_time
 	${OPENSSL_LIBRARIES}

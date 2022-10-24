@@ -129,7 +129,8 @@ static fs::path fetch_default_temp_dir()
 		std::srand(static_cast<unsigned int>(time(nullptr)));
 
 		char buf[24];
-		sprintf(buf, "%04i%03i%02i%02i%02i%c%c\0", lt->tm_year + 1900, lt->tm_yday, lt->tm_hour, lt->tm_min, lt->tm_sec, 'a' + rand() % 20, 'a' + rand() % 20);
+		sprintf(buf, "%04i%03i%02i%02i%02i%c%c\0", lt->tm_year + 1900, lt->tm_yday, lt->tm_hour, lt->tm_min, lt->tm_sec, 'a' + rand() % 20,
+			'a' + rand() % 20);
 
 		temp_dir /= buf;
 
@@ -147,11 +148,6 @@ bool su_parse_command_line(int argc, char **argv, struct update_parameters *para
 	std::error_code ec{};
 	if (argc == 0 || argv == nullptr)
 		return false;
-
-	const char *current_locale = std::setlocale(LC_ALL, nullptr);
-	if (current_locale == nullptr || std::strlen(current_locale) == 0) {
-		std::setlocale(LC_ALL, "en_US.UTF-8");
-	}
 
 	bool success = true;
 	fs::path log_path;
@@ -252,7 +248,8 @@ bool su_parse_command_line(int argc, char **argv, struct update_parameters *para
 	params->app_dir = fetch_path(app_dir_arg->sval[0], strlen(app_dir_arg->sval[0]));
 
 	if (params->app_dir.u8string().find("Program Files") != std::string::npos) {
-		if (params->app_dir.u8string().find("Streamlabs OBS") != std::string::npos || params->app_dir.u8string().find("Streamlabs Desktop") != std::string::npos) {
+		if (params->app_dir.u8string().find("Streamlabs OBS") != std::string::npos ||
+		    params->app_dir.u8string().find("Streamlabs Desktop") != std::string::npos) {
 			params->enable_removing_old_files = true;
 			log_warn("The path does look like a default install path. Updater be able to remove files from old versions.");
 		}

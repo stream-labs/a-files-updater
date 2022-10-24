@@ -41,6 +41,8 @@ jobs:
         run: yarn install --immutable --immutable-cache --check-cache
       - name: Download binary deps
         run: ./ci/download_deps.bat
+      - name: Download gettext binaries
+        run: ./ci/localization_prepare_binaries.cmd
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v1.1
       - name: Configure

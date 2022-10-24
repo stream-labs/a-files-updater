@@ -1,24 +1,128 @@
-#include "Windows.h"
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
 
-AppIcon ICON icon.ico
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+APPICON                 ICON                    "icon.ico"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
 
 1 VERSIONINFO
-FILEVERSION    0,0,0,0
-PRODUCTVERSION 0,0,0,0
-FILEOS         VOS_NT
-FILETYPE       VFT_APP
-{
-    BLOCK "StringFileInfo" {
-        BLOCK "040904b0" {
-            VALUE "FileDescription",  "Streamlabs Desktop Updater"
-            VALUE "ProductName",      "Streamlabs Desktop Updater"
-            VALUE "CompanyName",      "General Workings, Inc."
-            VALUE "LegalCopyright",   "General Workings, Inc."
-        }
-    }
-
+ FILEVERSION 0,0,0,0
+ PRODUCTVERSION 0,0,0,0
+ FILEFLAGSMASK 0x0L
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40000L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "FileDescription", "Streamlabs Desktop Updater"
+            VALUE "ProductName", "Streamlabs Desktop Updater"
+            VALUE "CompanyName", "General Workings, Inc."
+            VALUE "LegalCopyright", "General Workings, Inc."
+        END
+    END
     BLOCK "VarFileInfo"
-    {
-        VALUE "Translation", 0x0409 0x04B0
-    }
-}
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// BINARY
+//
+
+IDR_LOCALE_FILE_ar_SA        BINARY             "ar_SA_messages.mo"
+IDR_LOCALE_FILE_cs_CZ        BINARY             "cs_CZ_messages.mo"
+IDR_LOCALE_FILE_da_DK        BINARY             "da_DK_messages.mo"
+IDR_LOCALE_FILE_de_DE        BINARY             "de_DE_messages.mo"
+IDR_LOCALE_FILE_en_US        BINARY             "en_US_messages.mo"
+IDR_LOCALE_FILE_es_ES        BINARY             "es_ES_messages.mo"
+IDR_LOCALE_FILE_fr_FR        BINARY             "fr_FR_messages.mo"
+IDR_LOCALE_FILE_hu_HU        BINARY             "hu_HU_messages.mo"
+IDR_LOCALE_FILE_id_ID        BINARY             "id_ID_messages.mo"
+IDR_LOCALE_FILE_it_IT        BINARY             "it_IT_messages.mo"
+IDR_LOCALE_FILE_ja_JP        BINARY             "ja_JP_messages.mo"
+IDR_LOCALE_FILE_ko_KR        BINARY             "ko_KR_messages.mo"
+IDR_LOCALE_FILE_mk_MK        BINARY             "mk_MK_messages.mo"
+IDR_LOCALE_FILE_nl_NL        BINARY             "nl_NL_messages.mo"
+IDR_LOCALE_FILE_pl_PL        BINARY             "pl_PL_messages.mo"
+IDR_LOCALE_FILE_pt_BR        BINARY             "pt_BR_messages.mo"
+IDR_LOCALE_FILE_pt_PT        BINARY             "pt_PT_messages.mo"
+IDR_LOCALE_FILE_ru_RU        BINARY             "ru_RU_messages.mo"
+IDR_LOCALE_FILE_sk_SK        BINARY             "sk_SK_messages.mo"
+IDR_LOCALE_FILE_sl_SI        BINARY             "sl_SI_messages.mo"
+IDR_LOCALE_FILE_sv_SE        BINARY             "sv_SE_messages.mo"
+IDR_LOCALE_FILE_th_TH        BINARY             "th_TH_messages.mo"
+IDR_LOCALE_FILE_tr_TR        BINARY             "tr_TR_messages.mo"
+IDR_LOCALE_FILE_vi_VN        BINARY             "vi_VN_messages.mo"
+IDR_LOCALE_FILE_zh_CN        BINARY             "zh_CN_messages.mo"
+IDR_LOCALE_FILE_zh_TW        BINARY             "zh_TW_messages.mo"
+
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
