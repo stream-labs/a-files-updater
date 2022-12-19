@@ -114,7 +114,7 @@ jobs:
           TARGET_ARTIFACT: slobs_updater-${{ steps.get_version.outputs.VERSION }}-win64
           INSTALL_DISTRIBUTE_PATH: "build/distribute"
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           aws-access-key-id: ${{secrets.AWS_RELEASE_ACCESS_KEY_ID}}
           aws-secret-access-key: ${{secrets.AWS_RELEASE_SECRET_ACCESS_KEY}}
