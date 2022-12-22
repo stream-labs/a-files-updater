@@ -537,10 +537,10 @@ void update_client::check_resolve_timeout_callback_err(const boost::system::erro
  *#
  *############################################*/
 
-void update_client::checkup_files(struct blockers_map_t &blockers, std::vector<fs::path> files, int from, int to)
+void update_client::checkup_files(struct blockers_map_t &blockers, int from, int to)
 {
 	for (int i = from; i < to; i++) {
-		fs::path entry = files.at(i);
+		fs::path entry = local_files.at(i).first;
 		fs::path key_path(fs::relative(entry, params->app_dir));
 
 		fs::path cleaned_file_name = key_path.make_preferred();
@@ -568,23 +568,18 @@ void update_client::checkup_files(struct blockers_map_t &blockers, std::vector<f
 				}
 
 				manifest.emplace(std::make_pair(key, entry_update_info));
+
+				local_files.at(i).second = calculate_files_checksum_safe(entry);
 			}
 			continue;
 		}
 
 		if (check_file_updatable(entry, true, blockers)) {
 			if (!manifest_iter->second.compared_to_local) {
-				std::string checksum = "";
-				try {
-					checksum = calculate_files_checksum(entry);
-				} catch (const boost::exception &e) {
-					log_warn("Failed to calculate checksum of local file. Try to update it. Exception: %s",
-						 boost::diagnostic_information(e).c_str());
-				} catch (const std::exception &e) {
-					log_warn("Failed to calculate checksum of local file. Try to update it. std::exception: %s", e.what());
-				}
+				std::string checksum = calculate_files_checksum_safe(entry);
 
 				manifest_iter->second.compared_to_local = true;
+				local_files.at(i).second = checksum;
 
 				if (checksum.compare(manifest_iter->second.hash_sum) == 0) {
 					manifest_iter->second.skip_update = true;
@@ -605,8 +600,6 @@ void update_client::checkup_manifest(blockers_map_t &blockers)
 	fs::recursive_directory_iterator app_dir_iter(params->app_dir);
 	fs::recursive_directory_iterator end_iter{};
 
-	std::vector<fs::path> files;
-
 	for (; app_dir_iter != end_iter; ++app_dir_iter) {
 		fs::path entry = app_dir_iter->path();
 		std::error_code ec;
@@ -618,24 +611,24 @@ void update_client::checkup_manifest(blockers_map_t &blockers)
 		if (fs::is_directory(entry_status))
 			continue;
 
-		files.push_back(entry);
+		local_files.emplace_back(entry, std::string(""));
 	}
 
 	std::vector<std::thread *> workers;
 
-	log_info("Full size: %d", files.size());
+	log_info("Full size: %d", local_files.size());
 
 	for (int i = 0; i < max_threads; i++) {
-		int from = files.size() / max_threads * i;
+		int from = local_files.size() / max_threads * i;
 		int to;
 
 		if (i + 1 != max_threads)
-			to = files.size() / max_threads * (i + 1);
+			to = local_files.size() / max_threads * (i + 1);
 		else
-			to = files.size();
+			to = local_files.size();
 
 		log_info("Begining work from: %d to: %d", from, to);
-		workers.push_back(new std::thread(&update_client::checkup_files, this, std::ref(blockers), files, from, to));
+		workers.push_back(new std::thread(&update_client::checkup_files, this, std::ref(blockers), from, to));
 	}
 
 	for (auto worker : workers) {

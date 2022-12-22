@@ -43,6 +43,7 @@ std::string encimpl(std::string::value_type v);
 std::string urlencode(const std::string &url);
 
 std::string calculate_files_checksum(fs::path &path);
+std::string calculate_files_checksum_safe(fs::path &path);
 
 void setup_locale();
 

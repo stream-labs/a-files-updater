@@ -5,6 +5,8 @@
 #include <iostream>
 #include <sstream>
 
+#include <boost/exception/all.hpp>
+
 #include "logger/log.h"
 #include "checksum-filters.hpp"
 #include <boost/algorithm/string/replace.hpp>
@@ -272,6 +274,19 @@ std::string unfixup_uri(const std::string &source)
 	boost::algorithm::replace_all(result, "%20", " ");
 
 	return result;
+}
+
+std::string calculate_files_checksum_safe(fs::path &path)
+{
+	std::string checksum = "";
+	try {
+		checksum = calculate_files_checksum(path);
+	} catch (const boost::exception &e) {
+		log_warn("Failed to calculate checksum of local file. Try to update it. Exception: %s", boost::diagnostic_information(e).c_str());
+	} catch (const std::exception &e) {
+		log_warn("Failed to calculate checksum of local file. Try to update it. std::exception: %s", e.what());
+	}
+	return checksum;
 }
 
 std::string calculate_files_checksum(fs::path &path)

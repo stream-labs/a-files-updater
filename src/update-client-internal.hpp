@@ -80,6 +80,7 @@ struct update_client {
 	std::atomic_size_t active_pids{0};
 	std::list<update_client::pid *> pids_waiters;
 
+	std::vector<std::pair<fs::path, std::string>> local_files;
 	manifest_map_t manifest;
 	std::mutex manifest_mutex;
 	manifest_map_t::const_iterator manifest_iterator;
@@ -123,7 +124,7 @@ public:
 	void handle_resolve(const boost::system::error_code &error, resolver_type::results_type results);
 	void handle_manifest_result(manifest_request<manifest_body> *request_ctx);
 	void process_manifest_results();
-	void checkup_files(struct blockers_map_t &blockers, std::vector<fs::path> files, int from, int to);
+	void checkup_files(struct blockers_map_t &blockers, int from, int to);
 	void checkup_manifest(struct blockers_map_t &blockers);
 
 	//files
