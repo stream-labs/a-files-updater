@@ -23,6 +23,7 @@ struct FileUpdater {
 	void revert();
 	bool reset_rights(const fs::path &path);
 	bool backup();
+	bool verify(std::vector<std::pair<fs::path, std::string>> &local_files);
 
 private:
 	fs::path m_old_files_dir;

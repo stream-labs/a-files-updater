@@ -82,8 +82,14 @@ void update_client::start_file_update()
 		log_info("Going to revert.");
 		try {
 			updater.revert();
-			reverted = true;
 			log_info("Revert completed.");
+
+			if (updater.verify(local_files)) {
+				log_info("Check of files checksums after revert: passed.");
+				reverted = true;
+			} else {
+				log_info("Check of files checksums after revert: failed.");
+			}
 		} catch (std::exception &e) {
 			log_error("Revert failed: %s.", e.what());
 		} catch (...) {

@@ -189,3 +189,15 @@ bool FileUpdater::backup()
 
 	return true;
 }
+
+bool FileUpdater::verify(std::vector<std::pair<fs::path, std::string>> &local_files) 
+{
+	for (auto &file : local_files) {
+		std::string checksum = calculate_files_checksum_safe(file.first);
+		if (checksum != file.second) {
+			wlog_error(L"File %s checksum mismatch, expected %s, now %s", file.first.c_str(), file.second.c_str(), checksum.c_str());
+			return false;
+		}
+	}
+	return true;
+}
