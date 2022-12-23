@@ -4,7 +4,8 @@ var httpProxy = require('http-proxy');
 var finalhandler = require('finalhandler');
 var serveStatic = require('serve-static');
 const fs = require('fs'); 
- 
+const path = require('path');
+
 var server;
 var proxy;
 var proxyServer;
@@ -17,9 +18,9 @@ var ssl_options = {
 var files_served = 0;
 var file_to_block;
 var have_trouble = 0;
+var files_corrupted = false;
 
 exports.start_https_update_server = function (testinfo) {
-
   files_served = 0;
   file_to_block = "";
   have_trouble = 0;
@@ -35,7 +36,7 @@ exports.start_https_update_server = function (testinfo) {
     let test_timeout = 100 + Math.floor(Math.random() * Math.floor(500));
     let chanse_for_trouble = Math.floor(Math.random() * Math.floor(100));
     //console.log( req.socket.localAddress );
-    let do_block = (chanse_for_trouble > testinfo.expected_change_for_trouble && have_trouble < testinfo.max_trouble ) ;
+    let do_block = (chanse_for_trouble > testinfo.expected_chance_for_trouble && have_trouble < testinfo.max_trouble ) ;
 
     if((testinfo.let_block_one_file && (testinfo.block_file_number == files_served) ) && ! file_to_block)
     {
@@ -58,6 +59,19 @@ exports.start_https_update_server = function (testinfo) {
       {
         testinfo.let_block_manifest = false;
       }
+    }
+
+    if(files_served == 10 && testinfo.corruptBackuped && !files_corrupted) {
+      files_corrupted = true;
+      console.log("10 files served and corruptBackuped is true. Will try to corrupt backuped file and remove one downloaded");
+      let file_to_corrupt = path.join(testinfo.initialDir, testinfo.files[0].name);
+      console.log("Will corrupt file " + file_to_corrupt);
+
+      fs.writeFileSync(file_to_corrupt, "corrupted");
+
+      let file_to_abort_update = path.join(testinfo.initialDir, testinfo.files[1].name);
+      console.log("Will remove file " + file_to_abort_update);
+      fs.unlinkSync(file_to_abort_update);
     }
 
     //check if file requested is from files that not changed and not have to be downloaded 

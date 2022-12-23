@@ -407,6 +407,8 @@ exports.generate_test_files = async function (testinfo) {
     await generate_result_dir(testinfo, testinfo.resultDir);
   if (testinfo.expectedResult == "filesnotchanged")
     await generate_initial_dir(testinfo, testinfo.resultDir);
+  if (testinfo.expectedResult == "filescorrupted")
+    await generate_initial_dir(testinfo, testinfo.resultDir);
 
 }
 

@@ -159,7 +159,7 @@ bool FileUpdater::backup()
 {
 	for (manifest_map_t::const_iterator iter = m_manifest.begin(); iter != m_manifest.end(); ++iter) {
 		try {
-			if (iter->second.skip_update)
+			if (iter->second.skip_update || !iter->second.compared_to_local) 
 				continue;
 
 			std::error_code ec;
@@ -181,6 +181,9 @@ bool FileUpdater::backup()
 					wlog_debug(L"Failed to backup entry %s to %s, error %s", to_path.c_str(), old_file_path.c_str(), wmsg.c_str());
 					return false;
 				}
+			} else {
+				wlog_error(L"File selected for update %s does not exist anymore, backup not possible", to_path.c_str());
+				return false;
 			}
 		} catch (...) {
 			return false;

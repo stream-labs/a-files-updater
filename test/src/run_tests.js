@@ -21,26 +21,27 @@ async function run_tests() {
         //testinfo.serverUrl = "https://outlook.live.com";
         //testinfo.let_15sec = true;
         //testinfo.let_block_one_file = true;
+        //testinfo.let_404 = true;
         //testinfo.morebigfiles = true;
-        //testinfo.expectedResult = "filesnotchanged"
+        testinfo.expectedResult = "filescorrupted"
         // testinfo.selfBlockersCount = 5;
         // testinfo.selfBlockingFile = true;
         // testinfo.selfLockingFile = true;
-        testinfo.systemFolder = true;
+        //testinfo.systemFolder = true;
         testinfo.runAsInteractive = 1;
         //testinfo.wrong_arguments = true;
         //testinfo.expectedResult = "filesnotchanged"
         //testinfo.manifestGenerated = false;
         //testinfo.let_5sec = true;
-        testinfo.morebigfiles = true;
+        //testinfo.morebigfiles = true;
+        testinfo.corruptBackuped = true;
         //testinfo.selfBlockersCount = 5;
-        //testinfo.selfBlockingFile = true;
         //testinfo.pidWaiting = true;
         //testinfo.selfBlockingFile = true;
         //testinfo.let_drop = true;
         //testinfo.let_404 = true;
         //testinfo.max_trouble = 500;
-        //testinfo.expected_change_for_trouble = 50;
+        //testinfo.expected_chance_for_trouble = 50;
         //testinfo.serverStarted = false;
         //testinfo.let_block_manifest = true;
         //testinfo.more_log_output = true;
@@ -110,7 +111,7 @@ async function run_tests() {
         testinfo = test_config.gettestinfo(" //test server to fail on all bad nodes with to many faild downloads ");
         testinfo.let_404 = true;
         testinfo.max_trouble = 100;
-        testinfo.expected_change_for_trouble = 55;
+        testinfo.expected_chance_for_trouble = 55;
         testinfo.morebigfiles = true;
         testinfo.expectedResult = "filesnotchanged"
         test_result = await run_test.test_update(testinfo);
@@ -208,6 +209,14 @@ async function run_tests() {
         testinfo.expectedResult = "filesnotchanged"
         testinfo.systemFolder = true;
         test_result = await run_test.test_update(testinfo);
+        if (test_result != 0) {
+            failed_test_names.push(testinfo.testName);
+        }
+
+        testinfo = test_config.gettestinfo(" //failed to revert of failed update ");
+        test_result = await run_test.test_update(testinfo);
+        testinfo.corruptBackuped = true;
+        testinfo.expectedResult = "filescorrupted"
         if (test_result != 0) {
             failed_test_names.push(testinfo.testName);
         }
