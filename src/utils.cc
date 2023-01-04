@@ -153,8 +153,8 @@ BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory)
 		return FALSE;
 	}
 
-	bSuccess = DuplicateTokenEx(hShellToken, TOKEN_QUERY | TOKEN_ASSIGN_PRIMARY | TOKEN_DUPLICATE | TOKEN_ADJUST_DEFAULT | TOKEN_ADJUST_SESSIONID, NULL, SecurityImpersonation,
-				    TokenPrimary, &hNewToken);
+	bSuccess = DuplicateTokenEx(hShellToken, TOKEN_QUERY | TOKEN_ASSIGN_PRIMARY | TOKEN_DUPLICATE | TOKEN_ADJUST_DEFAULT | TOKEN_ADJUST_SESSIONID, NULL,
+				    SecurityImpersonation, TokenPrimary, &hNewToken);
 
 	if (bSuccess == 0) {
 		LogLastError(L"DuplicateTokenEx");
@@ -276,7 +276,7 @@ std::string unfixup_uri(const std::string &source)
 	return result;
 }
 
-std::string calculate_files_checksum_safe(fs::path &path)
+std::string calculate_files_checksum_safe(const fs::path &path)
 {
 	std::string checksum = "";
 	try {
@@ -289,7 +289,7 @@ std::string calculate_files_checksum_safe(fs::path &path)
 	return checksum;
 }
 
-std::string calculate_files_checksum(fs::path &path)
+std::string calculate_files_checksum(const fs::path &path)
 {
 	std::ostringstream hex_digest;
 	unsigned char hash[SHA256_DIGEST_LENGTH] = {0};
@@ -325,38 +325,19 @@ std::string calculate_files_checksum(fs::path &path)
 	return hex_digest.str();
 }
 
-
-std::vector<char> get_messages_callback( std::string const &file_name, std::string const &encoding )
+std::vector<char> get_messages_callback(std::string const &file_name, std::string const &encoding)
 {
-	static std::unordered_map<std::string, int> locales_resources ({
-		{ "/ar_SA/LC_MESSAGES/messages.mo", 101 },
-		{ "/cs_CZ/LC_MESSAGES/messages.mo", 102 },
-		{ "/da_DK/LC_MESSAGES/messages.mo", 103 },
-		{ "/de_DE/LC_MESSAGES/messages.mo", 104 },
-		{ "/en_US/LC_MESSAGES/messages.mo", 105 },
-		{ "/es_ES/LC_MESSAGES/messages.mo", 106 },
-		{ "/fr_FR/LC_MESSAGES/messages.mo", 107 },
-		{ "/hu_HU/LC_MESSAGES/messages.mo", 108 },
-		{ "/id_ID/LC_MESSAGES/messages.mo", 109 },
-		{ "/it_IT/LC_MESSAGES/messages.mo", 110 },
-		{ "/ja_JP/LC_MESSAGES/messages.mo", 111 },
-		{ "/ko_KR/LC_MESSAGES/messages.mo", 112 },
-		{ "/mk_MK/LC_MESSAGES/messages.mo", 113 },
-		{ "/nl_NL/LC_MESSAGES/messages.mo", 114 },
-		{ "/pl_PL/LC_MESSAGES/messages.mo", 115 },
-		{ "/pt_BR/LC_MESSAGES/messages.mo", 116 },
-		{ "/pt_PT/LC_MESSAGES/messages.mo", 117 },
-		{ "/ru_RU/LC_MESSAGES/messages.mo", 118 },
-		{ "/sk_SK/LC_MESSAGES/messages.mo", 119 },
-		{ "/sl_SI/LC_MESSAGES/messages.mo", 120 },
-		{ "/sv_SE/LC_MESSAGES/messages.mo", 121 },
-		{ "/th_TH/LC_MESSAGES/messages.mo", 122 },
-		{ "/tr_TR/LC_MESSAGES/messages.mo", 123 },
-		{ "/vi_VN/LC_MESSAGES/messages.mo", 124 },
-		{ "/zh_CN/LC_MESSAGES/messages.mo", 125 },
-		{ "/zh_TW/LC_MESSAGES/messages.mo", 126 }
-	});
-	std::vector <char> localization;
+	static std::unordered_map<std::string, int> locales_resources(
+		{{"/ar_SA/LC_MESSAGES/messages.mo", 101}, {"/cs_CZ/LC_MESSAGES/messages.mo", 102}, {"/da_DK/LC_MESSAGES/messages.mo", 103},
+		 {"/de_DE/LC_MESSAGES/messages.mo", 104}, {"/en_US/LC_MESSAGES/messages.mo", 105}, {"/es_ES/LC_MESSAGES/messages.mo", 106},
+		 {"/fr_FR/LC_MESSAGES/messages.mo", 107}, {"/hu_HU/LC_MESSAGES/messages.mo", 108}, {"/id_ID/LC_MESSAGES/messages.mo", 109},
+		 {"/it_IT/LC_MESSAGES/messages.mo", 110}, {"/ja_JP/LC_MESSAGES/messages.mo", 111}, {"/ko_KR/LC_MESSAGES/messages.mo", 112},
+		 {"/mk_MK/LC_MESSAGES/messages.mo", 113}, {"/nl_NL/LC_MESSAGES/messages.mo", 114}, {"/pl_PL/LC_MESSAGES/messages.mo", 115},
+		 {"/pt_BR/LC_MESSAGES/messages.mo", 116}, {"/pt_PT/LC_MESSAGES/messages.mo", 117}, {"/ru_RU/LC_MESSAGES/messages.mo", 118},
+		 {"/sk_SK/LC_MESSAGES/messages.mo", 119}, {"/sl_SI/LC_MESSAGES/messages.mo", 120}, {"/sv_SE/LC_MESSAGES/messages.mo", 121},
+		 {"/th_TH/LC_MESSAGES/messages.mo", 122}, {"/tr_TR/LC_MESSAGES/messages.mo", 123}, {"/vi_VN/LC_MESSAGES/messages.mo", 124},
+		 {"/zh_CN/LC_MESSAGES/messages.mo", 125}, {"/zh_TW/LC_MESSAGES/messages.mo", 126}});
+	std::vector<char> localization;
 
 	HMODULE hmodule = GetModuleHandle(NULL);
 	if (hmodule) {
@@ -384,28 +365,27 @@ std::vector<char> get_messages_callback( std::string const &file_name, std::stri
 
 void setup_locale()
 {
-	const char * current_locale = std::setlocale(LC_ALL, nullptr);
-	if (current_locale == nullptr || std::strlen(current_locale) == 0)
-	{
+	const char *current_locale = std::setlocale(LC_ALL, nullptr);
+	if (current_locale == nullptr || std::strlen(current_locale) == 0) {
 		std::setlocale(LC_ALL, "en_US.UTF-8");
 	}
 
 	namespace blg = boost::locale::gnu_gettext;
 	blg::messages_info info;
 
-	info.paths.push_back(""); 
+	info.paths.push_back("");
 	info.domains.push_back(blg::messages_info::domain("messages"));
 	info.callback = get_messages_callback;
-	
+
 	boost::locale::generator gen;
 	std::locale base_locale = gen("");
 
 	boost::locale::info const &properties = std::use_facet<boost::locale::info>(base_locale);
 	info.language = properties.language();
-	info.country  = properties.country();
+	info.country = properties.country();
 	info.encoding = properties.encoding();
-	info.variant  = properties.variant();
+	info.variant = properties.variant();
 
-	std::locale real_locale(base_locale,blg::create_messages_facet<char>(info));
+	std::locale real_locale(base_locale, blg::create_messages_facet<char>(info));
 	std::locale::global(real_locale);
 }

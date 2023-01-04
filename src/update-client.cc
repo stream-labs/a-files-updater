@@ -60,7 +60,7 @@ void update_client::start_file_update()
 
 	reset_work_threads_guards();
 
-	FileUpdater updater(params->temp_dir, params->app_dir, new_files_dir, manifest);
+	FileUpdater updater(params->temp_dir, params->app_dir, new_files_dir, manifest, local_manifest);
 	bool updated = false;
 
 	try {
@@ -82,14 +82,8 @@ void update_client::start_file_update()
 		log_info("Going to revert.");
 		try {
 			updater.revert();
+			reverted = true;
 			log_info("Revert completed.");
-
-			if (updater.verify(local_files)) {
-				log_info("Check of files checksums after revert: passed.");
-				reverted = true;
-			} else {
-				log_info("Check of files checksums after revert: failed.");
-			}
 		} catch (std::exception &e) {
 			log_error("Revert failed: %s.", e.what());
 		} catch (...) {
@@ -546,7 +540,7 @@ void update_client::check_resolve_timeout_callback_err(const boost::system::erro
 void update_client::checkup_files(struct blockers_map_t &blockers, int from, int to)
 {
 	for (int i = from; i < to; i++) {
-		fs::path entry = local_files.at(i).first;
+		fs::path entry = local_manifest.at(i).first;
 		fs::path key_path(fs::relative(entry, params->app_dir));
 
 		fs::path cleaned_file_name = key_path.make_preferred();
@@ -575,7 +569,7 @@ void update_client::checkup_files(struct blockers_map_t &blockers, int from, int
 
 				manifest.emplace(std::make_pair(key, entry_update_info));
 
-				local_files.at(i).second = calculate_files_checksum_safe(entry);
+				local_manifest.at(i).second = calculate_files_checksum_safe(entry);
 			}
 			continue;
 		}
@@ -585,7 +579,7 @@ void update_client::checkup_files(struct blockers_map_t &blockers, int from, int
 				std::string checksum = calculate_files_checksum_safe(entry);
 
 				manifest_iter->second.compared_to_local = true;
-				local_files.at(i).second = checksum;
+				local_manifest.at(i).second = checksum;
 
 				if (checksum.compare(manifest_iter->second.hash_sum) == 0) {
 					manifest_iter->second.skip_update = true;
@@ -617,21 +611,21 @@ void update_client::checkup_manifest(blockers_map_t &blockers)
 		if (fs::is_directory(entry_status))
 			continue;
 
-		local_files.emplace_back(entry, std::string(""));
+		local_manifest.emplace_back(entry, std::string(""));
 	}
 
 	std::vector<std::thread *> workers;
 
-	log_info("Full size: %d", local_files.size());
+	log_info("Full size: %d", local_manifest.size());
 
 	for (int i = 0; i < max_threads; i++) {
-		int from = local_files.size() / max_threads * i;
-		int to;
+		size_t from = local_manifest.size() / max_threads * i;
+		size_t to;
 
 		if (i + 1 != max_threads)
-			to = local_files.size() / max_threads * (i + 1);
+			to = local_manifest.size() / max_threads * (i + 1);
 		else
-			to = local_files.size();
+			to = local_manifest.size();
 
 		log_info("Begining work from: %d to: %d", from, to);
 		workers.push_back(new std::thread(&update_client::checkup_files, this, std::ref(blockers), from, to));

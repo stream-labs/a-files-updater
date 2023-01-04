@@ -80,7 +80,7 @@ struct update_client {
 	std::atomic_size_t active_pids{0};
 	std::list<update_client::pid *> pids_waiters;
 
-	std::vector<std::pair<fs::path, std::string>> local_files;
+	local_manifest_t local_manifest;
 	manifest_map_t manifest;
 	std::mutex manifest_mutex;
 	manifest_map_t::const_iterator manifest_iterator;

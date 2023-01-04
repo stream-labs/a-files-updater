@@ -3,8 +3,9 @@
 #include "logger/log.h"
 #include <aclapi.h>
 
-FileUpdater::FileUpdater(fs::path old_files_dir, fs::path app_dir, fs::path new_files_dir, const manifest_map_t &manifest)
-	: m_new_files_dir(new_files_dir), m_old_files_dir(old_files_dir), m_app_dir(app_dir), m_manifest(manifest)
+FileUpdater::FileUpdater(fs::path old_files_dir, fs::path app_dir, fs::path new_files_dir, const manifest_map_t &manifest,
+			 const local_manifest_t &local_manifest)
+	: m_new_files_dir(new_files_dir), m_old_files_dir(old_files_dir), m_app_dir(app_dir), m_manifest(manifest), m_local_manifest(local_manifest)
 {
 	m_old_files_dir /= "old-files";
 }
@@ -109,8 +110,8 @@ bool FileUpdater::reset_rights(const fs::path &path)
 	ACL empty_acl;
 	if (InitializeAcl(&empty_acl, sizeof(empty_acl), ACL_REVISION)) {
 		const std::wstring path_str = path.generic_wstring();
-		DWORD result =
-			SetNamedSecurityInfo((LPWSTR)path_str.c_str(), SE_FILE_OBJECT, DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION, 0, 0, &empty_acl, 0);
+		DWORD result = SetNamedSecurityInfo((LPWSTR)path_str.c_str(), SE_FILE_OBJECT, DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION,
+						    0, 0, &empty_acl, 0);
 		if (result == ERROR_SUCCESS) {
 			return true;
 		}
@@ -149,7 +150,7 @@ void FileUpdater::revert()
 		}
 	}
 
-	if (error_count > 0) {
+	if (error_count > 0 || !is_local_files_changed()) {
 		wlog_warn(L"Revert have failed to correctly revert some files. Fails: %i", error_count);
 		throw std::exception("Revert have failed to correctly revert some files");
 	}
@@ -159,7 +160,7 @@ bool FileUpdater::backup()
 {
 	for (manifest_map_t::const_iterator iter = m_manifest.begin(); iter != m_manifest.end(); ++iter) {
 		try {
-			if (iter->second.skip_update || !iter->second.compared_to_local) 
+			if (iter->second.skip_update || !iter->second.compared_to_local)
 				continue;
 
 			std::error_code ec;
@@ -193,14 +194,16 @@ bool FileUpdater::backup()
 	return true;
 }
 
-bool FileUpdater::verify(std::vector<std::pair<fs::path, std::string>> &local_files) 
+bool FileUpdater::is_local_files_changed()
 {
-	for (auto &file : local_files) {
+	for (auto &file : m_local_manifest) {
 		std::string checksum = calculate_files_checksum_safe(file.first);
 		if (checksum != file.second) {
-			wlog_error(L"File %s checksum mismatch, expected %s, now %s", file.first.c_str(), file.second.c_str(), checksum.c_str());
+			wlog_error(L"File %s checksum mismatch after revert, expected %s, now %s", file.first.c_str(), file.second.c_str(), checksum.c_str());
 			return false;
 		}
 	}
+
+	log_info("Check of files checksums after revert: passed.");
 	return true;
 }
