@@ -34,7 +34,7 @@ async function run_tests() {
         //testinfo.manifestGenerated = false;
         //testinfo.let_5sec = true;
         //testinfo.morebigfiles = true;
-        testinfo.corruptBackuped = true;
+        //testinfo.corruptBackuped = true;
         //testinfo.selfBlockersCount = 5;
         //testinfo.pidWaiting = true;
         //testinfo.selfBlockingFile = true;

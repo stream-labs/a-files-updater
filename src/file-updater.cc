@@ -22,8 +22,6 @@ FileUpdater::~FileUpdater()
 
 void FileUpdater::update()
 {
-	fs::create_directories(m_old_files_dir);
-
 	std::string version_file_key = "resources\app.asar";
 
 	for (manifest_map_t::const_iterator iter = m_manifest.begin(); iter != m_manifest.end(); ++iter) {
@@ -35,6 +33,10 @@ void FileUpdater::update()
 	manifest_map_t::const_iterator version_file = m_manifest.find(version_file_key);
 	if (version_file != m_manifest.end()) {
 		update_entry_with_retries(version_file, m_new_files_dir);
+	}
+
+	if (!is_local_files_updated()) {
+		throw std::runtime_error("Error: Update went not as expected");
 	}
 }
 
@@ -81,6 +83,13 @@ bool FileUpdater::update_entry(manifest_map_t::const_iterator &iter, fs::path &n
 
 	try {
 		if (!iter->second.remove_at_update) {
+			fs::create_directories(to_path.parent_path(), ec);
+			if (ec) {
+				std::wstring wmsg = ConvertToUtf16WS(ec.message());
+				wlog_warn(L"Failed to create directory: %s error, %s", to_path.parent_path().c_str(), wmsg.c_str());
+				return false;
+			}
+
 			fs::rename(from_path, to_path, ec);
 
 			if (ec) {
@@ -206,4 +215,37 @@ bool FileUpdater::is_local_files_changed()
 
 	log_info("Check of files checksums after revert: passed.");
 	return false;
+}
+
+bool FileUpdater::is_local_files_updated()
+{
+	for (manifest_map_t::const_iterator iter = m_manifest.begin(); iter != m_manifest.end(); ++iter) {
+
+		if (iter->second.skip_update) {
+			continue;
+		}
+
+		std::error_code ec;
+		fs::path file_name_part = fs::u8path(iter->first.c_str());
+		fs::path to_path(m_app_dir);
+		to_path /= file_name_part;
+
+		if (iter->second.remove_at_update) {
+			//check if to_path file exists
+			if (fs::exists(to_path, ec)) {
+				wlog_error(L"File %s still not exist after update, something went wrong", to_path.c_str());
+				return false;
+			}
+		}
+
+		std::string checksum = calculate_files_checksum_safe(to_path);
+		if (checksum != iter->second.hash_sum) {
+			wlog_error(L"File %s checksum mismatch after an update, expected %s, now %s", iter->first.c_str(), iter->second.hash_sum.c_str(),
+				   checksum.c_str());
+			return false;
+		}
+	}
+
+	log_info("Check of files checksums after update: passed.");
+	return true;
 }
