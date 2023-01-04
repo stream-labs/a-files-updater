@@ -150,7 +150,7 @@ void FileUpdater::revert()
 		}
 	}
 
-	if (error_count > 0 || !is_local_files_changed()) {
+	if (error_count > 0 || is_local_files_changed()) {
 		wlog_warn(L"Revert have failed to correctly revert some files. Fails: %i", error_count);
 		throw std::exception("Revert have failed to correctly revert some files");
 	}
@@ -200,10 +200,10 @@ bool FileUpdater::is_local_files_changed()
 		std::string checksum = calculate_files_checksum_safe(file.first);
 		if (checksum != file.second) {
 			wlog_error(L"File %s checksum mismatch after revert, expected %s, now %s", file.first.c_str(), file.second.c_str(), checksum.c_str());
-			return false;
+			return true;
 		}
 	}
 
 	log_info("Check of files checksums after revert: passed.");
-	return true;
+	return false;
 }
