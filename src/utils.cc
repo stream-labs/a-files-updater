@@ -327,16 +327,34 @@ std::string calculate_files_checksum(const fs::path &path)
 
 std::vector<char> get_messages_callback(std::string const &file_name, std::string const &encoding)
 {
-	static std::unordered_map<std::string, int> locales_resources(
-		{{"/ar_SA/LC_MESSAGES/messages.mo", 101}, {"/cs_CZ/LC_MESSAGES/messages.mo", 102}, {"/da_DK/LC_MESSAGES/messages.mo", 103},
-		 {"/de_DE/LC_MESSAGES/messages.mo", 104}, {"/en_US/LC_MESSAGES/messages.mo", 105}, {"/es_ES/LC_MESSAGES/messages.mo", 106},
-		 {"/fr_FR/LC_MESSAGES/messages.mo", 107}, {"/hu_HU/LC_MESSAGES/messages.mo", 108}, {"/id_ID/LC_MESSAGES/messages.mo", 109},
-		 {"/it_IT/LC_MESSAGES/messages.mo", 110}, {"/ja_JP/LC_MESSAGES/messages.mo", 111}, {"/ko_KR/LC_MESSAGES/messages.mo", 112},
-		 {"/mk_MK/LC_MESSAGES/messages.mo", 113}, {"/nl_NL/LC_MESSAGES/messages.mo", 114}, {"/pl_PL/LC_MESSAGES/messages.mo", 115},
-		 {"/pt_BR/LC_MESSAGES/messages.mo", 116}, {"/pt_PT/LC_MESSAGES/messages.mo", 117}, {"/ru_RU/LC_MESSAGES/messages.mo", 118},
-		 {"/sk_SK/LC_MESSAGES/messages.mo", 119}, {"/sl_SI/LC_MESSAGES/messages.mo", 120}, {"/sv_SE/LC_MESSAGES/messages.mo", 121},
-		 {"/th_TH/LC_MESSAGES/messages.mo", 122}, {"/tr_TR/LC_MESSAGES/messages.mo", 123}, {"/vi_VN/LC_MESSAGES/messages.mo", 124},
-		 {"/zh_CN/LC_MESSAGES/messages.mo", 125}, {"/zh_TW/LC_MESSAGES/messages.mo", 126}});
+	static std::unordered_map<std::string, int> locales_resources({
+		{ "/ar_SA/LC_MESSAGES/messages.mo", 101 },
+		{ "/cs_CZ/LC_MESSAGES/messages.mo", 102 },
+		{ "/da_DK/LC_MESSAGES/messages.mo", 103 },
+		{ "/de_DE/LC_MESSAGES/messages.mo", 104 },
+		{ "/en_US/LC_MESSAGES/messages.mo", 105 },
+		{ "/es_ES/LC_MESSAGES/messages.mo", 106 },
+		{ "/fr_FR/LC_MESSAGES/messages.mo", 107 },
+		{ "/hu_HU/LC_MESSAGES/messages.mo", 108 },
+		{ "/id_ID/LC_MESSAGES/messages.mo", 109 },
+		{ "/it_IT/LC_MESSAGES/messages.mo", 110 },
+		{ "/ja_JP/LC_MESSAGES/messages.mo", 111 },
+		{ "/ko_KR/LC_MESSAGES/messages.mo", 112 },
+		{ "/mk_MK/LC_MESSAGES/messages.mo", 113 },
+		{ "/nl_NL/LC_MESSAGES/messages.mo", 114 },
+		{ "/pl_PL/LC_MESSAGES/messages.mo", 115 },
+		{ "/pt_BR/LC_MESSAGES/messages.mo", 116 },
+		{ "/pt_PT/LC_MESSAGES/messages.mo", 117 },
+		{ "/ru_RU/LC_MESSAGES/messages.mo", 118 },
+		{ "/sk_SK/LC_MESSAGES/messages.mo", 119 },
+		{ "/sl_SI/LC_MESSAGES/messages.mo", 120 },
+		{ "/sv_SE/LC_MESSAGES/messages.mo", 121 },
+		{ "/th_TH/LC_MESSAGES/messages.mo", 122 },
+		{ "/tr_TR/LC_MESSAGES/messages.mo", 123 },
+		{ "/vi_VN/LC_MESSAGES/messages.mo", 124 },
+		{ "/zh_CN/LC_MESSAGES/messages.mo", 125 },
+		{ "/zh_TW/LC_MESSAGES/messages.mo", 126 }
+	});
 	std::vector<char> localization;
 
 	HMODULE hmodule = GetModuleHandle(NULL);
