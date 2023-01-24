@@ -3,8 +3,9 @@
 #include "logger/log.h"
 #include <aclapi.h>
 
-FileUpdater::FileUpdater(fs::path old_files_dir, fs::path app_dir, fs::path new_files_dir, const manifest_map_t &manifest)
-	: m_new_files_dir(new_files_dir), m_old_files_dir(old_files_dir), m_app_dir(app_dir), m_manifest(manifest)
+FileUpdater::FileUpdater(fs::path old_files_dir, fs::path app_dir, fs::path new_files_dir, const manifest_map_t &manifest,
+			 const local_manifest_t &local_manifest)
+	: m_new_files_dir(new_files_dir), m_old_files_dir(old_files_dir), m_app_dir(app_dir), m_manifest(manifest), m_local_manifest(local_manifest)
 {
 	m_old_files_dir /= "old-files";
 }
@@ -21,8 +22,6 @@ FileUpdater::~FileUpdater()
 
 void FileUpdater::update()
 {
-	fs::create_directories(m_old_files_dir);
-
 	std::string version_file_key = "resources\app.asar";
 
 	for (manifest_map_t::const_iterator iter = m_manifest.begin(); iter != m_manifest.end(); ++iter) {
@@ -34,6 +33,10 @@ void FileUpdater::update()
 	manifest_map_t::const_iterator version_file = m_manifest.find(version_file_key);
 	if (version_file != m_manifest.end()) {
 		update_entry_with_retries(version_file, m_new_files_dir);
+	}
+
+	if (!is_local_files_updated()) {
+		throw std::runtime_error("Error: Update went not as expected");
 	}
 }
 
@@ -80,6 +83,13 @@ bool FileUpdater::update_entry(manifest_map_t::const_iterator &iter, fs::path &n
 
 	try {
 		if (!iter->second.remove_at_update) {
+			fs::create_directories(to_path.parent_path(), ec);
+			if (ec) {
+				std::wstring wmsg = ConvertToUtf16WS(ec.message());
+				wlog_warn(L"Failed to create directory: %s error, %s", to_path.parent_path().c_str(), wmsg.c_str());
+				return false;
+			}
+
 			fs::rename(from_path, to_path, ec);
 
 			if (ec) {
@@ -109,8 +119,8 @@ bool FileUpdater::reset_rights(const fs::path &path)
 	ACL empty_acl;
 	if (InitializeAcl(&empty_acl, sizeof(empty_acl), ACL_REVISION)) {
 		const std::wstring path_str = path.generic_wstring();
-		DWORD result =
-			SetNamedSecurityInfo((LPWSTR)path_str.c_str(), SE_FILE_OBJECT, DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION, 0, 0, &empty_acl, 0);
+		DWORD result = SetNamedSecurityInfo((LPWSTR)path_str.c_str(), SE_FILE_OBJECT, DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION,
+						    0, 0, &empty_acl, 0);
 		if (result == ERROR_SUCCESS) {
 			return true;
 		}
@@ -149,7 +159,7 @@ void FileUpdater::revert()
 		}
 	}
 
-	if (error_count > 0) {
+	if (error_count > 0 || is_local_files_changed()) {
 		wlog_warn(L"Revert have failed to correctly revert some files. Fails: %i", error_count);
 		throw std::exception("Revert have failed to correctly revert some files");
 	}
@@ -159,7 +169,7 @@ bool FileUpdater::backup()
 {
 	for (manifest_map_t::const_iterator iter = m_manifest.begin(); iter != m_manifest.end(); ++iter) {
 		try {
-			if (iter->second.skip_update)
+			if (iter->second.skip_update || !iter->second.compared_to_local)
 				continue;
 
 			std::error_code ec;
@@ -181,11 +191,61 @@ bool FileUpdater::backup()
 					wlog_debug(L"Failed to backup entry %s to %s, error %s", to_path.c_str(), old_file_path.c_str(), wmsg.c_str());
 					return false;
 				}
+			} else {
+				wlog_error(L"File selected for update %s does not exist anymore, backup not possible", to_path.c_str());
+				return false;
 			}
 		} catch (...) {
 			return false;
 		}
 	}
 
+	return true;
+}
+
+bool FileUpdater::is_local_files_changed()
+{
+	for (auto &file : m_local_manifest) {
+		std::string checksum = calculate_files_checksum_safe(file.first);
+		if (checksum != file.second) {
+			wlog_error(L"File %s checksum mismatch after revert, expected %s, now %s", file.first.c_str(), file.second.c_str(), checksum.c_str());
+			return true;
+		}
+	}
+
+	log_info("Check of files checksums after revert: passed.");
+	return false;
+}
+
+bool FileUpdater::is_local_files_updated()
+{
+	for (manifest_map_t::const_iterator iter = m_manifest.begin(); iter != m_manifest.end(); ++iter) {
+
+		if (iter->second.skip_update) {
+			continue;
+		}
+
+		std::error_code ec;
+		fs::path file_name_part = fs::u8path(iter->first.c_str());
+		fs::path to_path(m_app_dir);
+		to_path /= file_name_part;
+
+		if (iter->second.remove_at_update) {
+			//check if to_path file exists
+			if (fs::exists(to_path, ec)) {
+				wlog_error(L"File %s still not exist after update, something went wrong", to_path.c_str());
+				return false;
+			}
+		}
+
+		std::string checksum = calculate_files_checksum_safe(to_path);
+		if (checksum != iter->second.hash_sum) {
+			wlog_error(L"File %s checksum mismatch after an update, expected %s, now %s", iter->first.c_str(), iter->second.hash_sum.c_str(),
+				   checksum.c_str());
+			return false;
+		}
+	}
+
+	log_info("Check of files checksums after update: passed.");
 	return true;
 }

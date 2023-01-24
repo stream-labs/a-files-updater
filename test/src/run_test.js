@@ -32,8 +32,9 @@ exports.test_update = async function (testinfo) {
   try {
     let launched = await updater_launcher.start_updater(testinfo)
     let ret = 0;
-
-    if (!generate_files.check_results(testinfo)) {
+    if (testinfo.expectedResult == "filescorrupted") { 
+      console.log("=== Test " + testinfo.number + " result: after updater files corrupted as expected");
+    } else if (!generate_files.check_results(testinfo)) {
       ret = 1;
       console.log("=== Test " + testinfo.number + " result: after updater files not as expected");
     } else {

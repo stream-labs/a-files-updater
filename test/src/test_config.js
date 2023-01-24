@@ -40,12 +40,13 @@ exports.gettestinfo = function (testname) {
     let_5sec: false,
     let_15sec: false,
     max_trouble: 20,
-    expected_change_for_trouble: 90,
+    expected_chance_for_trouble: 90,
     let_block_manifest: false,
     let_block_one_file: false,
     block_file_number: 10,
     wrong_arguments: false,
     systemFolder: false,
+    corruptBackuped: false,
 
     //sentry emulator
     reporterHost: "localhost",
@@ -56,7 +57,7 @@ exports.gettestinfo = function (testname) {
     runAsInteractive: '0',
 
     //test results 
-    expectedResult: "filesupdated", // "filesnotchanged", ""
+    expectedResult: "filesupdated", // "filesnotchanged", "", "filescorrupted"
     expectedCrashReport: false,
 
     register_unnecesary_request: false,
@@ -77,11 +78,10 @@ exports.gettestinfo = function (testname) {
 
   newinfo.updaterDir = path.join(__dirname, "..", "..", "build", "distribute","a-file-updater")
   newinfo.updaterWorkDir = path.join(testfilesDir, "updaİeł")
-  newinfo.updateCfg = path.join(os.tmpdir(), 'slobs-updater', 'update.cfg');
-  newinfo.updateCfgBak = path.join(os.tmpdir(), 'slobs-updater', 'update.cfg.last');
-
 
   newinfo.files = [
+    { name: "filech1.jpeg", hugefile: false, testing: "changed content" },
+    { name: "filech2.jpeg", hugefile: false, testing: "changed content" },
     { name: "filea.exe", hugefile: false, testing: "deleted empty" },
     { name: "file1.exe", hugefile: false, testing: "deleted" },
     { name: "file2.txt", hugefile: false, testing: "deleted" },

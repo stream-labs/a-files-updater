@@ -5,6 +5,8 @@
 #include <iostream>
 #include <sstream>
 
+#include <boost/exception/all.hpp>
+
 #include "logger/log.h"
 #include "checksum-filters.hpp"
 #include <boost/algorithm/string/replace.hpp>
@@ -151,8 +153,8 @@ BOOL StartApplication(LPWSTR lpCommandLine, LPCWSTR lpWorkingDirectory)
 		return FALSE;
 	}
 
-	bSuccess = DuplicateTokenEx(hShellToken, TOKEN_QUERY | TOKEN_ASSIGN_PRIMARY | TOKEN_DUPLICATE | TOKEN_ADJUST_DEFAULT | TOKEN_ADJUST_SESSIONID, NULL, SecurityImpersonation,
-				    TokenPrimary, &hNewToken);
+	bSuccess = DuplicateTokenEx(hShellToken, TOKEN_QUERY | TOKEN_ASSIGN_PRIMARY | TOKEN_DUPLICATE | TOKEN_ADJUST_DEFAULT | TOKEN_ADJUST_SESSIONID, NULL,
+				    SecurityImpersonation, TokenPrimary, &hNewToken);
 
 	if (bSuccess == 0) {
 		LogLastError(L"DuplicateTokenEx");
@@ -274,7 +276,20 @@ std::string unfixup_uri(const std::string &source)
 	return result;
 }
 
-std::string calculate_files_checksum(fs::path &path)
+std::string calculate_files_checksum_safe(const fs::path &path)
+{
+	std::string checksum = "";
+	try {
+		checksum = calculate_files_checksum(path);
+	} catch (const boost::exception &e) {
+		log_warn("Failed to calculate checksum of local file. Try to update it. Exception: %s", boost::diagnostic_information(e).c_str());
+	} catch (const std::exception &e) {
+		log_warn("Failed to calculate checksum of local file. Try to update it. std::exception: %s", e.what());
+	}
+	return checksum;
+}
+
+std::string calculate_files_checksum(const fs::path &path)
 {
 	std::ostringstream hex_digest;
 	unsigned char hash[SHA256_DIGEST_LENGTH] = {0};
@@ -310,10 +325,9 @@ std::string calculate_files_checksum(fs::path &path)
 	return hex_digest.str();
 }
 
-
-std::vector<char> get_messages_callback( std::string const &file_name, std::string const &encoding )
+std::vector<char> get_messages_callback(std::string const &file_name, std::string const &encoding)
 {
-	static std::unordered_map<std::string, int> locales_resources ({
+	static std::unordered_map<std::string, int> locales_resources({
 		{ "/ar_SA/LC_MESSAGES/messages.mo", 101 },
 		{ "/cs_CZ/LC_MESSAGES/messages.mo", 102 },
 		{ "/da_DK/LC_MESSAGES/messages.mo", 103 },
@@ -341,7 +355,7 @@ std::vector<char> get_messages_callback( std::string const &file_name, std::stri
 		{ "/zh_CN/LC_MESSAGES/messages.mo", 125 },
 		{ "/zh_TW/LC_MESSAGES/messages.mo", 126 }
 	});
-	std::vector <char> localization;
+	std::vector<char> localization;
 
 	HMODULE hmodule = GetModuleHandle(NULL);
 	if (hmodule) {
@@ -369,28 +383,27 @@ std::vector<char> get_messages_callback( std::string const &file_name, std::stri
 
 void setup_locale()
 {
-	const char * current_locale = std::setlocale(LC_ALL, nullptr);
-	if (current_locale == nullptr || std::strlen(current_locale) == 0)
-	{
+	const char *current_locale = std::setlocale(LC_ALL, nullptr);
+	if (current_locale == nullptr || std::strlen(current_locale) == 0) {
 		std::setlocale(LC_ALL, "en_US.UTF-8");
 	}
 
 	namespace blg = boost::locale::gnu_gettext;
 	blg::messages_info info;
 
-	info.paths.push_back(""); 
+	info.paths.push_back("");
 	info.domains.push_back(blg::messages_info::domain("messages"));
 	info.callback = get_messages_callback;
-	
+
 	boost::locale::generator gen;
 	std::locale base_locale = gen("");
 
 	boost::locale::info const &properties = std::use_facet<boost::locale::info>(base_locale);
 	info.language = properties.language();
-	info.country  = properties.country();
+	info.country = properties.country();
 	info.encoding = properties.encoding();
-	info.variant  = properties.variant();
+	info.variant = properties.variant();
 
-	std::locale real_locale(base_locale,blg::create_messages_facet<char>(info));
+	std::locale real_locale(base_locale, blg::create_messages_facet<char>(info));
 	std::locale::global(real_locale);
 }

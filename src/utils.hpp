@@ -42,7 +42,8 @@ std::string fixup_uri(const std::string &source);
 std::string encimpl(std::string::value_type v);
 std::string urlencode(const std::string &url);
 
-std::string calculate_files_checksum(fs::path &path);
+std::string calculate_files_checksum(const fs::path &path);
+std::string calculate_files_checksum_safe(const fs::path &path);
 
 void setup_locale();
 
@@ -79,3 +80,4 @@ struct manifest_entry_t {
 };
 
 using manifest_map_t = std::unordered_map<std::string, manifest_entry_t>;
+using local_manifest_t = std::vector<std::pair<fs::path, std::string>>;
