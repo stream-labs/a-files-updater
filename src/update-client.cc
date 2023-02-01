@@ -611,24 +611,30 @@ void update_client::checkup_manifest(blockers_map_t &blockers)
 		if (fs::is_directory(entry_status))
 			continue;
 
+		if (std::find_if(local_manifest.begin(), local_manifest.end(),
+				 [&](std::pair<fs::path, std::string> &entry_pair) { return entry_pair.first == entry; }) != local_manifest.end())
+			continue;
+
 		local_manifest.emplace_back(entry, std::string(""));
 	}
 
 	std::vector<std::thread *> workers;
 
 	log_info("Full size: %d", local_manifest.size());
+	if (max_threads > local_manifest.size())
+		max_threads = local_manifest.size();
 
+	size_t from = 0;
+	size_t to = 0;
 	for (int i = 0; i < max_threads; i++) {
-		size_t from = local_manifest.size() / max_threads * i;
-		size_t to;
-
 		if (i + 1 != max_threads)
-			to = local_manifest.size() / max_threads * (i + 1);
+			to = local_manifest.size() * (i + 1) / max_threads;
 		else
 			to = local_manifest.size();
 
 		log_info("Begining work from: %d to: %d", from, to);
 		workers.push_back(new std::thread(&update_client::checkup_files, this, std::ref(blockers), from, to));
+		from = to;
 	}
 
 	for (auto worker : workers) {

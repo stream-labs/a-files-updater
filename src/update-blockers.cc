@@ -42,12 +42,6 @@ bool get_blockers_list(fs::path &check_path, blockers_map_t &blockers)
 
 			if (dwError == ERROR_SUCCESS) {
 				for (unsigned int i = 0; i < nProcInfo; i++) {
-					if (0) {
-						log_debug("%d.ApplicationType = %d\n", i, rgpi[i].ApplicationType);
-						log_debug("%d.strAppName = %ls\n", i, rgpi[i].strAppName);
-						log_debug("%d.Process.dwProcessId = %d\n", i, rgpi[i].Process.dwProcessId);
-					}
-
 					std::unique_lock<std::mutex> ulock(blockers.mtx);
 					blockers.list.insert({rgpi[i].Process.dwProcessId, rgpi[i]});
 				}
@@ -64,7 +58,7 @@ bool get_blockers_list(fs::path &check_path, blockers_map_t &blockers)
 					blockers.list.insert({unknown_locker_process.Process.dwProcessId, unknown_locker_process});
 					ret = true;
 				}
-				log_debug("RmGetList for (%s) returned %d\n", check_path.u8string().c_str(), dwError);
+				log_debug("RmGetList for (%s) returned %d", check_path.u8string().c_str(), dwError);
 			}
 
 			if (rgpi != nullptr) {
@@ -72,12 +66,12 @@ bool get_blockers_list(fs::path &check_path, blockers_map_t &blockers)
 				rgpi = nullptr;
 			}
 		} else {
-			log_debug("RmRegisterResources(%ls) returned %d\n", check_path.u8string().c_str(), dwError);
+			log_debug("RmRegisterResources(%ls) returned %d", check_path.u8string().c_str(), dwError);
 		}
 
 		RmEndSession(dwSession);
 	} else {
-		log_error("RmStartSession returned %d\n", dwError);
+		log_error("RmStartSession returned %d", dwError);
 	}
 
 	return ret;
