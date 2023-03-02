@@ -1,4 +1,4 @@
-# Chinese translations for a-file-updater package.
+# Chinese (simplified) translations for a-file-updater package.
 # Copyright (C) 2016-2022 by Streamlabs (General Workings Inc)
 # This file is distributed under the same license as the a-file-updater package.
 #
@@ -6,56 +6,60 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-09-29 11:34-0700\n"
+"POT-Creation-Date: 2023-03-02 15:40-0800\n"
 "PO-Revision-Date: 2022-08-29 21:43-0700\n"
 "Last-Translator: <EMAIL@ADDRESS>\n"
 "Language-Team: Chinese (simplified)\n"
 "Language: zh_CN\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=GBK\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src\main.cc:42 src\update-client.cc:103
+#: src\main.cc:42 src\update-client.cc:100
+#, fuzzy
 msgid ""
 "The automatic update failed to perform successfully.\n"
 "Please install the latest version of Streamlabs Desktop from https://"
 "streamlabs.com/"
 msgstr ""
+"自动更新未能成功执行。\n"
+"请访问 https://streamlabs.com/ 安装最新版本的 Streamlabs Desktop"
 
-#: src\main.cc:239
+#: src\main.cc:213
 msgid "Checking packages..."
-msgstr ""
+msgstr "正在检查封包..."
 
-#: src\main.cc:240
+#: src\main.cc:214
 msgid "Blockers list"
-msgstr ""
+msgstr "阻止程序列表"
 
-#: src\main.cc:241
+#: src\main.cc:215
 msgid "Stop all"
-msgstr ""
+msgstr "全部停止"
 
-#: src\main.cc:242
+#: src\main.cc:216
 msgid "Cancel"
-msgstr ""
+msgstr "取消"
 
-#: src\main.cc:335
+#: src\main.cc:282
 msgid "Checking local files..."
-msgstr ""
+msgstr "正在检查本地文件..."
 
-#: src\main.cc:422
+#: src\main.cc:365
 msgid "Downloading"
-msgstr ""
+msgstr "正在下载"
 
-#: src\main.cc:522
+#: src\main.cc:460
 msgid ""
 "The following programs are preventing Streamlabs Desktop from updating :"
-msgstr ""
+msgstr "以下程序正在阻止 Streamlabs Desktop 更新："
 
-#: src\main.cc:568
+#: src\main.cc:503
 msgid "Copying files..."
-msgstr ""
+msgstr "正在复制文件..."
 
-#: src\main.cc:733
+#: src\main.cc:656
+#, fuzzy
 msgid ""
 "You have launched the updater for Streamlabs Desktop, which can't work on "
 "its own. Please launch the Desktop App and it will check for updates "
@@ -63,34 +67,51 @@ msgid ""
 "If you're having issues you can download the latest version from https://"
 "streamlabs.com/."
 msgstr ""
+"您已启动 Streamlabs Desktop 更新程序，该更新程序无法单独运行。请启动桌面应用"
+"程序，它将自动检查更新。\n"
+"如果遇到问题，可以访问 https://streamlabs.com/ 下载最新版本。"
 
-#: src\main.cc:736
+#: src\main.cc:660
+#, fuzzy
 msgid ""
 "Streamlabs Desktop installed in a system folder. Automatic updated has been "
 "disabled to prevent changes to a system folder. \n"
 "Please install the latest version of Streamlabs Desktop from https://"
 "streamlabs.com/"
 msgstr ""
+"Streamlabs Desktop 安装在系统文件夹中。自动更新已被禁用，以避免更改系统文件"
+"夹。\n"
+"请访问 https://streamlabs.com/ 安装最新版本的 Streamlabs Desktop"
 
-#: src\main.cc:811
+#: src\main.cc:729
+#, fuzzy
 msgid ""
 "The application has finished updating.\n"
 "Please manually start Streamlabs Desktop."
 msgstr ""
+"应用程序已完成更新。\n"
+"请手动启动 Streamlabs Desktop。"
 
-#: src\main.cc:815
+#: src\main.cc:732
+#, fuzzy
 msgid ""
 "There was an issue launching the application.\n"
 "Please start Streamlabs Desktop and try again."
 msgstr ""
+"启动应用程序时出现问题。\n"
+"请启动 Streamlabs Desktop，然后重试。"
 
-#: src\update-client.cc:100
+#: src\update-client.cc:95
+#, fuzzy
 msgid ""
 "Failed to move files.\n"
 "Please make sure the application files are not in use and try again."
 msgstr ""
+"移动文件失败。\n"
+"请确保应用程序文件未在使用中，然后重试。"
 
-#: src\update-client.cc:169
+#: src\update-client.cc:162
+#, fuzzy
 msgid ""
 "Streamlabs Desktop was unable to download the update and will launch the "
 "current version instead.\n"
@@ -98,25 +119,36 @@ msgid ""
 "The update will try again later. If this issue persists then please download "
 "a new installer from www.streamlabs.com"
 msgstr ""
+"Streamlabs Desktop 无法下载更新，将启动当前版本。\n"
+"\n"
+"稍后将重新尝试更新。如果此问题仍然存在，请访问 www.streamlabs.com 下载新安装"
+"程序"
 
-#: src\update-client.cc:277 src\update-client.cc:575
+#: src\update-client.cc:261 src\update-client.cc:528
 msgid "Failed to connect to update server."
-msgstr ""
+msgstr "连接更新服务器失败。"
 
-#: src\update-client.cc:784
+#: src\update-client.cc:713
 msgid "Update was canceled."
-msgstr ""
+msgstr "更新已取消。"
 
-#: src\update-client.cc:805
+#: src\update-client.cc:732
+#, fuzzy
 msgid ""
 "Failed to move files.\n"
 "Some files may be blocked by other program. Please restart your PC and try "
 "to update again."
 msgstr ""
+"移动文件失败。\n"
+"某些文件可能被其他程序阻止。请重新启动 PC，然后再次尝试更新。"
 
-#: src\update-client.cc:810 src\update-client.cc:815 src\update-client.cc:820
+#: src\update-client.cc:738 src\update-client.cc:744 src\update-client.cc:750
+#, fuzzy
 msgid ""
 "Failed to move files.\n"
 "Some files could not be updated. Please download Streamlabs Desktop "
 "installer from our site and run full installation."
 msgstr ""
+"移动文件失败。\n"
+"某些文件无法更新。请访问我们的网站下载 Streamlabs Desktop 安装程序并运行完整"
+"安装。"

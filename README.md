@@ -57,3 +57,4 @@ mo files included in exe by windows resources.
 * Prepare binaries `ci\localization_prepare_binaries.cmd`
 * Make a new build 
 * Do not forget to commit `locale\NEW_LANG\LC_MESSAGES\messages.po`
+* to test `set LANG=fr_FR`
