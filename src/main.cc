@@ -33,6 +33,7 @@ const int max_bandwidth_in_average = 8;
 
 const int ui_padding = 10;
 const int ui_basic_height = 40;
+const int ui_min_width = 400;
 
 bool update_completed = false;
 
@@ -74,7 +75,13 @@ static LRESULT CALLBACK BlockersListWndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 
 static BOOL HasInstalled_VC_redistx64();
 
-struct callbacks_impl : public install_callbacks, client_callbacks, downloader_callbacks, updater_callbacks, pid_callbacks, blocker_callbacks {
+struct callbacks_impl : public install_callbacks,
+			client_callbacks,
+			downloader_callbacks,
+			updater_callbacks,
+			pid_callbacks,
+			blocker_callbacks,
+			disk_space_callbacks {
 	int screen_width{0};
 	int screen_height{0};
 	int width{500};
@@ -85,7 +92,12 @@ struct callbacks_impl : public install_callbacks, client_callbacks, downloader_c
 	HWND progress_label{NULL};
 	HWND blockers_list{NULL};
 	HWND kill_button{NULL};
+	HWND continue_button{NULL};
 	HWND cancel_button{NULL};
+
+	HFONT main_font{NULL};
+	RECT progress_label_rect{0};
+	RECT blockers_list_rect{0};
 
 	std::atomic_uint files_done{0};
 	std::vector<size_t> file_sizes{0};
@@ -101,6 +113,7 @@ struct callbacks_impl : public install_callbacks, client_callbacks, downloader_c
 	bool should_start{false};
 	bool should_cancel{false};
 	bool should_kill_blockers{false};
+	bool should_continue{false};
 	bool notify_restart{false};
 	bool finished_downloading{false};
 	LPCWSTR label_format{L"Downloading {} of {} - {:.2f} MB/s"};
@@ -112,6 +125,9 @@ struct callbacks_impl : public install_callbacks, client_callbacks, downloader_c
 
 	explicit callbacks_impl(HINSTANCE hInstance, int nCmdShow);
 	~callbacks_impl();
+
+	void setupFont();
+	void repostionUI();
 
 	void initialize(struct update_client *client) final;
 	void success() final;
@@ -139,6 +155,11 @@ struct callbacks_impl : public install_callbacks, client_callbacks, downloader_c
 	int blocker_waiting_for(const std::wstring &processes_list, bool list_changed) final;
 	void blocker_wait_complete() final;
 
+	void disk_space_check_start() final;
+	int disk_space_waiting_for(const std::wstring &app_dir, size_t app_dir_free_space, const std::wstring &temp_dir, size_t temp_dir_free_space,
+				   bool skip_update) final;
+	void disk_space_wait_complete() final;
+
 	void updater_start() final;
 	void update_file(std::string &filename) final {}
 	void update_finished(std::string &filename) final {}
@@ -162,7 +183,6 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	wc.hIcon = app_icon;
 	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
 	wc.hbrBackground = CreateSolidBrush(RGB(23, 36, 45));
-	;
 	wc.lpszMenuName = NULL;
 	wc.lpszClassName = TEXT("UpdaterFrame");
 	wc.hIconSm = app_icon;
@@ -213,10 +233,11 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	std::wstring checking_packages_label = ConvertToUtf16WS(boost::locale::translate("Checking packages..."));
 	std::wstring blockers_list_label = ConvertToUtf16WS(boost::locale::translate("Blockers list"));
 	std::wstring stop_all_label = ConvertToUtf16WS(boost::locale::translate("Stop all"));
+	std::wstring continue_label = ConvertToUtf16WS(boost::locale::translate("Continue"));
 	std::wstring cancel_label = ConvertToUtf16WS(boost::locale::translate("Cancel"));
 
-	progress_label = CreateWindow(WC_STATIC, checking_packages_label.c_str(), WS_CHILD | WS_VISIBLE | SS_CENTER | SS_CENTERIMAGE, x_pos, ui_padding, x_size,
-				      ui_basic_height, frame, NULL, NULL, NULL);
+	progress_label = CreateWindow(WC_STATIC, checking_packages_label.c_str(), WS_CHILD | WS_VISIBLE, x_pos, ui_padding, x_size, ui_basic_height, frame,
+				      NULL, NULL, NULL);
 
 	if (!progress_label) {
 		do_fail(getDefaultErrorMessage(), L"CreateWindow");
@@ -241,11 +262,85 @@ callbacks_impl::callbacks_impl(HINSTANCE hInstance, int nCmdShow)
 	kill_button = CreateWindow(WC_BUTTON, stop_all_label.c_str(), WS_TABSTOP | WS_CHILD | BS_DEFPUSHBUTTON, x_size + ui_padding - 100,
 				   rcParent.bottom - rcParent.top, 100, ui_basic_height, frame, NULL, NULL, NULL);
 
+	continue_button = CreateWindow(WC_BUTTON, continue_label.c_str(), WS_TABSTOP | WS_CHILD | BS_DEFPUSHBUTTON, x_size + ui_padding - 100,
+				       rcParent.bottom - rcParent.top, 100, ui_basic_height, frame, NULL, NULL, NULL);
+
 	cancel_button = CreateWindow(WC_BUTTON, cancel_label.c_str(), WS_TABSTOP | WS_CHILD | BS_DEFPUSHBUTTON, x_size + ui_padding - 100 - ui_padding - 100,
 				     rcParent.bottom - rcParent.top, 100, ui_basic_height, frame, NULL, NULL, NULL);
 
 	SendMessage(progress_worker, PBM_SETBARCOLOR, 0, RGB(49, 195, 162));
 	SendMessage(progress_worker, PBM_SETRANGE32, 0, INT_MAX);
+
+	setupFont();
+}
+
+void callbacks_impl::setupFont()
+{
+	LOGFONT lf = {0};
+	lf.lfHeight = 22;
+	lf.lfWidth = 0;
+	lf.lfEscapement = 0;
+	lf.lfOrientation = 0;
+	lf.lfWeight = FW_NORMAL;
+	lf.lfItalic = FALSE;
+	lf.lfUnderline = FALSE;
+	lf.lfStrikeOut = FALSE;
+	lf.lfCharSet = DEFAULT_CHARSET;
+	lf.lfOutPrecision = OUT_DEFAULT_PRECIS;
+	lf.lfClipPrecision = CLIP_DEFAULT_PRECIS;
+	lf.lfQuality = CLEARTYPE_QUALITY;
+	lf.lfPitchAndFamily = DEFAULT_PITCH | FF_DONTCARE;
+	lstrcpy(lf.lfFaceName, L"Segoe UI");
+
+	main_font = CreateFontIndirect(&lf);
+
+	SendMessage(frame, WM_SETFONT, WPARAM(main_font), TRUE);
+	SendMessage(progress_label, WM_SETFONT, WPARAM(main_font), TRUE);
+	SendMessage(kill_button, WM_SETFONT, WPARAM(main_font), TRUE);
+	SendMessage(continue_button, WM_SETFONT, WPARAM(main_font), TRUE);
+	SendMessage(cancel_button, WM_SETFONT, WPARAM(main_font), TRUE);
+	SendMessage(blockers_list, WM_SETFONT, WPARAM(main_font), TRUE);
+}
+
+void callbacks_impl::repostionUI()
+{
+	int frame_h = ui_padding;
+	int main_w = progress_label_rect.right;
+
+	if (main_w < ui_min_width)
+		main_w = ui_min_width;
+
+	SetWindowPos(progress_label, 0, ui_padding, ui_padding, main_w, progress_label_rect.bottom, SWP_ASYNCWINDOWPOS);
+
+	int frame_w = main_w + ui_padding * 2;
+	frame_h += progress_label_rect.bottom + ui_padding;
+
+	if (IsWindowVisible(blockers_list)) {
+		SetWindowPos(blockers_list, 0, ui_padding, frame_h, main_w, blockers_list_rect.bottom, SWP_ASYNCWINDOWPOS);
+		frame_h += blockers_list_rect.bottom + ui_padding;
+	}
+
+	if (IsWindowVisible(progress_worker)) {
+		SetWindowPos(progress_worker, 0, ui_padding, frame_h, main_w, ui_basic_height, SWP_ASYNCWINDOWPOS);
+		frame_h += ui_basic_height + ui_padding;
+	}
+
+	if (IsWindowVisible(continue_button) || IsWindowVisible(kill_button) || IsWindowVisible(cancel_button)) {
+		int button_left = main_w + ui_padding - 100;
+		SetWindowPos(continue_button, 0, button_left, frame_h, 0, 0, SWP_ASYNCWINDOWPOS | SWP_NOSIZE);
+		SetWindowPos(kill_button, 0, button_left, frame_h, 0, 0, SWP_ASYNCWINDOWPOS | SWP_NOSIZE);
+		SetWindowPos(cancel_button, 0, button_left - 100 - ui_padding, frame_h, 0, 0, SWP_ASYNCWINDOWPOS | SWP_NOSIZE);
+		frame_h += ui_basic_height + ui_padding;
+	}
+
+	RECT winRect = {0};
+	RECT clientRect = {0};
+	GetWindowRect(frame, &winRect);
+	GetClientRect(frame, &clientRect);
+
+	frame_h += (winRect.bottom - winRect.top) - clientRect.bottom;
+	frame_w += (winRect.right - winRect.left) - clientRect.right;
+	SetWindowPos(frame, 0, 0, 0, frame_w, frame_h, SWP_NOMOVE | SWP_NOREPOSITION | SWP_ASYNCWINDOWPOS);
 }
 
 callbacks_impl::~callbacks_impl() {}
@@ -280,6 +375,35 @@ void callbacks_impl::downloader_preparing()
 	auto ctx = reinterpret_cast<callbacks_impl *>(data);
 
 	std::wstring checking_label = ConvertToUtf16WS(boost::locale::translate("Checking local files..."));
+
+	HDC hdc = GetDC(frame);
+	HFONT hfontOld = (HFONT)SelectObject(hdc, main_font);
+
+	progress_label_rect = {0};
+	DrawText(hdc, checking_label.c_str(), -1, &progress_label_rect, DT_CALCRECT | DT_NOCLIP);
+	log_debug("label rect %dx%d, error %d", progress_label_rect.right - progress_label_rect.left, progress_label_rect.bottom - progress_label_rect.top,
+		  GetLastError());
+	progress_label_rect.right -= progress_label_rect.left;
+
+	std::wstring label(fmt::format(ctx->label_format, 9999, 9999, 100.00));
+
+	RECT progress_with_numbers = {0};
+	DrawText(hdc, checking_label.c_str(), -1, &progress_with_numbers, DT_CALCRECT | DT_NOCLIP);
+	log_debug("label rect %dx%d, error %d", progress_with_numbers.right - progress_with_numbers.left, progress_with_numbers.bottom - blockers_list_rect.top,
+		  GetLastError());
+	progress_with_numbers.right -= progress_with_numbers.left;
+
+	if (progress_label_rect.right < progress_with_numbers.right)
+		progress_label_rect = progress_with_numbers;
+
+	SelectObject(hdc, hfontOld);
+	ReleaseDC(frame, hdc);
+
+	ShowWindow(ctx->blockers_list, SW_HIDE);
+	ShowWindow(ctx->progress_label, SW_SHOW);
+	ShowWindow(ctx->progress_worker, SW_SHOW);
+
+	repostionUI();
 	SetWindowTextW(ctx->progress_label, checking_label.c_str());
 }
 
@@ -363,7 +487,28 @@ void callbacks_impl::installer_download_start(const std::string &packageName)
 	package_dl_pct100 = 0;
 	installer_download_progress(0);
 	std::wstring downloading_label = ConvertToUtf16WS(boost::locale::translate("Downloading"));
-	SetWindowTextW(progress_label, (downloading_label + fmt::to_wstring(packageName) + L"...").c_str());
+	downloading_label += fmt::to_wstring(packageName) + L"...";
+
+	HDC hdc = GetDC(frame);
+	HFONT hfontOld = (HFONT)SelectObject(hdc, main_font);
+
+	progress_label_rect = {0};
+	DrawText(hdc, downloading_label.c_str(), -1, &progress_label_rect, DT_CALCRECT | DT_NOCLIP);
+	log_debug("label rect %dx%d, error %d", progress_label_rect.right - progress_label_rect.left, progress_label_rect.bottom - progress_label_rect.top,
+		  GetLastError());
+
+	progress_label_rect.right -= progress_label_rect.left;
+
+	std::wstring processes_list = L"C: \r\nD: \r\nE: \r\nF: \r\nG: \r\nI: ";
+	blockers_list_rect = {0};
+	DrawText(hdc, processes_list.c_str(), -1, &blockers_list_rect, DT_CALCRECT | DT_NOCLIP);
+
+	SelectObject(hdc, hfontOld);
+	ReleaseDC(frame, hdc);
+
+	repostionUI();
+
+	SetWindowTextW(progress_label, downloading_label.c_str());
 }
 
 void callbacks_impl::installer_download_progress(const double percent)
@@ -458,29 +603,47 @@ void callbacks_impl::blocker_start()
 
 	std::wstring blocking_app_label =
 		ConvertToUtf16WS(boost::locale::translate("The following programs are preventing Streamlabs Desktop from updating :"));
-	SetWindowTextW(progress_label, blocking_app_label.c_str());
-	SetWindowTextW(blockers_list, L"");
 
-	SetWindowPos(frame, 0, 0, 0, width, height + ui_basic_height + ui_padding, SWP_NOMOVE | SWP_NOREPOSITION | SWP_ASYNCWINDOWPOS);
+	HDC hdc = GetDC(frame);
+	HFONT hfontOld = (HFONT)SelectObject(hdc, main_font);
+
+	progress_label_rect = {0};
+	DrawText(hdc, blocking_app_label.c_str(), -1, &progress_label_rect, DT_CALCRECT | DT_NOCLIP);
+	log_debug("label rect %dx%d, error %d", progress_label_rect.right - progress_label_rect.left, progress_label_rect.bottom - progress_label_rect.top,
+		  GetLastError());
+
+	progress_label_rect.right -= progress_label_rect.left;
+
+	std::wstring processes_list = L"C: \r\nD: \r\nE: \r\nF: \r\nG: \r\nI: ";
+	blockers_list_rect = {0};
+	DrawText(hdc, processes_list.c_str(), -1, &blockers_list_rect, DT_CALCRECT | DT_NOCLIP);
+
+	SelectObject(hdc, hfontOld);
+	ReleaseDC(frame, hdc);
 
 	ShowWindow(blockers_list, SW_SHOW);
 	ShowWindow(kill_button, SW_SHOW);
 	ShowWindow(cancel_button, SW_SHOW);
+
+	repostionUI();
+
+	SetWindowTextW(progress_label, blocking_app_label.c_str());
+	SetWindowTextW(blockers_list, L"");
 }
 
 int callbacks_impl::blocker_waiting_for(const std::wstring &processes_list, bool list_changed)
 {
 	int ret = 0;
-	if (list_changed) {
-		SetWindowTextW(blockers_list, processes_list.c_str());
-	}
-
 	if (should_cancel) {
 		should_cancel = false;
 		ret = 2;
 	} else if (should_kill_blockers) {
 		should_kill_blockers = false;
 		ret = 1;
+	} else {
+		if (list_changed) {
+			SetWindowTextW(blockers_list, processes_list.c_str());
+		}
 	}
 	return ret;
 }
@@ -494,13 +657,101 @@ void callbacks_impl::blocker_wait_complete()
 	SetWindowTextW(progress_label, L"");
 
 	ShowWindow(progress_worker, SW_SHOW);
+}
 
-	SetWindowPos(frame, 0, 0, 0, width, height, SWP_NOMOVE | SWP_NOREPOSITION | SWP_ASYNCWINDOWPOS);
+void callbacks_impl::disk_space_check_start()
+{
+	ShowWindow(progress_worker, SW_HIDE);
+
+	std::wstring disk_space_label =
+		ConvertToUtf16WS(boost::locale::translate("Streamlabs Desktop requires at least 2Gb of free disk space to update safely,\n"
+							  "updates may fail without this space. If you want to ensure safe updates,\n"
+							  "please reinstall Streamlabs Desktop to a drive with available space:"));
+	HDC hdc = GetDC(frame);
+	HFONT hfontOld = (HFONT)SelectObject(hdc, main_font);
+
+	progress_label_rect = {0};
+	DrawText(hdc, disk_space_label.c_str(), -1, &progress_label_rect, DT_CALCRECT | DT_NOCLIP);
+	log_debug("label rect %dx%d, error %d", progress_label_rect.right - progress_label_rect.left, progress_label_rect.bottom - progress_label_rect.top,
+		  GetLastError());
+
+	progress_label_rect.right -= progress_label_rect.left;
+
+	std::wstring processes_list = L"C: 100Mb\nD: 100Mb\nE: 100Mb";
+	blockers_list_rect = {0};
+	DrawText(hdc, processes_list.c_str(), -1, &blockers_list_rect, DT_CALCRECT | DT_NOCLIP);
+
+	SelectObject(hdc, hfontOld);
+	ReleaseDC(frame, hdc);
+
+	ShowWindow(blockers_list, SW_SHOW);
+	ShowWindow(continue_button, SW_SHOW);
+	ShowWindow(cancel_button, SW_SHOW);
+
+	repostionUI();
+	SetWindowTextW(progress_label, disk_space_label.c_str());
+}
+
+int callbacks_impl::disk_space_waiting_for(const std::wstring &app_dir, size_t app_dir_free_space, const std::wstring &temp_dir, size_t temp_dir_free_space,
+					   bool skip_update)
+{
+	int ret = 0;
+
+	if (should_cancel) {
+		should_cancel = false;
+		ret = 2;
+	} else if (should_continue) {
+		should_continue = false;
+		ret = 1;
+	} else if (!skip_update) {
+		std::wstring app_disk_name = app_dir.substr(0, app_dir.find_first_of(L"\\"));
+		std::wstring temp_disk_name = temp_dir.substr(0, temp_dir.find_first_of(L"\\"));
+
+		std::transform(app_disk_name.begin(), app_disk_name.end(), app_disk_name.begin(), ::toupper);
+		std::transform(temp_disk_name.begin(), temp_disk_name.end(), temp_disk_name.begin(), ::toupper);
+		std::wostringstream processes_list;
+		processes_list.precision(2);
+		processes_list << std::fixed;
+
+		if (app_disk_name != temp_disk_name) {
+			processes_list << L"" << app_disk_name << L"[APP] " << app_dir_free_space / 1024.0 / 1024.0 << L" Mb free";
+			processes_list << L"\r\n" << L"" << temp_disk_name << L"[TEMP]" << temp_dir_free_space / 1024.0 / 1024.0 << L" Mb free";
+		} else {
+			processes_list << L"" << app_disk_name << L" " << app_dir_free_space / 1024.0 / 1024.0 << L" Mb free";
+		}
+		SetWindowTextW(blockers_list, processes_list.str().c_str());
+	}
+	return ret;
+}
+
+void callbacks_impl::disk_space_wait_complete()
+{
+	ShowWindow(blockers_list, SW_HIDE);
+	ShowWindow(continue_button, SW_HIDE);
+	ShowWindow(cancel_button, SW_HIDE);
+	SetWindowTextW(blockers_list, L"");
+	SetWindowTextW(progress_label, L"");
 }
 
 void callbacks_impl::updater_start()
 {
 	std::wstring copying_label = ConvertToUtf16WS(boost::locale::translate("Copying files..."));
+
+	HDC hdc = GetDC(frame);
+	HFONT hfontOld = (HFONT)SelectObject(hdc, main_font);
+
+	progress_label_rect = {0};
+	DrawText(hdc, copying_label.c_str(), -1, &progress_label_rect, DT_CALCRECT | DT_NOCLIP);
+	log_debug("label rect %dx%d, error %d", progress_label_rect.right - progress_label_rect.left, progress_label_rect.bottom - progress_label_rect.top,
+		  GetLastError());
+
+	progress_label_rect.right -= progress_label_rect.left;
+
+	SelectObject(hdc, hfontOld);
+	ReleaseDC(frame, hdc);
+
+	repostionUI();
+
 	SetWindowTextW(progress_label, copying_label.c_str());
 }
 
@@ -572,10 +823,17 @@ LRESULT CALLBACK FrameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			ctx->should_kill_blockers = true;
 			break;
 		}
+		if ((HWND)lParam == ctx->continue_button) {
+			EnableWindow(ctx->continue_button, false);
+			ctx->should_continue = true;
+			break;
+		}
 		if ((HWND)lParam == ctx->cancel_button) {
 			EnableWindow(ctx->kill_button, false);
+			EnableWindow(ctx->continue_button, false);
 			EnableWindow(ctx->cancel_button, false);
 			ctx->should_kill_blockers = false;
+			ctx->should_continue = false;
 			ctx->should_cancel = true;
 			break;
 		}
@@ -696,6 +954,7 @@ extern "C" int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpC
 	update_client_set_updater_events(client.get(), &cb_impl);
 	update_client_set_pid_events(client.get(), &cb_impl);
 	update_client_set_blocker_events(client.get(), &cb_impl);
+	update_client_set_disk_space_events(client.get(), &cb_impl);
 	update_client_set_installer_events(client.get(), &cb_impl);
 
 	cb_impl.initialize(client.get());

@@ -68,13 +68,25 @@ struct pid_callbacks {
 
 /* Sequence of events:
  *
- * blocker_found -> blocker_waiting_for -> blocker_wait_complete
+ * blocker_start -> blocker_waiting_for -> blocker_wait_complete
  */
 
 struct blocker_callbacks {
 	virtual void blocker_start() = 0;
 	virtual int blocker_waiting_for(const std::wstring &processes_list, bool list_changed) = 0;
 	virtual void blocker_wait_complete() = 0;
+};
+
+/* Sequence of events:
+ *
+ * disk_space_check_start -> disk_space_waiting_for -> disk_space_wait_complete
+ */
+
+struct disk_space_callbacks {
+	virtual void disk_space_check_start() = 0;
+	virtual int disk_space_waiting_for(const std::wstring &app_dir, size_t app_dir_free_space, const std::wstring &temp_dir, size_t temp_dir_free_space,
+					   bool skip_update) = 0;
+	virtual void disk_space_wait_complete() = 0;
 };
 
 extern "C" {
@@ -93,6 +105,8 @@ void update_client_set_updater_events(struct update_client *, struct updater_cal
 void update_client_set_pid_events(struct update_client *, struct pid_callbacks *);
 
 void update_client_set_blocker_events(struct update_client *, struct blocker_callbacks *);
+
+void update_client_set_disk_space_events(struct update_client *, struct disk_space_callbacks *);
 
 void update_client_set_installer_events(struct update_client *, struct install_callbacks *);
 
