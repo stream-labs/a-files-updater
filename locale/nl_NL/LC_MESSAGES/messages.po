@@ -6,57 +6,63 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-09-29 11:34-0700\n"
+"POT-Creation-Date: 2023-03-02 15:40-0800\n"
 "PO-Revision-Date: 2022-08-29 21:43-0700\n"
 "Last-Translator: <EMAIL@ADDRESS>\n"
 "Language-Team: Dutch\n"
 "Language: nl\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=CP1252\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src\main.cc:42 src\update-client.cc:103
+#: src\main.cc:42 src\update-client.cc:100
+#, fuzzy
 msgid ""
 "The automatic update failed to perform successfully.\n"
 "Please install the latest version of Streamlabs Desktop from https://"
 "streamlabs.com/"
 msgstr ""
+"De automatische update kan niet worden uitgevoerd. \n"
+"Installeer de nieuwste versie van Streamlabs Desktop via https://streamlabs."
+"com/"
 
-#: src\main.cc:239
+#: src\main.cc:213
 msgid "Checking packages..."
-msgstr ""
+msgstr "Pakketten worden gecontroleerd..."
 
-#: src\main.cc:240
+#: src\main.cc:214
 msgid "Blockers list"
-msgstr ""
+msgstr "Lijst met blokkeringen"
 
-#: src\main.cc:241
+#: src\main.cc:215
 msgid "Stop all"
-msgstr ""
+msgstr "Alles stoppen"
 
-#: src\main.cc:242
+#: src\main.cc:216
 msgid "Cancel"
-msgstr ""
+msgstr "Annuleren"
 
-#: src\main.cc:335
+#: src\main.cc:282
 msgid "Checking local files..."
-msgstr ""
+msgstr "Lokale bestanden worden gecontroleerd..."
 
-#: src\main.cc:422
+#: src\main.cc:365
 msgid "Downloading"
-msgstr ""
+msgstr "Downloaden"
 
-#: src\main.cc:522
+#: src\main.cc:460
 msgid ""
 "The following programs are preventing Streamlabs Desktop from updating :"
 msgstr ""
+"De volgende programma's verhinderen dat Streamlabs Desktop wordt geüpdatet:"
 
-#: src\main.cc:568
+#: src\main.cc:503
 msgid "Copying files..."
-msgstr ""
+msgstr "Bestanden worden gekopieerd..."
 
-#: src\main.cc:733
+#: src\main.cc:656
+#, fuzzy
 msgid ""
 "You have launched the updater for Streamlabs Desktop, which can't work on "
 "its own. Please launch the Desktop App and it will check for updates "
@@ -64,34 +70,55 @@ msgid ""
 "If you're having issues you can download the latest version from https://"
 "streamlabs.com/."
 msgstr ""
+"Je hebt het updateprogramma voor Streamlabs Desktop gestart. Deze kan niet "
+"zelfstandig worden uitgevoerd. Als je de Desktop-app start, controleert deze "
+"automatisch op updates. \n"
+"Als je problemen ondervindt, kun je de nieuwste versie downloaden via "
+"https://streamlabs.com/."
 
-#: src\main.cc:736
+#: src\main.cc:660
+#, fuzzy
 msgid ""
 "Streamlabs Desktop installed in a system folder. Automatic updated has been "
 "disabled to prevent changes to a system folder. \n"
 "Please install the latest version of Streamlabs Desktop from https://"
 "streamlabs.com/"
 msgstr ""
+"Streamlabs Desktop is in een systeemmap geïnstalleerd. \n"
+"Automatisch updaten is uitgeschakeld om wijzigingen in een systeemmap te "
+"voorkomen. Installeer de nieuwste versie van Streamlabs Desktop via https://"
+"streamlabs.com/"
 
-#: src\main.cc:811
+#: src\main.cc:729
+#, fuzzy
 msgid ""
 "The application has finished updating.\n"
 "Please manually start Streamlabs Desktop."
 msgstr ""
+"De update van de applicatie is voltooid. \n"
+"Start Streamlabs Desktop handmatig op."
 
-#: src\main.cc:815
+#: src\main.cc:732
+#, fuzzy
 msgid ""
 "There was an issue launching the application.\n"
 "Please start Streamlabs Desktop and try again."
 msgstr ""
+"Er is een probleem opgetreden bij het starten van de applicatie. \n"
+"Start Streamlabs Desktop op en probeer het opnieuw."
 
-#: src\update-client.cc:100
+#: src\update-client.cc:95
+#, fuzzy
 msgid ""
 "Failed to move files.\n"
 "Please make sure the application files are not in use and try again."
 msgstr ""
+"Kan bestanden niet verplaatsen. \n"
+"Zorg ervoor dat de applicatiebestanden niet in gebruik zijn en probeer het "
+"opnieuw."
 
-#: src\update-client.cc:169
+#: src\update-client.cc:162
+#, fuzzy
 msgid ""
 "Streamlabs Desktop was unable to download the update and will launch the "
 "current version instead.\n"
@@ -99,25 +126,40 @@ msgid ""
 "The update will try again later. If this issue persists then please download "
 "a new installer from www.streamlabs.com"
 msgstr ""
+"Streamlabs Desktop kan de update niet downloaden en start in plaats daarvan "
+"de huidige versie op. \n"
+"\n"
+"Later wordt geprobeerd de update opnieuw uit te voeren. Als dit probleem "
+"zich blijft voordoen, download dan een nieuw installatieprogramma via www."
+"streamlabs.com"
 
-#: src\update-client.cc:277 src\update-client.cc:575
+#: src\update-client.cc:261 src\update-client.cc:528
 msgid "Failed to connect to update server."
-msgstr ""
+msgstr "Kan geen verbinding maken met de updateserver."
 
-#: src\update-client.cc:784
+#: src\update-client.cc:713
 msgid "Update was canceled."
-msgstr ""
+msgstr "Update is geannuleerd."
 
-#: src\update-client.cc:805
+#: src\update-client.cc:732
+#, fuzzy
 msgid ""
 "Failed to move files.\n"
 "Some files may be blocked by other program. Please restart your PC and try "
 "to update again."
 msgstr ""
+"Kan bestanden niet verplaatsen. \n"
+"Sommige bestanden worden mogelijk geblokkeerd door een ander programma. "
+"Start je pc opnieuw op en probeer de update opnieuw uit te voeren."
 
-#: src\update-client.cc:810 src\update-client.cc:815 src\update-client.cc:820
+#: src\update-client.cc:738 src\update-client.cc:744 src\update-client.cc:750
+#, fuzzy
 msgid ""
 "Failed to move files.\n"
 "Some files could not be updated. Please download Streamlabs Desktop "
 "installer from our site and run full installation."
 msgstr ""
+"Kan bestanden niet verplaatsen. \n"
+"Sommige bestanden kunnen niet worden geüpdatet. Download het Streamlabs "
+"Desktop-installatieprogramma via onze site en voer de volledige installatie "
+"uit."
