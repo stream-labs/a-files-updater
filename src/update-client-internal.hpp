@@ -52,6 +52,8 @@ struct update_client {
 
 	void set_blocker_events(blocker_callbacks *cbs) { blocker_events = cbs; }
 
+	void set_disk_space_events(disk_space_callbacks *cbs) { disk_space_events = cbs; }
+
 	void set_installer_events(install_callbacks *cbs) { installer_events = cbs; }
 
 	void register_install_package(const std::string &packageName, const std::string &url, const std::string &startParams)
@@ -74,6 +76,7 @@ struct update_client {
 	updater_callbacks *updater_events{nullptr};
 	pid_callbacks *pid_events{nullptr};
 	blocker_callbacks *blocker_events{nullptr};
+	disk_space_callbacks *disk_space_events{nullptr};
 	install_callbacks *installer_events{nullptr};
 
 	int active_workers{0};
@@ -132,6 +135,7 @@ public:
 	void handle_file_result(file_request<http::dynamic_body> *request_ctx, update_file_t *file_ctx, int index);
 	void next_manifest_entry(int index);
 	void install_package(const std::string &packageName, std::string url, const std::string &startParams);
+	void check_disk_space();
 
 	//wait for slobs close
 	void handle_pids();

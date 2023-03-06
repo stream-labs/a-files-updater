@@ -325,9 +325,65 @@ void update_client::flush()
 	}
 }
 
+void update_client::check_disk_space()
+{
+	size_t MIN_FREE_SPACE = 10000000000; //1GB
+	std::error_code ec{};
+	bool notified = false;
+
+	uintmax_t app_dir_free_space_prev;
+	uintmax_t temp_dir_free_space_prev;
+	while (true) {
+		uintmax_t app_dir_free_space = fs::space(params->app_dir, ec).available;
+		uintmax_t temp_dir_free_space = fs::space(params->temp_dir, ec).available;
+
+		if (app_dir_free_space < MIN_FREE_SPACE || temp_dir_free_space < MIN_FREE_SPACE) {
+			if (!notified) {
+				log_fatal("Not enough free space on disk %zu, %zu", app_dir_free_space, temp_dir_free_space);
+				notified = true;
+				disk_space_events->disk_space_check_start();
+			} else {
+				bool skip_update = false;
+				if (app_dir_free_space_prev - app_dir_free_space < 1000000000 &&
+				    (app_dir_free_space_prev - app_dir_free_space) / static_cast<double>(app_dir_free_space) < 0.01 &&
+				    temp_dir_free_space_prev - temp_dir_free_space < 1000000000 &&
+				    (temp_dir_free_space_prev - temp_dir_free_space) / static_cast<double>(temp_dir_free_space) < 0.01) {
+					skip_update = true;
+				} else {
+					app_dir_free_space_prev = app_dir_free_space;
+					temp_dir_free_space_prev = temp_dir_free_space;
+				}
+
+				int command = disk_space_events->disk_space_waiting_for(params->app_dir.c_str(), app_dir_free_space, params->temp_dir.c_str(),
+											temp_dir_free_space, skip_update);
+				switch (command) {
+				case 0:
+					break;
+				case 1:
+					disk_space_events->disk_space_wait_complete();
+					return;
+				case 2:
+					disk_space_events->disk_space_wait_complete();
+					exit(0);
+					break;
+				};
+			}
+
+			std::this_thread::sleep_for(std::chrono::microseconds(300));
+		} else {
+			if (notified) {
+				disk_space_events->disk_space_wait_complete();
+			}
+			break;
+		}
+	}
+}
+
 void update_client::do_stuff()
 {
 	auto cb = [=](auto e, auto i) { this->handle_resolve(e, i); };
+
+	check_disk_space();
 
 	// [packageName] = { url, params }
 	for (auto &itr : install_packages)
@@ -1111,6 +1167,11 @@ void update_client_set_pid_events(struct update_client *client, struct pid_callb
 void update_client_set_blocker_events(struct update_client *client, struct blocker_callbacks *events)
 {
 	client->set_blocker_events(events);
+}
+
+void update_client_set_disk_space_events(struct update_client *client, struct disk_space_callbacks *events)
+{
+	client->set_disk_space_events(events);
 }
 
 void update_client_set_installer_events(struct update_client *client, struct install_callbacks *events)
