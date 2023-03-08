@@ -2,6 +2,26 @@
 
 #include <string>
 
+#include <boost/asio.hpp>
+#include <boost/asio/ssl/error.hpp>
+#include <boost/asio/ssl/stream.hpp>
+#include <boost/beast.hpp>
+#include <boost/bind/bind.hpp>
+#include <boost/iostreams/chain.hpp>
+#include <boost/iostreams/device/file_descriptor.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
+#include <boost/iostreams/traits.hpp>
+#include <boost/exception/all.hpp>
+#include <boost/algorithm/string/replace.hpp>
+#include <boost/locale.hpp>
+
+namespace asio = boost::asio;
+using tcp = asio::ip::tcp;
+namespace beast = boost::beast;
+namespace http = boost::beast::http;
+namespace ssl = boost::asio::ssl;
+namespace bio = boost::iostreams;
+
 struct update_client;
 struct update_file_t;
 

@@ -4,18 +4,7 @@
 #include <thread>
 #include <regex>
 
-#include <boost/asio.hpp>
-#include <boost/asio/ssl/error.hpp>
-#include <boost/asio/ssl/stream.hpp>
-#include <boost/beast.hpp>
-#include <boost/bind/bind.hpp>
-#include <boost/iostreams/chain.hpp>
-#include <boost/iostreams/device/file_descriptor.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
-#include <boost/iostreams/traits.hpp>
-#include <boost/exception/all.hpp>
-#include <boost/algorithm/string/replace.hpp>
-#include <boost/locale.hpp>
+
 
 #include <fmt/format.h>
 #include <aclapi.h>
@@ -23,12 +12,6 @@
 #include <fstream>
 #include <iostream>
 
-namespace asio = boost::asio;
-using tcp = asio::ip::tcp;
-namespace beast = boost::beast;
-namespace http = boost::beast::http;
-namespace ssl = boost::asio::ssl;
-namespace bio = boost::iostreams;
 
 using std::regex;
 using std::cmatch;
@@ -44,7 +27,7 @@ const size_t file_buffer_size = 4096;
 #include "logger/log.h"
 
 #include "update-client-internal.hpp"
-#include "update-http-request.hpp"
+
 #include "utils.hpp"
 #include "file-updater.h"
 
@@ -60,7 +43,7 @@ void update_client::start_file_update()
 
 	reset_work_threads_guards();
 
-	FileUpdater updater(params->temp_dir, params->app_dir, new_files_dir, manifest, local_manifest);
+	FileUpdater updater(params->temp_dir, params->app_dir, new_files_dir, manifest, local_manifest, this);
 	bool updated = false;
 
 	try {
@@ -325,7 +308,7 @@ void update_client::flush()
 	}
 }
 
-void update_client::check_disk_space()
+bool update_client::check_disk_space()
 {
 	size_t MIN_FREE_SPACE = 10000000000; //1GB
 	std::error_code ec{};
@@ -361,11 +344,10 @@ void update_client::check_disk_space()
 					break;
 				case 1:
 					disk_space_events->disk_space_wait_complete();
-					return;
+					return true;
 				case 2:
 					disk_space_events->disk_space_wait_complete();
-					exit(0);
-					break;
+					return false;
 				};
 			}
 
@@ -377,13 +359,15 @@ void update_client::check_disk_space()
 			break;
 		}
 	}
+	return true;
 }
 
 void update_client::do_stuff()
 {
 	auto cb = [=](auto e, auto i) { this->handle_resolve(e, i); };
 
-	check_disk_space();
+	if (!check_disk_space())
+		return;
 
 	// [packageName] = { url, params }
 	for (auto &itr : install_packages)
@@ -819,6 +803,7 @@ void update_client::start_downloading_files()
 	auto to_download = std::count_if(this->manifest.cbegin(), this->manifest.cend(),
 					 [](const auto &entry) { return !entry.second.remove_at_update && !entry.second.skip_update; });
 	log_info("Manifest cleaned and ready to download files. Files to download %d", to_download);
+	this->downloader_events->downloader_preparing();
 	this->downloader_events->downloader_start(max_threads, to_download);
 
 	/* To make sure we only have `max` number of

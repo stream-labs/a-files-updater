@@ -331,6 +331,8 @@ void callbacks_impl::repostionUI()
 		SetWindowPos(kill_button, 0, button_left, frame_h, 0, 0, SWP_ASYNCWINDOWPOS | SWP_NOSIZE);
 		SetWindowPos(cancel_button, 0, button_left - 100 - ui_padding, frame_h, 0, 0, SWP_ASYNCWINDOWPOS | SWP_NOSIZE);
 		frame_h += ui_basic_height + ui_padding;
+	} else {
+		frame_h += ui_basic_height;
 	}
 
 	RECT winRect = {0};
@@ -348,6 +350,22 @@ callbacks_impl::~callbacks_impl() {}
 void callbacks_impl::initialize(struct update_client *client)
 {
 	ShowWindow(frame, SW_SHOWNORMAL);
+
+	HDC hdc = GetDC(frame);
+	HFONT hfontOld = (HFONT)SelectObject(hdc, main_font);
+
+	progress_label_rect = {0};
+	std::wstring label(fmt::format(label_format, 9999, 9999, 100.00));
+
+	RECT progress_label_rect = {0};
+	DrawText(hdc, label.c_str(), -1, &progress_label_rect, DT_CALCRECT | DT_NOCLIP);
+	progress_label_rect.right -= progress_label_rect.left;
+
+	SelectObject(hdc, hfontOld);
+	ReleaseDC(frame, hdc);
+
+	repostionUI();
+
 	UpdateWindow(frame);
 
 	// ; todo, maybe more msi/exe packages?
@@ -381,16 +399,12 @@ void callbacks_impl::downloader_preparing()
 
 	progress_label_rect = {0};
 	DrawText(hdc, checking_label.c_str(), -1, &progress_label_rect, DT_CALCRECT | DT_NOCLIP);
-	log_debug("label rect %dx%d, error %d", progress_label_rect.right - progress_label_rect.left, progress_label_rect.bottom - progress_label_rect.top,
-		  GetLastError());
 	progress_label_rect.right -= progress_label_rect.left;
 
 	std::wstring label(fmt::format(ctx->label_format, 9999, 9999, 100.00));
 
 	RECT progress_with_numbers = {0};
 	DrawText(hdc, checking_label.c_str(), -1, &progress_with_numbers, DT_CALCRECT | DT_NOCLIP);
-	log_debug("label rect %dx%d, error %d", progress_with_numbers.right - progress_with_numbers.left, progress_with_numbers.bottom - blockers_list_rect.top,
-		  GetLastError());
 	progress_with_numbers.right -= progress_with_numbers.left;
 
 	if (progress_label_rect.right < progress_with_numbers.right)
@@ -494,8 +508,6 @@ void callbacks_impl::installer_download_start(const std::string &packageName)
 
 	progress_label_rect = {0};
 	DrawText(hdc, downloading_label.c_str(), -1, &progress_label_rect, DT_CALCRECT | DT_NOCLIP);
-	log_debug("label rect %dx%d, error %d", progress_label_rect.right - progress_label_rect.left, progress_label_rect.bottom - progress_label_rect.top,
-		  GetLastError());
 
 	progress_label_rect.right -= progress_label_rect.left;
 
@@ -609,8 +621,6 @@ void callbacks_impl::blocker_start()
 
 	progress_label_rect = {0};
 	DrawText(hdc, blocking_app_label.c_str(), -1, &progress_label_rect, DT_CALCRECT | DT_NOCLIP);
-	log_debug("label rect %dx%d, error %d", progress_label_rect.right - progress_label_rect.left, progress_label_rect.bottom - progress_label_rect.top,
-		  GetLastError());
 
 	progress_label_rect.right -= progress_label_rect.left;
 
@@ -672,8 +682,6 @@ void callbacks_impl::disk_space_check_start()
 
 	progress_label_rect = {0};
 	DrawText(hdc, disk_space_label.c_str(), -1, &progress_label_rect, DT_CALCRECT | DT_NOCLIP);
-	log_debug("label rect %dx%d, error %d", progress_label_rect.right - progress_label_rect.left, progress_label_rect.bottom - progress_label_rect.top,
-		  GetLastError());
 
 	progress_label_rect.right -= progress_label_rect.left;
 
@@ -742,8 +750,6 @@ void callbacks_impl::updater_start()
 
 	progress_label_rect = {0};
 	DrawText(hdc, copying_label.c_str(), -1, &progress_label_rect, DT_CALCRECT | DT_NOCLIP);
-	log_debug("label rect %dx%d, error %d", progress_label_rect.right - progress_label_rect.left, progress_label_rect.bottom - progress_label_rect.top,
-		  GetLastError());
 
 	progress_label_rect.right -= progress_label_rect.left;
 
