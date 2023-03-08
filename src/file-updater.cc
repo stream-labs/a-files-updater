@@ -1,11 +1,18 @@
+#include "update-client-internal.hpp"
+
 #include "file-updater.h"
 
 #include "logger/log.h"
 #include <aclapi.h>
 
 FileUpdater::FileUpdater(fs::path old_files_dir, fs::path app_dir, fs::path new_files_dir, const manifest_map_t &manifest,
-			 const local_manifest_t &local_manifest)
-	: m_new_files_dir(new_files_dir), m_old_files_dir(old_files_dir), m_app_dir(app_dir), m_manifest(manifest), m_local_manifest(local_manifest)
+			 const local_manifest_t &local_manifest, update_client *client)
+	: m_new_files_dir(new_files_dir),
+	  m_old_files_dir(old_files_dir),
+	  m_app_dir(app_dir),
+	  m_manifest(manifest),
+	  m_local_manifest(local_manifest),
+	  m_update_client(client)
 {
 	m_old_files_dir /= "old-files";
 }
@@ -23,11 +30,13 @@ FileUpdater::~FileUpdater()
 void FileUpdater::update()
 {
 	std::string version_file_key = "resources\app.asar";
+	manifest_map_t::const_iterator iter = m_manifest.begin();
 
-	for (manifest_map_t::const_iterator iter = m_manifest.begin(); iter != m_manifest.end(); ++iter) {
+	while (iter != m_manifest.end()) {
 		if (version_file_key.compare(iter->first) != 0) {
 			update_entry_with_retries(iter, m_new_files_dir);
 		}
+		++iter;
 	}
 
 	manifest_map_t::const_iterator version_file = m_manifest.find(version_file_key);
@@ -40,16 +49,27 @@ void FileUpdater::update()
 	}
 }
 
-bool FileUpdater::update_entry_with_retries(manifest_map_t::const_iterator &iter, fs::path &new_files_dir)
+void FileUpdater::update_entry_with_retries(manifest_map_t::const_iterator &iter, fs::path &new_files_dir)
 {
 	int retries = 0;
 	const int max_retries = 5;
-	bool ret = false;
+	std::error_code ret;
 
-	while (retries < max_retries && !ret) {
+	while (retries < max_retries) {
 		retries++;
 		ret = update_entry(iter, new_files_dir);
-		if (!ret) {
+		if (ret == std::errc::no_space_on_device) {
+			if(m_update_client->check_disk_space()) {
+				std::wstring wmsg = ConvertToUtf16WS(iter->first);
+				wlog_warn(L"Have failed to update file: %s, will retry", wmsg.c_str());
+				retries = 1;
+				continue;
+			} else {
+				std::wstring wmsg = ConvertToUtf16WS(iter->first);
+				wlog_warn(L"Have failed to update file: %s, no space on device", wmsg.c_str());
+				throw std::runtime_error("Error: no space on device");
+			}
+		} else if (ret) {
 			std::wstring wmsg = ConvertToUtf16WS(iter->first);
 			wlog_warn(L"Have failed to update file: %s, will retry", wmsg.c_str());
 			Sleep(100 * retries);
@@ -61,57 +81,49 @@ bool FileUpdater::update_entry_with_retries(manifest_map_t::const_iterator &iter
 		wlog_warn(L"Have failed to update file: %s", wmsg.c_str());
 		throw std::runtime_error("Error: failed to update file");
 	}
-	return ret;
+	return;
 }
 
-bool FileUpdater::update_entry(manifest_map_t::const_iterator &iter, fs::path &new_files_dir)
+std::error_code FileUpdater::update_entry(manifest_map_t::const_iterator &iter, fs::path &new_files_dir)
 {
-	if (iter->second.skip_update) {
-		return true;
-	}
-
 	std::error_code ec;
-	fs::path file_name_part = fs::u8path(iter->first.c_str());
-	fs::path to_path(m_app_dir);
-	to_path /= file_name_part;
 
-	fs::path old_file_path(m_old_files_dir);
-	old_file_path /= file_name_part;
-
-	fs::path from_path(new_files_dir);
-	from_path /= file_name_part;
-
+	if (iter->second.skip_update || iter->second.remove_at_update)
+		return ec;
+	
 	try {
-		if (!iter->second.remove_at_update) {
-			fs::create_directories(to_path.parent_path(), ec);
-			if (ec) {
-				std::wstring wmsg = ConvertToUtf16WS(ec.message());
-				wlog_warn(L"Failed to create directory: %s error, %s", to_path.parent_path().c_str(), wmsg.c_str());
-				return false;
-			}
+		fs::path file_name_part = fs::u8path(iter->first.c_str());
+		fs::path to_path(m_app_dir);
+		to_path /= file_name_part;
 
+		fs::path old_file_path(m_old_files_dir);
+		old_file_path /= file_name_part;
+
+		fs::path from_path(new_files_dir);
+		from_path /= file_name_part;
+
+		fs::create_directories(to_path.parent_path(), ec);
+		if (ec) {
+			std::wstring wmsg = ConvertToUtf16WS(ec.message());
+			wlog_warn(L"Failed to create directory: %s error, %s", to_path.parent_path().c_str(), wmsg.c_str());
+		} else {
 			fs::rename(from_path, to_path, ec);
-
 			if (ec) {
 				std::wstring wmsg = ConvertToUtf16WS(ec.message());
-
 				wlog_debug(L"Failed to move file %s %s, error %s", from_path.c_str(), to_path.c_str(), wmsg.c_str());
-				return false;
-			}
-
-			try {
-				reset_rights(to_path);
-			} catch (...) {
-				wlog_warn(L"Have failed to update file rights: %s", to_path.c_str());
+			} else {
+				try {
+					reset_rights(to_path);
+				} catch (...) {
+					wlog_warn(L"Have failed to update file rights: %s", to_path.c_str());
+				}
 			}
 		}
-
-		return true;
 	} catch (...) {
-		wlog_warn(L"Have failed to update file in function: %s", to_path.c_str());
+		ec = std::make_error_code(std::errc::io_error);
 	}
 
-	return false;
+	return ec;
 }
 
 bool FileUpdater::reset_rights(const fs::path &path)
@@ -167,11 +179,14 @@ void FileUpdater::revert()
 
 bool FileUpdater::backup()
 {
-	for (manifest_map_t::const_iterator iter = m_manifest.begin(); iter != m_manifest.end(); ++iter) {
-		try {
-			if (iter->second.skip_update || !iter->second.compared_to_local)
-				continue;
+	manifest_map_t::const_iterator iter = m_manifest.begin();
+	while (iter != m_manifest.end()) {
+		if (iter->second.skip_update || !iter->second.compared_to_local) {
+			iter++;
+			continue;
+		}
 
+		try {
 			std::error_code ec;
 			fs::path file_name_part = fs::u8path(iter->first.c_str());
 			fs::path to_path(m_app_dir);
@@ -185,7 +200,15 @@ bool FileUpdater::backup()
 
 			if (fs::exists(to_path, ec)) {
 				fs::rename(to_path, old_file_path, ec);
-				if (ec) {
+				if (ec == std::errc::no_space_on_device) {
+					if (m_update_client->check_disk_space()) {
+						continue;
+					} else {
+						wlog_error(L"Failed to backup entry %s to %s, error %s", to_path.c_str(), old_file_path.c_str(),
+							   ec.message().c_str());
+						return false;
+					}
+				} else if (ec) {
 					std::wstring wmsg = ConvertToUtf16WS(ec.message());
 
 					wlog_debug(L"Failed to backup entry %s to %s, error %s", to_path.c_str(), old_file_path.c_str(), wmsg.c_str());
@@ -198,6 +221,7 @@ bool FileUpdater::backup()
 		} catch (...) {
 			return false;
 		}
+		++iter;
 	}
 
 	return true;

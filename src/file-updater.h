@@ -15,7 +15,7 @@ struct FileUpdater {
 	FileUpdater &operator=(FileUpdater &&) = delete;
 
 	explicit FileUpdater(fs::path old_files_dir, fs::path app_dir, fs::path new_files_dir, const manifest_map_t &manifest,
-			     const local_manifest_t &local_manifest);
+			     const local_manifest_t &local_manifest, update_client* client);
 	~FileUpdater();
 
 	void update();
@@ -23,8 +23,8 @@ struct FileUpdater {
 	bool backup();
 
 private:
-	bool update_entry(manifest_map_t::const_iterator &iter, fs::path &new_files_dir);
-	bool update_entry_with_retries(manifest_map_t::const_iterator &iter, fs::path &new_files_dir);
+	std::error_code update_entry(manifest_map_t::const_iterator &iter, fs::path &new_files_dir);
+	void update_entry_with_retries(manifest_map_t::const_iterator &iter, fs::path &new_files_dir);
 	bool reset_rights(const fs::path &path);
 	bool is_local_files_changed();
 	bool is_local_files_updated();
@@ -35,4 +35,5 @@ private:
 
 	const manifest_map_t &m_manifest;
 	const local_manifest_t &m_local_manifest;
+	update_client * m_update_client;
 };

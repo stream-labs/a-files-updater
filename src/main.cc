@@ -331,6 +331,8 @@ void callbacks_impl::repostionUI()
 		SetWindowPos(kill_button, 0, button_left, frame_h, 0, 0, SWP_ASYNCWINDOWPOS | SWP_NOSIZE);
 		SetWindowPos(cancel_button, 0, button_left - 100 - ui_padding, frame_h, 0, 0, SWP_ASYNCWINDOWPOS | SWP_NOSIZE);
 		frame_h += ui_basic_height + ui_padding;
+	} else {
+		frame_h += ui_basic_height;
 	}
 
 	RECT winRect = {0};

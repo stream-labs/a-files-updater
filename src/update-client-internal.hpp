@@ -3,6 +3,8 @@
 
 #include <fstream>
 #include "utils.hpp"
+#include "checksum-filters.hpp"
+#include "update-client.hpp"
 
 /*##############################################
  *#
@@ -135,7 +137,7 @@ public:
 	void handle_file_result(file_request<http::dynamic_body> *request_ctx, update_file_t *file_ctx, int index);
 	void next_manifest_entry(int index);
 	void install_package(const std::string &packageName, std::string url, const std::string &startParams);
-	void check_disk_space();
+	bool check_disk_space();
 
 	//wait for slobs close
 	void handle_pids();
