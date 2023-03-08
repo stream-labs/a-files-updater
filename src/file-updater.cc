@@ -53,15 +53,14 @@ void FileUpdater::update_entry_with_retries(manifest_map_t::const_iterator &iter
 {
 	int retries = 0;
 	const int max_retries = 5;
-	std::error_code ret;
+	bool is_updated = false;
 
 	while (retries < max_retries) {
+		std::error_code ret;
 		retries++;
 		ret = update_entry(iter, new_files_dir);
 		if (ret == std::errc::no_space_on_device) {
-			if(m_update_client->check_disk_space()) {
-				std::wstring wmsg = ConvertToUtf16WS(iter->first);
-				wlog_warn(L"Have failed to update file: %s, will retry", wmsg.c_str());
+			if (m_update_client->check_disk_space()) {
 				retries = 1;
 				continue;
 			} else {
@@ -70,18 +69,23 @@ void FileUpdater::update_entry_with_retries(manifest_map_t::const_iterator &iter
 				throw std::runtime_error("Error: no space on device");
 			}
 		} else if (ret) {
-			std::wstring wmsg = ConvertToUtf16WS(iter->first);
-			wlog_warn(L"Have failed to update file: %s, will retry", wmsg.c_str());
+			if (retries == 1) {
+				std::wstring wmsg = ConvertToUtf16WS(iter->first);
+				wlog_warn(L"Have failed to update file: %s, will retry", wmsg.c_str());
+			}
 			Sleep(100 * retries);
+			continue;
+		} else {
+			is_updated = true; 
+			break;
 		}
 	}
 
-	if (!ret) {
+	if (!is_updated) {
 		std::wstring wmsg = ConvertToUtf16WS(iter->first);
 		wlog_warn(L"Have failed to update file: %s", wmsg.c_str());
 		throw std::runtime_error("Error: failed to update file");
 	}
-	return;
 }
 
 std::error_code FileUpdater::update_entry(manifest_map_t::const_iterator &iter, fs::path &new_files_dir)
@@ -90,7 +94,7 @@ std::error_code FileUpdater::update_entry(manifest_map_t::const_iterator &iter, 
 
 	if (iter->second.skip_update || iter->second.remove_at_update)
 		return ec;
-	
+
 	try {
 		fs::path file_name_part = fs::u8path(iter->first.c_str());
 		fs::path to_path(m_app_dir);
