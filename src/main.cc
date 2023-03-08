@@ -355,10 +355,10 @@ void callbacks_impl::initialize(struct update_client *client)
 	HFONT hfontOld = (HFONT)SelectObject(hdc, main_font);
 
 	progress_label_rect = {0};
-	std::wstring label(fmt::format(ctx->label_format, 9999, 9999, 100.00));
+	std::wstring label(fmt::format(label_format, 9999, 9999, 100.00));
 
 	RECT progress_label_rect = {0};
-	DrawText(hdc, checking_label.c_str(), -1, &progress_label_rect, DT_CALCRECT | DT_NOCLIP);
+	DrawText(hdc, label.c_str(), -1, &progress_label_rect, DT_CALCRECT | DT_NOCLIP);
 	progress_label_rect.right -= progress_label_rect.left;
 
 	SelectObject(hdc, hfontOld);
