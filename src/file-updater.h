@@ -15,7 +15,7 @@ struct FileUpdater {
 	FileUpdater &operator=(FileUpdater &&) = delete;
 
 	explicit FileUpdater(fs::path old_files_dir, fs::path app_dir, fs::path new_files_dir, const manifest_map_t &manifest,
-			     const local_manifest_t &local_manifest, update_client* client);
+			     const local_manifest_t &local_manifest, update_client *client);
 	~FileUpdater();
 
 	void update();
@@ -35,5 +35,5 @@ private:
 
 	const manifest_map_t &m_manifest;
 	const local_manifest_t &m_local_manifest;
-	update_client * m_update_client;
+	update_client *m_update_client;
 };
