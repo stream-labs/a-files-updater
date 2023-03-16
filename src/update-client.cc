@@ -310,7 +310,7 @@ void update_client::flush()
 
 bool update_client::check_disk_space()
 {
-	size_t MIN_FREE_SPACE = 10000000000; //1GB
+	size_t MIN_FREE_SPACE = 2*10000000000; //1GB
 	std::error_code ec{};
 	bool notified = false;
 
@@ -327,9 +327,9 @@ bool update_client::check_disk_space()
 				disk_space_events->disk_space_check_start();
 			} else {
 				bool skip_update = false;
-				if (app_dir_free_space_prev - app_dir_free_space < 1000000000 &&
+				if (app_dir_free_space_prev - app_dir_free_space < MIN_FREE_SPACE &&
 				    (app_dir_free_space_prev - app_dir_free_space) / static_cast<double>(app_dir_free_space) < 0.01 &&
-				    temp_dir_free_space_prev - temp_dir_free_space < 1000000000 &&
+				    temp_dir_free_space_prev - temp_dir_free_space < MIN_FREE_SPACE &&
 				    (temp_dir_free_space_prev - temp_dir_free_space) / static_cast<double>(temp_dir_free_space) < 0.01) {
 					skip_update = true;
 				} else {

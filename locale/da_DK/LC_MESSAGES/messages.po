@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-03-02 15:40-0800\n"
+"POT-Creation-Date: 2023-03-08 15:13-0800\n"
 "PO-Revision-Date: 2022-08-29 21:43-0700\n"
 "Last-Translator: <EMAIL@ADDRESS>\n"
 "Language-Team: Danish\n"
@@ -16,47 +16,59 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src\main.cc:42 src\update-client.cc:100
+#: src\main.cc:43 src\update-client.cc:83
 msgid ""
 "The automatic update failed to perform successfully.\n"
 "Please install the latest version of Streamlabs Desktop from https://"
 "streamlabs.com/"
 msgstr ""
 
-#: src\main.cc:213
+#: src\main.cc:233
 msgid "Checking packages..."
 msgstr ""
 
-#: src\main.cc:214
+#: src\main.cc:234
 msgid "Blockers list"
 msgstr ""
 
-#: src\main.cc:215
+#: src\main.cc:235
 msgid "Stop all"
 msgstr ""
 
-#: src\main.cc:216
+#: src\main.cc:236
+msgid "Continue"
+msgstr ""
+
+#: src\main.cc:237
 msgid "Cancel"
 msgstr ""
 
-#: src\main.cc:282
+#: src\main.cc:395
 msgid "Checking local files..."
 msgstr ""
 
-#: src\main.cc:365
+#: src\main.cc:503
 msgid "Downloading"
 msgstr ""
 
-#: src\main.cc:460
+#: src\main.cc:617
 msgid ""
 "The following programs are preventing Streamlabs Desktop from updating :"
 msgstr ""
 
-#: src\main.cc:503
+#: src\main.cc:677
+msgid ""
+"Streamlabs Desktop requires at least 2Gb of free disk space to update "
+"safely,\n"
+"updates may fail without this space. If you want to ensure safe updates,\n"
+"please reinstall Streamlabs Desktop to a drive with available space:"
+msgstr ""
+
+#: src\main.cc:746
 msgid "Copying files..."
 msgstr ""
 
-#: src\main.cc:656
+#: src\main.cc:920
 msgid ""
 "You have launched the updater for Streamlabs Desktop, which can't work on "
 "its own. Please launch the Desktop App and it will check for updates "
@@ -65,7 +77,7 @@ msgid ""
 "streamlabs.com/."
 msgstr ""
 
-#: src\main.cc:660
+#: src\main.cc:924
 msgid ""
 "Streamlabs Desktop installed in a system folder. Automatic updated has been "
 "disabled to prevent changes to a system folder. \n"
@@ -73,25 +85,25 @@ msgid ""
 "streamlabs.com/"
 msgstr ""
 
-#: src\main.cc:729
+#: src\main.cc:994
 msgid ""
 "The application has finished updating.\n"
 "Please manually start Streamlabs Desktop."
 msgstr ""
 
-#: src\main.cc:732
+#: src\main.cc:997
 msgid ""
 "There was an issue launching the application.\n"
 "Please start Streamlabs Desktop and try again."
 msgstr ""
 
-#: src\update-client.cc:95
+#: src\update-client.cc:78
 msgid ""
 "Failed to move files.\n"
 "Please make sure the application files are not in use and try again."
 msgstr ""
 
-#: src\update-client.cc:162
+#: src\update-client.cc:145
 msgid ""
 "Streamlabs Desktop was unable to download the update and will launch the "
 "current version instead.\n"
@@ -100,22 +112,22 @@ msgid ""
 "a new installer from www.streamlabs.com"
 msgstr ""
 
-#: src\update-client.cc:261 src\update-client.cc:528
+#: src\update-client.cc:244 src\update-client.cc:568
 msgid "Failed to connect to update server."
 msgstr ""
 
-#: src\update-client.cc:713
+#: src\update-client.cc:753
 msgid "Update was canceled."
 msgstr ""
 
-#: src\update-client.cc:732
+#: src\update-client.cc:772
 msgid ""
 "Failed to move files.\n"
 "Some files may be blocked by other program. Please restart your PC and try "
 "to update again."
 msgstr ""
 
-#: src\update-client.cc:738 src\update-client.cc:744 src\update-client.cc:750
+#: src\update-client.cc:778 src\update-client.cc:784 src\update-client.cc:790
 msgid ""
 "Failed to move files.\n"
 "Some files could not be updated. Please download Streamlabs Desktop "
