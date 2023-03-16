@@ -236,7 +236,9 @@ bool FileUpdater::is_local_files_changed()
 	for (auto &file : m_local_manifest) {
 		std::string checksum = calculate_files_checksum_safe(file.first);
 		if (checksum != file.second) {
-			wlog_error(L"File %s checksum mismatch after revert, expected %s, now %s", file.first.c_str(), file.second.c_str(), checksum.c_str());
+			std::wstring checksum_expected = ConvertToUtf16WS(file.second);
+			std::wstring checksum_now = ConvertToUtf16WS(checksum);
+			wlog_error(L"File %s checksum mismatch after revert, expected %s, now %s", file.first.c_str(), checksum_expected.c_str(), checksum_now.c_str());
 			return true;
 		}
 	}
@@ -248,7 +250,6 @@ bool FileUpdater::is_local_files_changed()
 bool FileUpdater::is_local_files_updated()
 {
 	for (manifest_map_t::const_iterator iter = m_manifest.begin(); iter != m_manifest.end(); ++iter) {
-
 		if (iter->second.skip_update) {
 			continue;
 		}
@@ -259,7 +260,6 @@ bool FileUpdater::is_local_files_updated()
 		to_path /= file_name_part;
 
 		if (iter->second.remove_at_update) {
-			//check if to_path file exists
 			if (fs::exists(to_path, ec)) {
 				wlog_error(L"File %s still not exist after update, something went wrong", to_path.c_str());
 				return false;
@@ -268,7 +268,7 @@ bool FileUpdater::is_local_files_updated()
 
 		std::string checksum = calculate_files_checksum_safe(to_path);
 		if (checksum != iter->second.hash_sum) {
-			wlog_error(L"File %s checksum mismatch after an update, expected %s, now %s", iter->first.c_str(), iter->second.hash_sum.c_str(),
+			log_error("File %s checksum mismatch after an update, expected %s, now %s", iter->first.c_str(), iter->second.hash_sum.c_str(),
 				   checksum.c_str());
 			return false;
 		}
