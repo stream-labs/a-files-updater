@@ -53,6 +53,8 @@ jobs:
           -DCMAKE_BUILD_TYPE=RelWithDebInfo -A x64 ^
           -DCMAKE_DEPS_DIR=${{env.DEPS_LOCAL_PATH}} ^
           -DCMAKE_INSTALL_PREFIX="build/distribute/a-file-updater"
+        env:
+          RELEASE_VERSION: ${{ steps.get_version.outputs.VERSION }}
       - name: Build
         run: cmake --build "build" --target install --config RelWithDebInfo
       - name: Cache build
