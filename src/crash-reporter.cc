@@ -148,10 +148,10 @@ bool is_launched_by_explorer()
 
 std::string get_version()
 {
+	std::string version = "0.0.0-dev";
 #ifdef RELEASE_VERSION
-	std::string version = #RELEASE_VERSION;
-#else
-	std::string version = "v0.0.26";
+#define STRINGIFY(x) #x
+	version = std::string(STRINGIFY(RELEASE_VERSION));
 #endif
 	return version;
 }
