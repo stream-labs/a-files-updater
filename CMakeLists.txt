@@ -13,10 +13,15 @@ set(SENTRY_PROJECT_KEY "7492ebea21f54618a550163938dc164d")
 
 if(DEFINED ENV{RELEASE_VERSION} AND NOT "$ENV{RELEASE_VERSION}" STREQUAL "")
 	set(RELEASE_VERSION "$ENV{RELEASE_VERSION}")
+
+	string(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)-dev([0-9]+)" "\\1" APP_VERSION_MAJOR "${RELEASE_VERSION}")
+	string(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)-dev([0-9]+)" "\\2" APP_VERSION_MINOR "${RELEASE_VERSION}")
+	string(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)-dev([0-9]+)" "\\3" APP_VERSION_BUILD "${RELEASE_VERSION}")
+	string(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)-dev([0-9]+)" "\\4" APP_VERSION_REVISION "${RELEASE_VERSION}")
+	set(RELEASE_VERSION_DOTS "${APP_VERSION_MAJOR}.${APP_VERSION_MINOR}.${APP_VERSION_BUILD}.${APP_VERSION_REVISION}")
 	string(REPLACE "." "," RELEASE_VERSION_COMMA "${RELEASE_VERSION}")
-	string(APPEND RELEASE_VERSION_COMMA ",0")
 else()
-    set(RELEASE_VERSION "0.0.0.0")
+	set(RELEASE_VERSION_DOTS "0.0.0.0")
 	set(RELEASE_VERSION_COMMA "0,0,0,0")
 endif()
 
@@ -147,7 +152,6 @@ if(NOT WIN_MT)
 endif()
 
 cppcheck_add_project(slobs-updater)
-
 
 add_custom_command(
 	TARGET slobs-updater
