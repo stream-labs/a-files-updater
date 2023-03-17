@@ -150,8 +150,7 @@ std::string get_version()
 {
 	std::string version = "0.0.0-dev";
 #ifdef RELEASE_VERSION
-#define STRINGIFY(x) #x
-	version = std::string(STRINGIFY(RELEASE_VERSION));
+	version = std::string(RELEASE_VERSION);
 #endif
 	return version;
 }
