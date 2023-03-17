@@ -7,3 +7,5 @@ test/testfiles
 .vs/
 
 *messages.mo
+resources/slobs-updater.exe.manifest
+resources/slobs-updater.rc

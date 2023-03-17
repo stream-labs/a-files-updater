@@ -597,14 +597,6 @@ void update_client::checkup_files(struct blockers_map_t &blockers, int from, int
 				if (key.find("Uninstall") == 0 || key.find("installername") == 0) {
 					entry_update_info.remove_at_update = false;
 					entry_update_info.skip_update = true;
-				} else {
-					static int removed_files = 0;
-					removed_files++;
-					if (removed_files < 30) {
-						log_info("Not found local file in new versions manifest. Try to remove it %s", key.c_str());
-					} else if (removed_files == 30) {
-						log_info("More than 30 files not found in manifest. Logging postponed.");
-					}
 				}
 
 				manifest.emplace(std::make_pair(key, entry_update_info));
@@ -660,7 +652,6 @@ void update_client::checkup_manifest(blockers_map_t &blockers)
 
 	std::vector<std::thread *> workers;
 
-	log_info("Full size: %d", local_manifest.size());
 	if (max_threads > local_manifest.size())
 		max_threads = local_manifest.size();
 
@@ -671,8 +662,6 @@ void update_client::checkup_manifest(blockers_map_t &blockers)
 			to = local_manifest.size() * (i + 1) / max_threads;
 		else
 			to = local_manifest.size();
-
-		log_info("Begining work from: %d to: %d", from, to);
 		workers.push_back(new std::thread(&update_client::checkup_files, this, std::ref(blockers), from, to));
 		from = to;
 	}
@@ -749,7 +738,7 @@ void update_client::process_manifest_results()
 				}
 				break;
 			case 2: {
-				log_info("Got cancel command from ui");
+				log_info("Got cancel command from ui on blocker");
 				client_events->error(boost::locale::translate("Update was canceled."), "Canceled");
 				reset_work_threads_guards();
 				return;

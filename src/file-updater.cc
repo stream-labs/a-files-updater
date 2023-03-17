@@ -205,16 +205,16 @@ bool FileUpdater::backup()
 			if (fs::exists(to_path, ec)) {
 				fs::rename(to_path, old_file_path, ec);
 				if (ec == std::errc::no_space_on_device) {
+					std::wstring wmsg = ConvertToUtf16WS(ec.message());
+					wlog_error(L"Failed to backup entry %s to %s, not enough space, error %s", to_path.c_str(), old_file_path.c_str(),
+							   wmsg.c_str());
 					if (m_update_client->check_disk_space()) {
 						continue;
 					} else {
-						wlog_error(L"Failed to backup entry %s to %s, error %s", to_path.c_str(), old_file_path.c_str(),
-							   ec.message().c_str());
 						return false;
 					}
 				} else if (ec) {
 					std::wstring wmsg = ConvertToUtf16WS(ec.message());
-
 					wlog_debug(L"Failed to backup entry %s to %s, error %s", to_path.c_str(), old_file_path.c_str(), wmsg.c_str());
 					return false;
 				}
@@ -234,12 +234,17 @@ bool FileUpdater::backup()
 bool FileUpdater::is_local_files_changed()
 {
 	for (auto &file : m_local_manifest) {
-		std::string checksum = calculate_files_checksum_safe(file.first);
-		if (checksum != file.second) {
-			std::wstring checksum_expected = ConvertToUtf16WS(file.second);
-			std::wstring checksum_now = ConvertToUtf16WS(checksum);
-			wlog_error(L"File %s checksum mismatch after revert, expected %s, now %s", file.first.c_str(), checksum_expected.c_str(), checksum_now.c_str());
-			return true;
+		std::error_code ec;
+		if (!fs::exists(file.first, ec)) {
+			wlog_error(L"File %s does not exist after revert", file.first.c_str());
+		} else {
+			std::string checksum = calculate_files_checksum_safe(file.first);
+			if (checksum != file.second) {
+				std::wstring checksum_expected = ConvertToUtf16WS(file.second);
+				std::wstring checksum_now = ConvertToUtf16WS(checksum);
+				wlog_error(L"File %s checksum mismatch after revert, expected %s, now %s", file.first.c_str(), checksum_expected.c_str(), checksum_now.c_str());
+				return true;
+			}
 		}
 	}
 
