@@ -67,6 +67,8 @@ void print_stacktrace_sym(CONTEXT *ctx, std::ostringstream &report_stream) noexc
 std::string create_mini_dump(EXCEPTION_POINTERS *pep) noexcept;
 
 std::string escapeJsonString(const std::string &input) noexcept;
+std::string get_version();
+std::string GetWindowsVersionString();
 
 #include "dbghelp.h"
 #pragma comment(lib, "Dbghelp.lib")
@@ -77,6 +79,7 @@ std::string prepare_crash_report(struct _EXCEPTION_POINTERS *ExceptionInfo, std:
 
 	json_report << "{";
 	json_report << "	\"event_id\": \"" << get_uuid() << "\", ";
+	json_report << "	\"release\": \"" << get_version() << "\", ";
 	json_report << "	\"timestamp\": \"" << get_timestamp() << "\", ";
 	if (send_manual_backtrace) {
 		json_report << "	\"exception\": {\"values\":[{";
@@ -104,12 +107,8 @@ std::string prepare_crash_report(struct _EXCEPTION_POINTERS *ExceptionInfo, std:
 		json_report << "		\"report_type\": \""
 			    << "catched_error"
 			    << "\", ";
-	json_report << "		\"updater_version\": \""
-		    << "v0.0.26"
-		    << "\", ";
-	json_report << "		\"os_version\": \""
-		    << "WIN32"
-		    << "\" ";
+	json_report << "		\"updater_version\": \"" << get_version() << "\", ";
+	json_report << "		\"os_version\": \"" << GetWindowsVersionString() << "\" ";
 	json_report << "	}, ";
 	json_report << "	\"extra\": { ";
 	json_report << "		\"app_run_time\": \"" << get_time_from_start() << "\", ";
@@ -145,6 +144,30 @@ bool is_launched_by_explorer()
 		return std::equal(explorer_exe.rbegin(), explorer_exe.rend(), parent_path.rbegin(), [](char a, char b) { return tolower(a) == tolower(b); });
 
 	return false;
+}
+
+std::string get_version()
+{
+#ifdef RELEASE_VERSION
+	std::string version = RELEASE_VERSION;
+#else
+	std::string version = "v0.0.26";
+#endif
+	return version;
+}
+
+std::string GetWindowsVersionString()
+{
+	OSVERSIONINFO osvi;
+	ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
+	osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+
+	if (GetVersionEx(&osvi)) {
+		return "Windows:" + std::to_string(osvi.dwMajorVersion) + "." + std::to_string(osvi.dwMinorVersion) + " (build " +
+		       std::to_string(osvi.dwBuildNumber) + ")";
+	} else {
+		return "Windows:unknown";
+	}
 }
 
 std::string get_parent_process_path(bool only_first_parent) noexcept
@@ -220,8 +243,9 @@ std::string create_mini_dump(EXCEPTION_POINTERS *pep) noexcept
 		mdei.ExceptionPointers = pep;
 		mdei.ClientPointers = TRUE;
 
-		const DWORD CD_Flags = MiniDumpWithDataSegs | MiniDumpWithHandleData | MiniDumpScanMemory | MiniDumpWithUnloadedModules | MiniDumpWithIndirectlyReferencedMemory |
-				       MiniDumpWithPrivateReadWriteMemory | MiniDumpWithFullMemoryInfo | MiniDumpWithThreadInfo | MiniDumpIgnoreInaccessibleMemory;
+		const DWORD CD_Flags = MiniDumpWithDataSegs | MiniDumpWithHandleData | MiniDumpScanMemory | MiniDumpWithUnloadedModules |
+				       MiniDumpWithIndirectlyReferencedMemory | MiniDumpWithPrivateReadWriteMemory | MiniDumpWithFullMemoryInfo |
+				       MiniDumpWithThreadInfo | MiniDumpIgnoreInaccessibleMemory;
 
 		BOOL rv = MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, (MINIDUMP_TYPE)CD_Flags, (pep != 0) ? &mdei : 0, 0, 0);
 		if (!rv) {
@@ -282,8 +306,9 @@ int send_crash_to_sentry_sync(const std::string &report_json, bool send_minidump
 			//Calculate length of entire HTTP request - goes into header
 			long long lengthOfRequest = 0;
 			lengthOfRequest += PREFIX.length() + BOUNDARY.length() + NEWLINE_LENGTH;
-			lengthOfRequest +=
-				(std::string("Content-Disposition: form-data; name=\"upload_file_minidump\"; filename=\"") + minidump_filename + std::string("\"")).length();
+			lengthOfRequest += (std::string("Content-Disposition: form-data; name=\"upload_file_minidump\"; filename=\"") + minidump_filename +
+					    std::string("\""))
+						   .length();
 			lengthOfRequest += NEWLINE_LENGTH + NEWLINE_LENGTH;
 			lengthOfRequest += minidump_file_size;
 			lengthOfRequest += NEWLINE_LENGTH + PREFIX.length() + BOUNDARY.length() + NEWLINE_LENGTH;
@@ -548,7 +573,8 @@ void print_stacktrace_sym(CONTEXT *ctx, std::ostringstream &report_stream) noexc
 
 		hModule = NULL;
 		lstrcpyA(module, "");
-		if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCTSTR)(stack.AddrPC.Offset), &hModule)) {
+		if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCTSTR)(stack.AddrPC.Offset),
+				      &hModule)) {
 			if (hModule != NULL) {
 				if (GetModuleFileNameA(hModule, module, MaxNameLen)) {
 					std::string module_name = module;

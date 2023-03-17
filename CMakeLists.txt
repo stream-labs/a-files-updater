@@ -12,9 +12,11 @@ set(SENTRY_PROJECT_ID "1390326")
 set(SENTRY_PROJECT_KEY "7492ebea21f54618a550163938dc164d")
 
 if(DEFINED ENV{RELEASE_VERSION})
-	set(UPDATER_VERSION "$ENV{RELEASE_VERSION}")
+	set(RELEASE_VERSION "$ENV{RELEASE_VERSION}")
+	string(REPLACE "." "," RELEASE_VERSION_COMMA "${RELEASE_VERSION}")
 else()
-    set(UPDATER_VERSION "0.dev")
+    set(RELEASE_VERSION "0.dev")
+	set(RELEASE_VERSION_COMMA "0,0,0,0")
 endif()
 
 set(ZLIB_ROOT ${CMAKE_DEPS_DIR}/zlib)
@@ -143,6 +145,7 @@ endif()
 cppcheck_add_project(slobs-updater)
 
 configure_file("${slobs-updater_SOURCE_DIR}/resources/slobs-updater.exe.in" "${slobs-updater_SOURCE_DIR}/resources/slobs-updater.exe.manifest" @ONLY)
+configure_file("${slobs-updater_SOURCE_DIR}/resources/slobs-updater.rc.in" "${slobs-updater_SOURCE_DIR}/resources/slobs-updater.rc" @ONLY)
 
 add_custom_command(
 	TARGET slobs-updater
