@@ -148,26 +148,45 @@ bool is_launched_by_explorer()
 
 std::string get_version()
 {
+	std::string version = "0.0.0-dev";
 #ifdef RELEASE_VERSION
-	std::string version = "RELEASE_VERSION";
-#else
-	std::string version = "v0.0.26";
+	version = std::string(RELEASE_VERSION);
 #endif
 	return version;
 }
 
 std::string GetWindowsVersionString()
 {
-	OSVERSIONINFO osvi;
-	ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
-	osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+	DWORD dwHandle;
+	VS_FIXEDFILEINFO *pFixedFileInfo;
+	UINT uLen;
+	std::ostringstream oss;
 
-	if (GetVersionEx(&osvi)) {
-		return "Windows:" + std::to_string(osvi.dwMajorVersion) + "." + std::to_string(osvi.dwMinorVersion) + " (build " +
-		       std::to_string(osvi.dwBuildNumber) + ")";
+	DWORD dwSize = GetFileVersionInfoSize(TEXT("kernel32.dll"), &dwHandle);
+	BYTE *pBuffer = new BYTE[dwSize];
+
+	if (GetFileVersionInfo(TEXT("kernel32.dll"), dwHandle, dwSize, pBuffer)) {
+		if (VerQueryValue(pBuffer, TEXT("\\"), (LPVOID *)&pFixedFileInfo, &uLen)) {
+			DWORD dwFileVersionMS = pFixedFileInfo->dwFileVersionMS;
+			DWORD dwFileVersionLS = pFixedFileInfo->dwFileVersionLS;
+
+			DWORD dwMajorVersion = HIWORD(dwFileVersionMS);
+			DWORD dwMinorVersion = LOWORD(dwFileVersionMS);
+			DWORD dwBuildNumber = HIWORD(dwFileVersionLS);
+			DWORD dwRevisionNumber = LOWORD(dwFileVersionLS);
+
+			oss << "Windows:" << dwMajorVersion << "." << dwMinorVersion << " (build " << dwBuildNumber << "." << dwRevisionNumber << ")";
+		} else {
+			oss << "Windows:unknown";
+		}
+
 	} else {
-		return "Windows:unknown";
+		oss << "Windows:unknown";
 	}
+
+	delete[] pBuffer;
+
+	return oss.str();
 }
 
 std::string get_parent_process_path(bool only_first_parent) noexcept
