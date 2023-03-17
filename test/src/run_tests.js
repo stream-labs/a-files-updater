@@ -23,7 +23,7 @@ async function run_tests() {
         //testinfo.let_block_one_file = true;
         //testinfo.let_404 = true;
         //testinfo.morebigfiles = true;
-        testinfo.expectedResult = "filescorrupted"
+        //testinfo.expectedResult = "filescorrupted"
         // testinfo.selfBlockersCount = 5;
         // testinfo.selfBlockingFile = true;
         // testinfo.selfLockingFile = true;

@@ -11,11 +11,12 @@ set(CMAKE_MODULE_PATH
 set(SENTRY_PROJECT_ID "1390326")
 set(SENTRY_PROJECT_KEY "7492ebea21f54618a550163938dc164d")
 
-if(DEFINED ENV{RELEASE_VERSION})
+if(DEFINED ENV{RELEASE_VERSION} AND NOT "$ENV{RELEASE_VERSION}" STREQUAL "")
 	set(RELEASE_VERSION "$ENV{RELEASE_VERSION}")
 	string(REPLACE "." "," RELEASE_VERSION_COMMA "${RELEASE_VERSION}")
+	string(APPEND RELEASE_VERSION_COMMA ",0")
 else()
-    set(RELEASE_VERSION "0.dev")
+    set(RELEASE_VERSION "0.0.0.0")
 	set(RELEASE_VERSION_COMMA "0,0,0,0")
 endif()
 
@@ -128,6 +129,9 @@ target_compile_definitions(slobs-updater
 	-D_SILENCE_CXX17_ALLOCATOR_VOID_DEPRECATION_WARNING
 )
 
+configure_file("${slobs-updater_SOURCE_DIR}/resources/slobs-updater.exe.in" "${slobs-updater_SOURCE_DIR}/resources/slobs-updater.exe.manifest" @ONLY)
+configure_file("${slobs-updater_SOURCE_DIR}/resources/slobs-updater.rc.in" "${slobs-updater_SOURCE_DIR}/resources/slobs-updater.rc" @ONLY)
+
 include(FetchContent)
 
 # Compare current linked libs with prev
@@ -144,8 +148,6 @@ endif()
 
 cppcheck_add_project(slobs-updater)
 
-configure_file("${slobs-updater_SOURCE_DIR}/resources/slobs-updater.exe.in" "${slobs-updater_SOURCE_DIR}/resources/slobs-updater.exe.manifest" @ONLY)
-configure_file("${slobs-updater_SOURCE_DIR}/resources/slobs-updater.rc.in" "${slobs-updater_SOURCE_DIR}/resources/slobs-updater.rc" @ONLY)
 
 add_custom_command(
 	TARGET slobs-updater
