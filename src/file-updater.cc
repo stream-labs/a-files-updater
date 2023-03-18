@@ -237,6 +237,7 @@ bool FileUpdater::is_local_files_changed()
 		std::error_code ec;
 		if (!fs::exists(file.first, ec)) {
 			wlog_error(L"File %s does not exist after revert", file.first.c_str());
+			return true;
 		} else {
 			std::string checksum = calculate_files_checksum_safe(file.first);
 			if (checksum != file.second) {
