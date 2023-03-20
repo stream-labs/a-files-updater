@@ -68,6 +68,8 @@ void FileUpdater::update_entry_with_retries(manifest_map_t::const_iterator &iter
 				wlog_warn(L"Have failed to update file: %s, no space on device", wmsg.c_str());
 				throw std::runtime_error("Error: no space on device");
 			}
+		} else if(ret == std::errc::no_space_on_device) {
+
 		} else if (ret) {
 			if (retries == 1) {
 				std::wstring wmsg = ConvertToUtf16WS(iter->first);
