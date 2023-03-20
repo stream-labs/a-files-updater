@@ -68,8 +68,6 @@ void FileUpdater::update_entry_with_retries(manifest_map_t::const_iterator &iter
 				wlog_warn(L"Have failed to update file: %s, no space on device", wmsg.c_str());
 				throw std::runtime_error("Error: no space on device");
 			}
-		} else if(ret == std::errc::no_space_on_device) {
-
 		} else if (ret) {
 			if (retries == 1) {
 				std::wstring wmsg = ConvertToUtf16WS(iter->first);
@@ -78,7 +76,7 @@ void FileUpdater::update_entry_with_retries(manifest_map_t::const_iterator &iter
 			Sleep(100 * retries);
 			continue;
 		} else {
-			is_updated = true; 
+			is_updated = true;
 			break;
 		}
 	}
@@ -209,7 +207,7 @@ bool FileUpdater::backup()
 				if (ec == std::errc::no_space_on_device) {
 					std::wstring wmsg = ConvertToUtf16WS(ec.message());
 					wlog_error(L"Failed to backup entry %s to %s, not enough space, error %s", to_path.c_str(), old_file_path.c_str(),
-							   wmsg.c_str());
+						   wmsg.c_str());
 					if (m_update_client->check_disk_space()) {
 						continue;
 					} else {
@@ -245,7 +243,8 @@ bool FileUpdater::is_local_files_changed()
 			if (checksum != file.second) {
 				std::wstring checksum_expected = ConvertToUtf16WS(file.second);
 				std::wstring checksum_now = ConvertToUtf16WS(checksum);
-				wlog_error(L"File %s checksum mismatch after revert, expected %s, now %s", file.first.c_str(), checksum_expected.c_str(), checksum_now.c_str());
+				wlog_error(L"File %s checksum mismatch after revert, expected %s, now %s", file.first.c_str(), checksum_expected.c_str(),
+					   checksum_now.c_str());
 				return true;
 			}
 		}
@@ -277,7 +276,7 @@ bool FileUpdater::is_local_files_updated()
 		std::string checksum = calculate_files_checksum_safe(to_path);
 		if (checksum != iter->second.hash_sum) {
 			log_error("File %s checksum mismatch after an update, expected %s, now %s", iter->first.c_str(), iter->second.hash_sum.c_str(),
-				   checksum.c_str());
+				  checksum.c_str());
 			return false;
 		}
 	}
