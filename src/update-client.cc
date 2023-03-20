@@ -602,6 +602,9 @@ void update_client::checkup_files(struct blockers_map_t &blockers, int from, int
 				manifest.emplace(std::make_pair(key, entry_update_info));
 
 				local_manifest.at(i).second = calculate_files_checksum_safe(entry);
+			} else {
+				if(local_manifest.at(i).second.empty())
+					local_manifest.at(i).second = calculate_files_checksum_safe(entry);
 			}
 			continue;
 		}

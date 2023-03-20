@@ -251,9 +251,12 @@ bool su_parse_command_line(int argc, char **argv, struct update_parameters *para
 		if (params->app_dir.u8string().find("Streamlabs OBS") != std::string::npos ||
 		    params->app_dir.u8string().find("Streamlabs Desktop") != std::string::npos) {
 			params->enable_removing_old_files = true;
-			log_warn("The path does look like a default install path. Updater be able to remove files from old versions.");
 		}
 	}
+	if (params->enable_removing_old_files)
+		log_warn("The path does look like a default install path. Updater be able to remove files from old versions.");
+	else
+		log_warn("The path does look like a default install path. Updater will not be able to remove files from old versions.");
 
 	params->exec.assign(std::string("\"") + std::string(exec_arg->sval[0]) + std::string("\""));
 	params->exec_no_update.assign(std::string("\"") + std::string(exec_arg->sval[0]) + std::string("\"") + std::string(" --skip-update"));
