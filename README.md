@@ -13,7 +13,7 @@ cmake -H"." -B"build" -G"Visual Studio 17 2022" -DCMAKE_BUILD_TYPE=RelWithDebInf
 cmake --build build --target install --config RelWithDebInfo
 ```
 ##
-This project depends on a few libraries.
+This project depends on a few third party libraries.
 
 * OpenSSL 1.1.x
 * Boost 1.79.0 (system, filesystem, thread, regex, and headers for asio, beast, iostreams, core, util)
