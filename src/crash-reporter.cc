@@ -118,6 +118,9 @@ std::string prepare_crash_report(struct _EXCEPTION_POINTERS *ExceptionInfo, std:
 	json_report << "		\"console_args\": \"" << get_command_line() << "\", ";
 	json_report << "		\"current_dir\": \"" << get_current_dir() << "\", ";
 	json_report << "		\"parent_process\": \"" << get_parent_process_path(false) << "\" ";
+	json_report << "	}, ";
+	json_report << "	\"user\": { ";
+	json_report << "		\"ip_address\": \"{{auto}}\", ";
 	json_report << "	} ";
 	json_report << "}";
 
