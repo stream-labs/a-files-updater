@@ -278,7 +278,19 @@ std::string unfixup_uri(const std::string &source)
 {
 	std::string result(source);
 
-	boost::algorithm::replace_all(result, "%20", " ");
+	// Map of URL-encoded strings to their character equivalents
+	const std::map<std::string, char> urlDecodeMap = {{"%20", ' '}, {"%22", '"'}, {"%23", '#'}, {"%26", '&'}, {"%27", '\''}, {"%28", '('}, {"%29", ')'},
+							  {"%2A", '*'}, {"%2B", '+'}, {"%2C", ','}, {"%3A", ':'}, {"%3B", ';'},  {"%3C", '<'}, {"%3E", '='},
+							  {"%3F", '?'}, {"%40", '@'}, {"%5B", '['}, {"%5D", ']'}, {"%5E", '^'},  {"%60", '`'}, {"%7B", '{'},
+							  {"%7C", '|'}, {"%7D", '}'}, {"%7E", '~'}, {"%25", '%'}};
+
+	// Iterating over each encoded sequence in the map
+	for (const auto &pair : urlDecodeMap) {
+		boost::algorithm::replace_all(result, pair.first, std::string(1, pair.second));
+	}
+
+	// Replacing encoded backslash
+	boost::algorithm::replace_all(result, "/", "\\");
 
 	return result;
 }
