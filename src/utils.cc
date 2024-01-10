@@ -261,8 +261,15 @@ std::string fixup_uri(const std::string &source)
 {
 	std::string result(source);
 
-	boost::algorithm::replace_all(result, "\\", "/");
-	boost::algorithm::replace_all(result, " ", "%20");
+	const std::map<char, std::string> urlEncodeMap = {{' ', "%20"}, {'"', "%22"}, {'#', "%23"}, {'&', "%26"}, {'\'', "%27"}, {'(', "%28"}, {')', "%29"},
+							  {'*', "%2A"}, {'+', "%2B"}, {',', "%2C"}, {'/', "%2F"}, {':', "%3A"},  {';', "%3B"}, {'<', "%3C"},
+							  {'=', "%3E"}, {'?', "%3F"}, {'@', "%40"}, {'[', "%5B"}, {']', "%5D"},  {'^', "%5E"}, {'`', "%60"},
+							  {'{', "%7B"}, {'|', "%7C"}, {'}', "%7D"}, {'~', "%7E"}};
+
+	boost::algorithm::replace_all(result, "%", "%25");
+	for (const auto &pair : urlEncodeMap) {
+		boost::algorithm::replace_all(result, std::string(1, pair.first), pair.second);
+	}
 
 	return result;
 }
