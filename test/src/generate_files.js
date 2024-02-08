@@ -233,7 +233,6 @@ async function generate_server_dir(testinfo) {
 
     await generate_file(update_subdirpath, file.name, filecontentextended, fileempty, file.hugefile);
   }
-  
 
   if (testinfo.morebigfiles) {
     let file_index;
@@ -343,7 +342,7 @@ async function generate_result_dir(testinfo, update_subdirpath) {
 
     await generate_file(update_subdirpath, file.name, filecontentextended, fileempty, file.hugefile);
   }
-  
+
   if (testinfo.morebigfiles) {
     let file_index;
     for (file_index = 0; file_index < morefilesmax; file_index++) {
