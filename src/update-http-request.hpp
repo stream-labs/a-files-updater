@@ -51,6 +51,8 @@ template<class Body, bool IncludeVersion> struct update_http_request {
 	beast::multi_buffer response_buf;
 	http::response_parser<Body> response_parser;
 
+	void set_sni_hostname();
+
 	/* We need way to detect stuck connection.
 	*  For that we use boost deadline timer what can limit
 	*  time for each step of file downloader connection.
@@ -102,9 +104,15 @@ update_http_request<Body, IncludeVersion>::update_http_request(update_client *cl
 
 	request = {http::verb::get, full_target, 11};
 
-	request.set(http::field::host, client_ctx->params->host.authority);
+	std::string host = client_ctx->params->host.authority;
+	auto colon_pos = host.find(':');
+	if (colon_pos != std::string::npos) {
+		host = host.substr(0, colon_pos);
+	}
+	request.set(http::field::host, host);
 
-	request.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+	request.set(http::field::user_agent, "Streamlabs Desktop updater application/1.0," BOOST_BEAST_VERSION_STRING);
+	request.set(http::field::accept, "*/*");
 
 	response_parser.body_limit(std::numeric_limits<unsigned long long>::max());
 
@@ -188,12 +196,23 @@ template<class Body, bool IncludeVersion> void update_http_request<Body, Include
 	}
 }
 
+template<class Body, bool IncludeVersion> void update_http_request<Body, IncludeVersion>::set_sni_hostname()
+{
+	if (!SSL_set_tlsext_host_name(ssl_socket.native_handle(), client_ctx->params->host.authority.c_str())) {
+		boost::system::error_code ec{static_cast<int>(::ERR_get_error()), boost::asio::error::get_ssl_category()};
+		handle_callback_precheck(ec, "set SNI hostname");
+		return;
+	}
+}
+
 template<class Body, bool IncludeVersion>
 void update_http_request<Body, IncludeVersion>::handle_connect(const boost::system::error_code &error, tcp::resolver::results_type::iterator ep)
 {
 	if (handle_callback_precheck(error, "connect to host")) {
 		return;
 	}
+
+	set_sni_hostname();
 
 	auto handshake_handler = [this](auto e) { this->handle_handshake(e); };
 
@@ -235,12 +254,13 @@ template<class Body, bool IncludeVersion> void update_http_request<Body, Include
 		return;
 	}
 
-	int status_code = response_parser.get().result_int();
+	auto &response = response_parser.get();
+	int status_code = response.result_int();
 	if (status_code != 200) {
 		auto target_info = request.target();
 
 		std::string output_str =
-			std::string("Server send status Code: ") + std::to_string(status_code) + " for: " + std::string(target_info.data(), target_info.size());
+			"Server sent status code: " + std::to_string(status_code) + " for: " + std::string(target_info.data(), target_info.size());
 
 		handle_download_error(boost::asio::error::basic_errors::connection_aborted, output_str);
 		return;
@@ -255,7 +275,7 @@ template<class Body, bool IncludeVersion> void update_http_request<Body, Include
 	if (content_length == 0) {
 		auto target_info = request.target();
 
-		std::string output_str = std::string("Receive empty header for: ") + std::string(target_info.data(), target_info.size());
+		std::string output_str = "Received empty header for: " + std::string(target_info.data(), target_info.size());
 
 		handle_download_error(boost::asio::error::basic_errors::connection_aborted, output_str);
 		return;

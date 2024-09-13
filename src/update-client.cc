@@ -268,6 +268,7 @@ update_client::update_client(struct update_parameters *params)
 	new_files_dir = params->temp_dir;
 	new_files_dir /= "new-files";
 
+	this->ssl_context.set_verify_mode(ssl::verify_none);
 	this->ssl_context.set_default_verify_paths();
 
 	fs::create_directories(new_files_dir);
